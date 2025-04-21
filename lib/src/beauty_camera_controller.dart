@@ -210,32 +210,32 @@ class _CameraCallbacks extends BeautyCameraFlutterApi {
   _CameraCallbacks(this._controller);
 
   @override
-  void onCameraInitialized(int textureId, int width, int height) {
+  Future<void> onCameraInitialized(int textureId, int width, int height) async {
     _controller._textureId = textureId;
     _controller._isInitialized = true;
     _controller._notifyStateChange();
   }
 
   @override
-  void onTakePictureCompleted(String path) {
+  Future<void> onTakePictureCompleted(String path) async {
     // Notify UI of successful picture capture
     _controller._notifyStateChange();
   }
 
   @override
-  void onRecordingStarted() {
+  Future<void> onRecordingStarted() async {
     _controller._isRecording = true;
     _controller._notifyStateChange();
   }
 
   @override
-  void onRecordingStopped(String path) {
+  Future<void> onRecordingStopped(String path) async {
     _controller._isRecording = false;
     _controller._notifyStateChange();
   }
 
   @override
-  void onCameraError(CameraError error) {
+  Future<void> onCameraError(CameraError error) async {
     _controller._handleError(error);
   }
 }

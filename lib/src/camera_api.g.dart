@@ -74,11 +74,37 @@ enum CameraErrorType {
   unknown,
 }
 
+/// Camera effect modes
+enum CameraEffectMode {
+  none,
+  mono,
+  negative,
+  solarize,
+  sepia,
+  posterize,
+  whiteboard,
+  blackboard,
+  aqua,
+}
+
+/// White balance modes
+enum WhiteBalanceMode {
+  auto,
+  incandescent,
+  fluorescent,
+  warmFluorescent,
+  daylight,
+  cloudyDaylight,
+  twilight,
+  shade,
+}
+
 /// Configuration settings for camera initialization
 class CameraSettings {
   CameraSettings({
     this.width,
     this.height,
+    this.cameraId,
   });
 
   /// The desired width of the camera preview in pixels
@@ -89,10 +115,14 @@ class CameraSettings {
   /// If null, the default camera resolution will be used
   int? height;
 
+  /// The camera ID
+  String? cameraId;
+
   List<Object?> _toList() {
     return <Object?>[
       width,
       height,
+      cameraId,
     ];
   }
 
@@ -104,6 +134,7 @@ class CameraSettings {
     return CameraSettings(
       width: result[0] as int?,
       height: result[1] as int?,
+      cameraId: result[2] as String?,
     );
   }
 
@@ -130,6 +161,13 @@ class FilterConfig {
   FilterConfig({
     this.filterType,
     this.parameters,
+    this.effectMode,
+    this.brightness,
+    this.saturation,
+    this.contrast,
+    this.sharpness,
+    this.whiteBalance,
+    this.iso,
   });
 
   /// The type of filter to apply
@@ -142,10 +180,38 @@ class FilterConfig {
   /// - For custom: varies based on implementation
   Map<String, Object?>? parameters;
 
+  /// The effect mode
+  CameraEffectMode? effectMode;
+
+  /// Brightness adjustment (-1.0 to 1.0)
+  double? brightness;
+
+  /// Saturation adjustment (0.0 to 2.0)
+  double? saturation;
+
+  /// Contrast adjustment (0.0 to 2.0)
+  double? contrast;
+
+  /// Sharpness adjustment (0.0 to 1.0)
+  double? sharpness;
+
+  /// White balance mode
+  WhiteBalanceMode? whiteBalance;
+
+  /// ISO value
+  int? iso;
+
   List<Object?> _toList() {
     return <Object?>[
       filterType,
       parameters,
+      effectMode,
+      brightness,
+      saturation,
+      contrast,
+      sharpness,
+      whiteBalance,
+      iso,
     ];
   }
 
@@ -157,6 +223,13 @@ class FilterConfig {
     return FilterConfig(
       filterType: result[0] as String?,
       parameters: (result[1] as Map<Object?, Object?>?)?.cast<String, Object?>(),
+      effectMode: result[2] as CameraEffectMode?,
+      brightness: result[3] as double?,
+      saturation: result[4] as double?,
+      contrast: result[5] as double?,
+      sharpness: result[6] as double?,
+      whiteBalance: result[7] as WhiteBalanceMode?,
+      iso: result[8] as int?,
     );
   }
 
@@ -241,14 +314,20 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is CameraErrorType) {
       buffer.putUint8(130);
       writeValue(buffer, value.index);
-    }    else if (value is CameraSettings) {
+    }    else if (value is CameraEffectMode) {
       buffer.putUint8(131);
+      writeValue(buffer, value.index);
+    }    else if (value is WhiteBalanceMode) {
+      buffer.putUint8(132);
+      writeValue(buffer, value.index);
+    }    else if (value is CameraSettings) {
+      buffer.putUint8(133);
       writeValue(buffer, value.encode());
     }    else if (value is FilterConfig) {
-      buffer.putUint8(132);
+      buffer.putUint8(134);
       writeValue(buffer, value.encode());
     }    else if (value is CameraError) {
-      buffer.putUint8(133);
+      buffer.putUint8(135);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -265,10 +344,16 @@ class _PigeonCodec extends StandardMessageCodec {
         final int? value = readValue(buffer) as int?;
         return value == null ? null : CameraErrorType.values[value];
       case 131: 
-        return CameraSettings.decode(readValue(buffer)!);
+        final int? value = readValue(buffer) as int?;
+        return value == null ? null : CameraEffectMode.values[value];
       case 132: 
-        return FilterConfig.decode(readValue(buffer)!);
+        final int? value = readValue(buffer) as int?;
+        return value == null ? null : WhiteBalanceMode.values[value];
       case 133: 
+        return CameraSettings.decode(readValue(buffer)!);
+      case 134: 
+        return FilterConfig.decode(readValue(buffer)!);
+      case 135: 
         return CameraError.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -530,25 +615,25 @@ abstract class BeautyCameraFlutterApi {
   ///
   /// [textureId] is the ID of the preview texture
   /// [width] and [height] are the actual dimensions of the camera preview
-  void onCameraInitialized(int textureId, int width, int height);
+  Future<void> onCameraInitialized(int textureId, int width, int height);
 
   /// Called when a picture has been taken and saved
   ///
   /// [path] is the path where the image was saved
-  void onTakePictureCompleted(String path);
+  Future<void> onTakePictureCompleted(String path);
 
   /// Called when video recording has started
-  void onRecordingStarted();
+  Future<void> onRecordingStarted();
 
   /// Called when video recording has stopped
   ///
   /// [path] is the path where the video was saved
-  void onRecordingStopped(String path);
+  Future<void> onRecordingStopped(String path);
 
   /// Called when a camera error occurs
   ///
   /// [error] contains both the type and message of the error
-  void onCameraError(CameraError error);
+  Future<void> onCameraError(CameraError error);
 
   static void setUp(BeautyCameraFlutterApi? api, {BinaryMessenger? binaryMessenger, String messageChannelSuffix = '',}) {
     messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
@@ -573,7 +658,7 @@ abstract class BeautyCameraFlutterApi {
           assert(arg_height != null,
               'Argument for dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onCameraInitialized was null, expected non-null int.');
           try {
-            api.onCameraInitialized(arg_textureId!, arg_width!, arg_height!);
+            await api.onCameraInitialized(arg_textureId!, arg_width!, arg_height!);
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);
@@ -598,7 +683,7 @@ abstract class BeautyCameraFlutterApi {
           assert(arg_path != null,
               'Argument for dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onTakePictureCompleted was null, expected non-null String.');
           try {
-            api.onTakePictureCompleted(arg_path!);
+            await api.onTakePictureCompleted(arg_path!);
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);
@@ -617,7 +702,7 @@ abstract class BeautyCameraFlutterApi {
       } else {
         pigeonVar_channel.setMessageHandler((Object? message) async {
           try {
-            api.onRecordingStarted();
+            await api.onRecordingStarted();
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);
@@ -642,7 +727,7 @@ abstract class BeautyCameraFlutterApi {
           assert(arg_path != null,
               'Argument for dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onRecordingStopped was null, expected non-null String.');
           try {
-            api.onRecordingStopped(arg_path!);
+            await api.onRecordingStopped(arg_path!);
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);
@@ -667,7 +752,7 @@ abstract class BeautyCameraFlutterApi {
           assert(arg_error != null,
               'Argument for dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onCameraError was null, expected non-null CameraError.');
           try {
-            api.onCameraError(arg_error!);
+            await api.onCameraError(arg_error!);
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);

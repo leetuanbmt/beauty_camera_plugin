@@ -7,7 +7,7 @@ import 'package:pigeon/pigeon.dart';
     swiftOut: 'ios/Classes/BeautyCameraPlugin.swift',
     kotlinOptions: KotlinOptions(package: 'com.beauty.camera_plugin'),
     kotlinOut:
-        'android/src/main/kotlin/com/beauty/camera_plugin/BeautyCameraPlugin.kt',
+        'android/src/main/kotlin/com/beauty/camera_plugin/BeautyCameraPluginPigeon.kt',
     copyrightHeader: 'pigeons/copyright.txt',
     dartPackageName: 'com.beauty.camera_plugin',
     dartOut: 'lib/src/camera_api.g.dart',
@@ -66,11 +66,39 @@ class CameraSettings {
   /// If null, the default camera resolution will be used
   int? height;
 
+  /// The camera ID
+  String? cameraId;
+
   /// Creates a new [CameraSettings] instance
   ///
   /// [width] and [height] are optional. If both are null,
   /// the camera will use its default resolution.
-  CameraSettings({this.width, this.height});
+  CameraSettings({this.width, this.height, this.cameraId});
+}
+
+/// Camera effect modes
+enum CameraEffectMode {
+  none,
+  mono,
+  negative,
+  solarize,
+  sepia,
+  posterize,
+  whiteboard,
+  blackboard,
+  aqua,
+}
+
+/// White balance modes
+enum WhiteBalanceMode {
+  auto,
+  incandescent,
+  fluorescent,
+  warmFluorescent,
+  daylight,
+  cloudyDaylight,
+  twilight,
+  shade,
 }
 
 /// Configuration for applying filters to the camera preview
@@ -85,11 +113,41 @@ class FilterConfig {
   /// - For custom: varies based on implementation
   Map<String, Object?>? parameters;
 
+  /// The effect mode
+  CameraEffectMode? effectMode;
+
+  /// Brightness adjustment (-1.0 to 1.0)
+  double? brightness;
+
+  /// Saturation adjustment (0.0 to 2.0)
+  double? saturation;
+
+  /// Contrast adjustment (0.0 to 2.0)
+  double? contrast;
+
+  /// Sharpness adjustment (0.0 to 1.0)
+  double? sharpness;
+
+  /// White balance mode
+  WhiteBalanceMode? whiteBalance;
+
+  /// ISO value
+  int? iso;
+
   /// Creates a new [FilterConfig] instance
   ///
   /// [filterType] specifies the type of filter to apply
   /// [parameters] contains additional configuration for the filter
-  FilterConfig({this.filterType, this.parameters});
+  FilterConfig(
+      {this.filterType,
+      this.parameters,
+      this.effectMode,
+      this.brightness,
+      this.saturation,
+      this.contrast,
+      this.sharpness,
+      this.whiteBalance,
+      this.iso});
 }
 
 /// Represents a camera error with type and message
@@ -169,23 +227,28 @@ abstract class BeautyCameraFlutterApi {
   ///
   /// [textureId] is the ID of the preview texture
   /// [width] and [height] are the actual dimensions of the camera preview
+  @async
   void onCameraInitialized(int textureId, int width, int height);
 
   /// Called when a picture has been taken and saved
   ///
   /// [path] is the path where the image was saved
+  @async
   void onTakePictureCompleted(String path);
 
   /// Called when video recording has started
+  @async
   void onRecordingStarted();
 
   /// Called when video recording has stopped
   ///
   /// [path] is the path where the video was saved
+  @async
   void onRecordingStopped(String path);
 
   /// Called when a camera error occurs
   ///
   /// [error] contains both the type and message of the error
+  @async
   void onCameraError(CameraError error);
 }

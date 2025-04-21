@@ -140,19 +140,20 @@ class MockBeautyCameraFlutterApi extends BeautyCameraFlutterApi {
   CameraError? lastError;
 
   @override
-  void onCameraInitialized(int textureId, int width, int height) {}
+  Future<void> onCameraInitialized(
+      int textureId, int width, int height) async {}
 
   @override
-  void onTakePictureCompleted(String path) {}
+  Future<void> onTakePictureCompleted(String path) async {}
 
   @override
-  void onRecordingStarted() {}
+  Future<void> onRecordingStarted() async {}
 
   @override
-  void onRecordingStopped(String path) {}
+  Future<void> onRecordingStopped(String path) async {}
 
   @override
-  void onCameraError(CameraError error) {
+  Future<void> onCameraError(CameraError error) async {
     lastError = error;
   }
 }

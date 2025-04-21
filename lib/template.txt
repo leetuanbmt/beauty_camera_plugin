@@ -1,0 +1,35 @@
+camera_plugin/
+├── android/
+│ ├── src/main/kotlin/your_package/camera_plugin/
+│ │ ├── CameraPlugin.kt // Plugin entry point và xử lý chung
+│ │ ├── camera/ // Chứa logic liên quan đến camera
+│ │ │ ├── CameraController.kt // Quản lý lifecycle và các thao tác camera
+│ │ │ ├── preview/ // Xử lý preview
+│ │ │ │ ├── PreviewHandler.kt // Quản lý TextureView và Surface
+│ │ │ │ ├── SizeUtils.kt // Tính toán kích thước tối ưu
+│ │ │ │ └── FrameListener.kt // Interface cho việc lắng nghe frame
+│ │ │ ├── capture/ // Xử lý chụp ảnh
+│ │ │ │ ├── ImageCaptureHandler.kt // Sử dụng ImageReader để chụp ảnh
+│ │ │ │ ├── FileIOHandler.kt // Xử lý lưu trữ ảnh
+│ │ │ │ └── CaptureCallback.kt // Callback cho quá trình chụp
+│ │ │ ├── record/ // Xử lý quay video
+│ │ │ │ ├── VideoRecordHandler.kt // Cấu hình và điều khiển MediaRecorder
+│ │ │ │ └── RecordCallback.kt // Callback cho quá trình quay
+│ │ │ └── utils/ // Các tiện ích chung
+│ │ │ ├── ErrorUtils.kt // Định nghĩa và xử lý lỗi
+│ │ │ ├── ThreadUtils.kt // Quản lý thread và đồng bộ
+│ │ │ └── ResourceCleaner.kt // Xử lý việc giải phóng tài nguyên
+│ │ ├── filters/ // Xử lý bộ lọc và làm đẹp
+│ │ │ ├── FilterProcessor.kt // Interface hoặc abstract class cho bộ lọc
+│ │ │ ├── specific_filters/ // Các bộ lọc cụ thể (ví dụ: grayscale, blur)
+│ │ │ │ ├── GrayscaleFilter.kt
+│ │ │ │ └── BlurFilter.kt
+│ │ │ └── FilterParams.kt // Định nghĩa các tham số cho bộ lọc
+│ │  
+├── lib/
+│ ├── src/camera_plugin.dart // Dart API cho plugin
+│ ├── src/models/ // Các model dữ liệu (ví dụ: Size, FilterConfig)
+│ └── src/widgets/ // Các widget UI (nếu có)
+└── ├── pigeon/ // Chứa các file Pigeon
+│ │ │ ├── camera_api.dart.kt
+│ │ │ └── camera_api.dart

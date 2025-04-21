@@ -167,6 +167,31 @@ enum CameraErrorType: Int {
   case unknown = 6
 }
 
+/// Camera effect modes
+enum CameraEffectMode: Int {
+  case none = 0
+  case mono = 1
+  case negative = 2
+  case solarize = 3
+  case sepia = 4
+  case posterize = 5
+  case whiteboard = 6
+  case blackboard = 7
+  case aqua = 8
+}
+
+/// White balance modes
+enum WhiteBalanceMode: Int {
+  case auto = 0
+  case incandescent = 1
+  case fluorescent = 2
+  case warmFluorescent = 3
+  case daylight = 4
+  case cloudyDaylight = 5
+  case twilight = 6
+  case shade = 7
+}
+
 /// Configuration settings for camera initialization
 ///
 /// Generated class from Pigeon that represents data sent in messages.
@@ -177,22 +202,27 @@ struct CameraSettings: Hashable {
   /// The desired height of the camera preview in pixels
   /// If null, the default camera resolution will be used
   var height: Int64? = nil
+  /// The camera ID
+  var cameraId: String? = nil
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
   static func fromList(_ pigeonVar_list: [Any?]) -> CameraSettings? {
     let width: Int64? = nilOrValue(pigeonVar_list[0])
     let height: Int64? = nilOrValue(pigeonVar_list[1])
+    let cameraId: String? = nilOrValue(pigeonVar_list[2])
 
     return CameraSettings(
       width: width,
-      height: height
+      height: height,
+      cameraId: cameraId
     )
   }
   func toList() -> [Any?] {
     return [
       width,
       height,
+      cameraId,
     ]
   }
   static func == (lhs: CameraSettings, rhs: CameraSettings) -> Bool {
@@ -214,22 +244,57 @@ struct FilterConfig: Hashable {
   /// - For vintage: {'intensity': 0.0-1.0}
   /// - For custom: varies based on implementation
   var parameters: [String: Any?]? = nil
+  /// The effect mode
+  var effectMode: CameraEffectMode? = nil
+  /// Brightness adjustment (-1.0 to 1.0)
+  var brightness: Double? = nil
+  /// Saturation adjustment (0.0 to 2.0)
+  var saturation: Double? = nil
+  /// Contrast adjustment (0.0 to 2.0)
+  var contrast: Double? = nil
+  /// Sharpness adjustment (0.0 to 1.0)
+  var sharpness: Double? = nil
+  /// White balance mode
+  var whiteBalance: WhiteBalanceMode? = nil
+  /// ISO value
+  var iso: Int64? = nil
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
   static func fromList(_ pigeonVar_list: [Any?]) -> FilterConfig? {
     let filterType: String? = nilOrValue(pigeonVar_list[0])
     let parameters: [String: Any?]? = nilOrValue(pigeonVar_list[1])
+    let effectMode: CameraEffectMode? = nilOrValue(pigeonVar_list[2])
+    let brightness: Double? = nilOrValue(pigeonVar_list[3])
+    let saturation: Double? = nilOrValue(pigeonVar_list[4])
+    let contrast: Double? = nilOrValue(pigeonVar_list[5])
+    let sharpness: Double? = nilOrValue(pigeonVar_list[6])
+    let whiteBalance: WhiteBalanceMode? = nilOrValue(pigeonVar_list[7])
+    let iso: Int64? = nilOrValue(pigeonVar_list[8])
 
     return FilterConfig(
       filterType: filterType,
-      parameters: parameters
+      parameters: parameters,
+      effectMode: effectMode,
+      brightness: brightness,
+      saturation: saturation,
+      contrast: contrast,
+      sharpness: sharpness,
+      whiteBalance: whiteBalance,
+      iso: iso
     )
   }
   func toList() -> [Any?] {
     return [
       filterType,
       parameters,
+      effectMode,
+      brightness,
+      saturation,
+      contrast,
+      sharpness,
+      whiteBalance,
+      iso,
     ]
   }
   static func == (lhs: FilterConfig, rhs: FilterConfig) -> Bool {
@@ -288,10 +353,22 @@ private class BeautyCameraPluginPigeonCodecReader: FlutterStandardReader {
       }
       return nil
     case 131:
-      return CameraSettings.fromList(self.readValue() as! [Any?])
+      let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
+      if let enumResultAsInt = enumResultAsInt {
+        return CameraEffectMode(rawValue: enumResultAsInt)
+      }
+      return nil
     case 132:
-      return FilterConfig.fromList(self.readValue() as! [Any?])
+      let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
+      if let enumResultAsInt = enumResultAsInt {
+        return WhiteBalanceMode(rawValue: enumResultAsInt)
+      }
+      return nil
     case 133:
+      return CameraSettings.fromList(self.readValue() as! [Any?])
+    case 134:
+      return FilterConfig.fromList(self.readValue() as! [Any?])
+    case 135:
       return CameraError.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
@@ -307,14 +384,20 @@ private class BeautyCameraPluginPigeonCodecWriter: FlutterStandardWriter {
     } else if let value = value as? CameraErrorType {
       super.writeByte(130)
       super.writeValue(value.rawValue)
-    } else if let value = value as? CameraSettings {
+    } else if let value = value as? CameraEffectMode {
       super.writeByte(131)
+      super.writeValue(value.rawValue)
+    } else if let value = value as? WhiteBalanceMode {
+      super.writeByte(132)
+      super.writeValue(value.rawValue)
+    } else if let value = value as? CameraSettings {
+      super.writeByte(133)
       super.writeValue(value.toList())
     } else if let value = value as? FilterConfig {
-      super.writeByte(132)
+      super.writeByte(134)
       super.writeValue(value.toList())
     } else if let value = value as? CameraError {
-      super.writeByte(133)
+      super.writeByte(135)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
