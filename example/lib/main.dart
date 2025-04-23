@@ -5,7 +5,6 @@ import 'dart:async';
 import 'dart:io';
 import 'package:video_player/video_player.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:path_provider/path_provider.dart';
 
 class Logger {
   static void log(String message) {
@@ -89,8 +88,6 @@ class CameraScreen extends StatefulWidget {
 class _CameraScreenState extends State<CameraScreen> {
   late final BeautyCameraController _controller;
   String? _errorMessage;
-  StreamSubscription? _errorSubscription;
-  StreamSubscription? _stateSubscription;
   String? _currentVideoPath;
   bool _isResuming = false;
 
@@ -141,17 +138,20 @@ class _CameraScreenState extends State<CameraScreen> {
   void initState() {
     super.initState();
     _controller = BeautyCameraController();
-    _setupSubscriptions();
+    _setupListeners();
     _initializeCamera();
   }
 
-  void _setupSubscriptions() {
-    _errorSubscription = _controller.errorStream.listen((error) {
-      setState(() => _errorMessage = '${error.type}: ${error.message}');
-    });
+  void _setupListeners() {
+    _controller.addListener(_onCameraStateChanged);
+  }
 
-    _stateSubscription = _controller.stateStream.listen((state) {
-      setState(() {}); // Rebuild UI when state changes
+  void _onCameraStateChanged() {
+    setState(() {
+      if (_controller.lastError != null) {
+        _errorMessage =
+            '${_controller.lastError!.type}: ${_controller.lastError!.message}';
+      }
     });
   }
 
@@ -161,12 +161,9 @@ class _CameraScreenState extends State<CameraScreen> {
         await _controller.dispose();
       }
 
-      // Wait for any previous camera resources to be released
-      await Future.delayed(const Duration(milliseconds: 1000));
-
       await _controller.initialize(
-        width: 1920,
-        height: 1080,
+        width: 720,
+        height: 1280,
         defaultFilter: 'none',
       );
 
@@ -190,13 +187,7 @@ class _CameraScreenState extends State<CameraScreen> {
       _isResuming = true;
 
       // Ensure proper cleanup
-      await _controller.dispose();
-
-      // Wait longer for resources to be released
-      await Future.delayed(const Duration(milliseconds: 1500));
-
-      _controller = BeautyCameraController();
-      await _initializeCamera();
+      await _controller.resetCamera();
     } catch (e) {
       if (mounted) {
         setState(() => _errorMessage = 'Failed to restart camera: $e');
@@ -218,11 +209,8 @@ class _CameraScreenState extends State<CameraScreen> {
     if (_isResuming) return;
 
     try {
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final directory = await getExternalStorageDirectory();
-      final path = '${directory?.path}/beauty_camera_$timestamp.jpg';
+      final path = await _controller.takePicture();
 
-      await _controller.takePicture(path);
       if (mounted) {
         final deleted = await Navigator.of(context).push<bool>(
           MaterialPageRoute(
@@ -252,12 +240,12 @@ class _CameraScreenState extends State<CameraScreen> {
   Future<void> _toggleRecording() async {
     try {
       if (_controller.isRecording) {
-        await _controller.stopRecording();
-        if (_currentVideoPath != null && mounted) {
+        final videoPath = await _controller.stopRecording();
+        if (videoPath != null && mounted) {
           final deleted = await Navigator.of(context).push<bool>(
             MaterialPageRoute(
               builder: (context) => MediaPreviewScreen(
-                mediaPath: _currentVideoPath!,
+                mediaPath: videoPath,
                 isVideo: true,
               ),
             ),
@@ -266,14 +254,11 @@ class _CameraScreenState extends State<CameraScreen> {
           if (deleted == true) {
             _showSnackBar('Video deleted');
           } else {
-            _showSnackBar('Video saved to: $_currentVideoPath');
+            _showSnackBar('Video saved to: $videoPath');
           }
         }
       } else {
-        final timestamp = DateTime.now().millisecondsSinceEpoch;
-        final directory = await getExternalStorageDirectory();
-        _currentVideoPath = '${directory?.path}/beauty_camera_$timestamp.mp4';
-        await _controller.startRecording(_currentVideoPath!);
+        _currentVideoPath = await _controller.startRecording();
         _showSnackBar('Recording started');
       }
     } catch (e) {
@@ -292,18 +277,7 @@ class _CameraScreenState extends State<CameraScreen> {
 
   @override
   void dispose() {
-    _errorSubscription?.cancel();
-    _stateSubscription?.cancel();
-
-    // Ensure camera is properly disposed
-    if (_controller.isInitialized) {
-      _controller.dispose().then((_) {
-        Logger.log('Camera disposed successfully');
-      }).catchError((error) {
-        Logger.log('Error disposing camera: $error');
-      });
-    }
-
+    _controller.dispose();
     super.dispose();
   }
 
@@ -315,10 +289,9 @@ class _CameraScreenState extends State<CameraScreen> {
           children: [
             // Camera Preview
             if (_controller.textureId != null)
-              Transform.scale(
-                scale: 1.0,
+              Center(
                 child: AspectRatio(
-                  aspectRatio: 9 / 16, // Portrait mode aspect ratio
+                  aspectRatio: _controller.aspectRatio,
                   child: Texture(textureId: _controller.textureId!),
                 ),
               )

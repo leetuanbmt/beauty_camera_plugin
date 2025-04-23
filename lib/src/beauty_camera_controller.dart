@@ -1,23 +1,29 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
+import 'package:path_provider/path_provider.dart';
+
 import '../beauty_camera_plugin.dart';
+import 'utils/logger.dart';
 
 /// A controller class for managing beauty camera operations
-class BeautyCameraController {
+class BeautyCameraController extends ChangeNotifier {
   final BeautyCameraPlugin _plugin;
-  final _errorController = StreamController<CameraError>.broadcast();
-  final _stateController = StreamController<CameraState>.broadcast();
+  CameraError? _lastError;
 
   int? _textureId;
   bool _isInitialized = false;
   bool _isRecording = false;
   String _currentFilter = 'none';
+  String? _lastMediaPath;
 
-  /// Stream of camera errors
-  Stream<CameraError> get errorStream => _errorController.stream;
+  Size? _previewSize;
 
-  /// Stream of camera state changes
-  Stream<CameraState> get stateStream => _stateController.stream;
+  double get aspectRatio => _previewSize?.aspectRatio ?? 1.0;
+
+  /// Last camera error
+  CameraError? get lastError => _lastError;
 
   /// Current texture ID for camera preview
   int? get textureId => _textureId;
@@ -30,6 +36,17 @@ class BeautyCameraController {
 
   /// Current applied filter
   String get currentFilter => _currentFilter;
+
+  /// Path to the last captured media (photo or video)
+  String? get lastMediaPath => _lastMediaPath;
+
+  /// Current camera state
+  CameraState get state => CameraState(
+        isInitialized: _isInitialized,
+        isRecording: _isRecording,
+        currentFilter: _currentFilter,
+        textureId: _textureId,
+      );
 
   /// Creates a new [BeautyCameraController]
   BeautyCameraController() : _plugin = BeautyCameraPlugin() {
@@ -48,7 +65,10 @@ class BeautyCameraController {
   }) async {
     try {
       await _plugin.initializeCamera(width: width, height: height);
+
       _textureId = await _plugin.createPreviewTexture();
+
+      Logger.log("BeautyCameraController - textureId: $_textureId");
 
       if (_textureId == null) {
         throw CameraException(
@@ -57,14 +77,19 @@ class BeautyCameraController {
         );
       }
 
+      // TextureId 0 is valid, so we continue
+      Logger.log(
+          "BeautyCameraController - Starting preview with textureId: $_textureId");
       await _plugin.startPreview(_textureId!);
+
       await applyFilter(defaultFilter);
 
       _isInitialized = true;
       _currentFilter = defaultFilter;
-      _notifyStateChange();
+      notifyListeners();
     } catch (e) {
-      _handleError(CameraError(
+      Logger.log("BeautyCameraController - Initialization error: $e");
+      onCameraError(CameraError(
         type: CameraErrorType.initializationFailed,
         message: e.toString(),
       ));
@@ -72,8 +97,45 @@ class BeautyCameraController {
     }
   }
 
+  /// Generate a path for saving a photo
+  Future<String> generatePhotoPath() async {
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final directory = await getTemporaryDirectory();
+    return '${directory.path}/beauty_camera_$timestamp.jpg';
+  }
+
+  /// Generate a path for saving a video
+  Future<String> generateVideoPath() async {
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final directory = await getTemporaryDirectory();
+    return '${directory.path}/beauty_camera_$timestamp.mp4';
+  }
+
+  /// Take a picture and save it
+  Future<String> takePicture() async {
+    if (!_isInitialized) {
+      throw CameraException(
+        CameraErrorType.initializationFailed,
+        'Camera not initialized',
+      );
+    }
+
+    try {
+      final path = await generatePhotoPath();
+      await _plugin.takePicture(path);
+      _lastMediaPath = path;
+      return path;
+    } catch (e) {
+      onCameraError(CameraError(
+        type: CameraErrorType.captureFailed,
+        message: e.toString(),
+      ));
+      rethrow;
+    }
+  }
+
   /// Take a picture and save it to the specified path
-  Future<void> takePicture(String path) async {
+  Future<void> takePictureWithPath(String path) async {
     if (!_isInitialized) {
       throw CameraException(
         CameraErrorType.initializationFailed,
@@ -83,8 +145,9 @@ class BeautyCameraController {
 
     try {
       await _plugin.takePicture(path);
+      _lastMediaPath = path;
     } catch (e) {
-      _handleError(CameraError(
+      onCameraError(CameraError(
         type: CameraErrorType.captureFailed,
         message: e.toString(),
       ));
@@ -92,8 +155,33 @@ class BeautyCameraController {
     }
   }
 
+  /// Start recording video
+  Future<String> startRecording() async {
+    if (!_isInitialized) {
+      throw CameraException(
+        CameraErrorType.initializationFailed,
+        'Camera not initialized',
+      );
+    }
+
+    try {
+      final path = await generateVideoPath();
+      await _plugin.startRecording(path);
+      _isRecording = true;
+      _lastMediaPath = path;
+      notifyListeners();
+      return path;
+    } catch (e) {
+      onCameraError(CameraError(
+        type: CameraErrorType.recordingFailed,
+        message: e.toString(),
+      ));
+      rethrow;
+    }
+  }
+
   /// Start recording video to the specified path
-  Future<void> startRecording(String path) async {
+  Future<void> startRecordingWithPath(String path) async {
     if (!_isInitialized) {
       throw CameraException(
         CameraErrorType.initializationFailed,
@@ -104,9 +192,10 @@ class BeautyCameraController {
     try {
       await _plugin.startRecording(path);
       _isRecording = true;
-      _notifyStateChange();
+      _lastMediaPath = path;
+      notifyListeners();
     } catch (e) {
-      _handleError(CameraError(
+      onCameraError(CameraError(
         type: CameraErrorType.recordingFailed,
         message: e.toString(),
       ));
@@ -115,15 +204,16 @@ class BeautyCameraController {
   }
 
   /// Stop recording video
-  Future<void> stopRecording() async {
-    if (!_isRecording) return;
+  Future<String?> stopRecording() async {
+    if (!_isRecording) return null;
 
     try {
       await _plugin.stopRecording();
       _isRecording = false;
-      _notifyStateChange();
+      notifyListeners();
+      return _lastMediaPath;
     } catch (e) {
-      _handleError(CameraError(
+      onCameraError(CameraError(
         type: CameraErrorType.recordingFailed,
         message: e.toString(),
       ));
@@ -142,11 +232,21 @@ class BeautyCameraController {
     }
 
     try {
+      if (_textureId == null) {
+        throw CameraException(
+          CameraErrorType.initializationFailed,
+          'TextureId is null',
+        );
+      }
+
+      Logger.log(
+          "BeautyCameraController - Applying filter $filterType with textureId: $_textureId");
       await _plugin.applyFilter(_textureId!, filterType, parameters);
       _currentFilter = filterType;
-      _notifyStateChange();
+      notifyListeners();
     } catch (e) {
-      _handleError(CameraError(
+      Logger.log("BeautyCameraController - Error applying filter: $e");
+      onCameraError(CameraError(
         type: CameraErrorType.initializationFailed,
         message: 'Failed to apply filter: ${e.toString()}',
       ));
@@ -154,37 +254,70 @@ class BeautyCameraController {
     }
   }
 
+  Future<void> resetCamera() async {
+    _isInitialized = false;
+    _isRecording = false;
+    _textureId = null;
+    _previewSize = null;
+    await _plugin.stopPreview();
+
+    await _plugin.disposeCamera();
+
+    await initialize();
+
+    notifyListeners();
+  }
+
   /// Dispose of all camera resources
+  @override
   Future<void> dispose() async {
     try {
       await _plugin.stopPreview();
+
       await _plugin.disposeCamera();
+
       _isInitialized = false;
       _isRecording = false;
       _textureId = null;
-      _notifyStateChange();
     } catch (e) {
-      _handleError(CameraError(
+      onCameraError(CameraError(
         type: CameraErrorType.initializationFailed,
         message: 'Failed to dispose camera: ${e.toString()}',
       ));
     } finally {
-      await _errorController.close();
-      await _stateController.close();
+      super.dispose();
     }
   }
 
-  void _handleError(CameraError error) {
-    _errorController.add(error);
+  void onCameraInitialized(int textureId, int width, int height) {
+    Logger.log(
+      "BeautyCameraController - onCameraInitialized: $textureId, $width, $height",
+    );
+    _textureId = textureId;
+    _previewSize = Size(width.toDouble(), height.toDouble());
+    _isInitialized = true;
+    notifyListeners();
   }
 
-  void _notifyStateChange() {
-    _stateController.add(CameraState(
-      isInitialized: _isInitialized,
-      isRecording: _isRecording,
-      currentFilter: _currentFilter,
-      textureId: _textureId,
-    ));
+  void onTakePictureCompleted(String path) {
+    _lastMediaPath = path;
+    notifyListeners();
+  }
+
+  void onRecordingStarted() {
+    _isRecording = true;
+    notifyListeners();
+  }
+
+  void onRecordingStopped(String path) {
+    _isRecording = false;
+    _lastMediaPath = path;
+    notifyListeners();
+  }
+
+  void onCameraError(CameraError error) {
+    _lastError = error;
+    notifyListeners();
   }
 }
 
@@ -211,31 +344,26 @@ class _CameraCallbacks extends BeautyCameraFlutterApi {
 
   @override
   Future<void> onCameraInitialized(int textureId, int width, int height) async {
-    _controller._textureId = textureId;
-    _controller._isInitialized = true;
-    _controller._notifyStateChange();
+    _controller.onCameraInitialized(textureId, width, height);
   }
 
   @override
   Future<void> onTakePictureCompleted(String path) async {
-    // Notify UI of successful picture capture
-    _controller._notifyStateChange();
+    _controller.onTakePictureCompleted(path);
   }
 
   @override
   Future<void> onRecordingStarted() async {
-    _controller._isRecording = true;
-    _controller._notifyStateChange();
+    _controller.onRecordingStarted();
   }
 
   @override
   Future<void> onRecordingStopped(String path) async {
-    _controller._isRecording = false;
-    _controller._notifyStateChange();
+    _controller.onRecordingStopped(path);
   }
 
   @override
   Future<void> onCameraError(CameraError error) async {
-    _controller._handleError(error);
+    _controller.onCameraError(error);
   }
 }

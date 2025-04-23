@@ -54,7 +54,7 @@ class BeautyCameraPlugin {
   /// Throws [CameraException] if preview fails to start.
   Future<void> startPreview(int textureId) async {
     try {
-      if (textureId <= 0) {
+      if (textureId < 0) {
         throw ArgumentError('Invalid texture ID');
       }
       await _api.startPreview(textureId);
@@ -164,7 +164,7 @@ class BeautyCameraPlugin {
   Future<void> applyFilter(int textureId, String filterType,
       [Map<String, Object?>? parameters]) async {
     try {
-      if (textureId <= 0) {
+      if (textureId < 0) {
         throw ArgumentError('Invalid texture ID');
       }
       final filterConfig = FilterConfig(
