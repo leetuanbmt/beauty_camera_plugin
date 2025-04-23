@@ -1160,6 +1160,11 @@ class CameraXManager(
             // Store the filter configuration
             currentFilterConfig = filterConfig
             
+            // Nếu filterType là NONE, vẫn apply để reset về trạng thái mặc định thay vì skip
+            if (filterConfig.filterType == FilterType.NONE) {
+                Log.d(TAG, "Applying NONE filter to reset filters to default state")
+            }
+            
             // Apply the filter to the camera
             applyFilterToCamera(filterConfig)
             
@@ -1185,63 +1190,84 @@ class CameraXManager(
             // Apply camera effects based on the configuration
             val cameraControl = camera.cameraControl
             
-            // Apply white balance if provided
-            filterConfig.whiteBalance?.let { whiteBalance ->
-                val awbMode = when (whiteBalance) {
-                    WhiteBalanceMode.AUTO -> CameraMetadata.CONTROL_AWB_MODE_AUTO
-                    WhiteBalanceMode.INCANDESCENT -> CameraMetadata.CONTROL_AWB_MODE_INCANDESCENT
-                    WhiteBalanceMode.FLUORESCENT -> CameraMetadata.CONTROL_AWB_MODE_FLUORESCENT
-                    WhiteBalanceMode.WARM_FLUORESCENT -> CameraMetadata.CONTROL_AWB_MODE_WARM_FLUORESCENT
-                    WhiteBalanceMode.DAYLIGHT -> CameraMetadata.CONTROL_AWB_MODE_DAYLIGHT
-                    WhiteBalanceMode.CLOUDY_DAYLIGHT -> CameraMetadata.CONTROL_AWB_MODE_CLOUDY_DAYLIGHT
-                    WhiteBalanceMode.TWILIGHT -> CameraMetadata.CONTROL_AWB_MODE_TWILIGHT
-                    WhiteBalanceMode.SHADE -> CameraMetadata.CONTROL_AWB_MODE_SHADE
-                }
+            // Reset về mặc định nếu filterType là NONE
+            if (filterConfig.filterType == FilterType.NONE && filterConfig.effectMode == null) {
+                Log.d(TAG, "Resetting all camera effects to default values")
                 
-                try {
-                    // Note: Setting AWB mode directly is not available through the standard
-                    // CameraX API without Camera2 interop. We'll log the info but can't set it
-                    // without setCaptureRequestOption
-                    Log.d(TAG, "White balance mode $awbMode selected, but AWB mode can't be set directly without Camera2 interop")
-                    
-                    // In a production app, you could register an extension to handle this
-                    // For now, we'll just log the request
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to process white balance mode: ${e.message}")
-                }
-            }
-            
-            // Apply brightness via exposure compensation (standard CameraX API)
-            filterConfig.brightness?.let { brightness ->
-                val scaledBrightness = brightness.toFloat()
+                // Reset exposure compensation to default
                 try {
                     val exposureState = camera.cameraInfo.exposureState
                     if (exposureState.isExposureCompensationSupported) {
-                        val range = exposureState.exposureCompensationRange
-                        val index = (range.lower + (scaledBrightness * (range.upper - range.lower))).toInt()
-                        val clampedIndex = index.coerceIn(range.lower, range.upper)
-                        cameraControl.setExposureCompensationIndex(clampedIndex)
-                        Log.d(TAG, "Set exposure compensation index: $clampedIndex")
-                    } else {
-                        Log.w(TAG, "Exposure compensation not supported")
+                        cameraControl.setExposureCompensationIndex(0)  // 0 is typically the default
+                        Log.d(TAG, "Reset exposure compensation to default (0)")
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Failed to set exposure compensation: ${e.message}")
+                    Log.e(TAG, "Failed to reset exposure compensation: ${e.message}")
                 }
-            }
-            
-            // Apply ISO if provided
-            filterConfig.iso?.let { iso ->
-                try {
-                    // Note: Setting ISO directly is not available through the standard
-                    // CameraX API without Camera2 interop. We'll log the info but can't set it
-                    // without setCaptureRequestOption
-                    Log.d(TAG, "ISO value ${iso.toInt()} selected, but ISO can't be set directly without Camera2 interop")
+                
+                // Ghi log thông tin về việc reset
+                Log.d(TAG, "All camera effects have been reset to default")
+            } else {
+                // Apply white balance if provided
+                filterConfig.whiteBalance?.let { whiteBalance ->
+                    val awbMode = when (whiteBalance) {
+                        WhiteBalanceMode.AUTO -> CameraMetadata.CONTROL_AWB_MODE_AUTO
+                        WhiteBalanceMode.INCANDESCENT -> CameraMetadata.CONTROL_AWB_MODE_INCANDESCENT
+                        WhiteBalanceMode.FLUORESCENT -> CameraMetadata.CONTROL_AWB_MODE_FLUORESCENT
+                        WhiteBalanceMode.WARM_FLUORESCENT -> CameraMetadata.CONTROL_AWB_MODE_WARM_FLUORESCENT
+                        WhiteBalanceMode.DAYLIGHT -> CameraMetadata.CONTROL_AWB_MODE_DAYLIGHT
+                        WhiteBalanceMode.CLOUDY_DAYLIGHT -> CameraMetadata.CONTROL_AWB_MODE_CLOUDY_DAYLIGHT
+                        WhiteBalanceMode.TWILIGHT -> CameraMetadata.CONTROL_AWB_MODE_TWILIGHT
+                        WhiteBalanceMode.SHADE -> CameraMetadata.CONTROL_AWB_MODE_SHADE
+                    }
                     
-                    // In a production app, you could register an extension to handle this
-                    // For now, we'll just log the request
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to process ISO request: ${e.message}")
+                    try {
+                        // Note: Setting AWB mode directly is not available through the standard
+                        // CameraX API without Camera2 interop. We'll log the info but can't set it
+                        // without setCaptureRequestOption
+                        Log.d(TAG, "White balance mode $awbMode selected, but AWB mode can't be set directly without Camera2 interop")
+                        
+                        // In a production app, you could register an extension to handle this
+                        // For now, we'll just log the request
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to process white balance mode: ${e.message}")
+                    }
+                }
+                
+                // Apply brightness via exposure compensation (standard CameraX API)
+                filterConfig.brightness?.let { brightness ->
+                    val scaledBrightness = brightness.toFloat()
+                    try {
+                        val exposureState = camera.cameraInfo.exposureState
+                        if (exposureState.isExposureCompensationSupported) {
+                            val range = exposureState.exposureCompensationRange
+                            val index = (range.lower + (scaledBrightness * (range.upper - range.lower))).toInt()
+                            val clampedIndex = index.coerceIn(range.lower, range.upper)
+                            cameraControl.setExposureCompensationIndex(clampedIndex)
+                            Log.d(TAG, "Set exposure compensation index: $clampedIndex")
+                        } else {
+                            Log.w(TAG, "Exposure compensation not supported")
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to set exposure compensation: ${e.message}")
+                    }
+                }
+                
+                // Log the filter type being applied
+                filterConfig.filterType?.let { filterType ->
+                    Log.d(TAG, "Applying filter type: $filterType")
+                }
+                
+                // Log the smoothness setting if applicable
+                filterConfig.smoothness?.let { smoothness ->
+                    Log.d(TAG, "Smoothness setting: $smoothness")
+                }
+                
+                // Apply camera effect mode if specified
+                filterConfig.effectMode?.let { effectMode ->
+                    Log.d(TAG, "Effect mode: $effectMode")
+                    // Note: Applying effect modes typically requires image analysis
+                    // or post-processing of preview frames
                 }
             }
             
@@ -1267,44 +1293,45 @@ class CameraXManager(
             
             // Apply filters based on the configuration
             if (bitmap != null) {
-                when (filterConfig.filterType) {
-                    "beauty" -> {
-                        val parameters = filterConfig.parameters
-                        val smoothness = (parameters?.get("smoothness") as? Double)?.toFloat() ?: 0.5f
-                        val brightness = (parameters?.get("brightness") as? Double)?.toFloat() ?: 0.5f
-                        bitmap = imageProcessor.applyBeautyFilter(bitmap, smoothness, brightness)
+                val filterType = filterConfig.filterType
+                
+                if (filterType == FilterType.NONE && filterConfig.effectMode == null) {
+                    // Khi filter là NONE, giữ nguyên ảnh gốc, không áp dụng filter
+                    Log.d(TAG, "Filter is NONE, keeping original image without effects")
+                    // Không cần xử lý gì thêm, bitmap giữ nguyên
+                } else if (filterType != null) {
+                    // Get parameters from the filter config
+                    val smoothness = filterConfig.smoothness?.toFloat() ?: 0.5f
+                    val brightness = filterConfig.brightness?.toFloat() ?: 0.0f
+                    val contrast = filterConfig.contrast?.toFloat() ?: 1.0f
+                    
+                    // Apply the filter using the new applyFilter method
+                    bitmap = imageProcessor.applyFilter(
+                        bitmap, 
+                        filterType, 
+                        smoothness, 
+                        brightness, 
+                        contrast
+                    )
+                } else {
+                    // Apply camera effect modes if filter type is not specified
+                    filterConfig.effectMode?.let { effectMode ->
+                        bitmap = imageProcessor.applyCameraEffect(bitmap, effectMode)
+                    }
+                
+                    // Apply individual adjustments if filter type is not specified
+                    // but adjustment parameters are provided
+                    filterConfig.brightness?.let { brightness ->
+                        bitmap = imageProcessor.adjustBrightness(bitmap, brightness.toFloat())
                     }
                     
-                    "vintage" -> {
-                        val parameters = filterConfig.parameters
-                        val intensity = (parameters?.get("intensity") as? Double)?.toFloat() ?: 0.7f
-                        bitmap = imageProcessor.applyVintageFilter(bitmap, intensity)
+                    filterConfig.saturation?.let { saturation ->
+                        bitmap = imageProcessor.adjustSaturation(bitmap, saturation.toFloat())
                     }
                     
-                    "black_and_white" -> {
-                        val contrast = filterConfig.contrast?.toFloat() ?: 1.2f
-                        bitmap = imageProcessor.applyBlackAndWhiteFilter(bitmap, contrast)
+                    filterConfig.contrast?.let { contrast ->
+                        bitmap = imageProcessor.adjustContrast(bitmap, contrast.toFloat())
                     }
-                    
-                    // Apply camera effect modes
-                    else -> {
-                        filterConfig.effectMode?.let { effectMode ->
-                            bitmap = imageProcessor.applyCameraEffect(bitmap, effectMode)
-                        }
-                    }
-                }
-                
-                // Apply additional adjustments if specified
-                filterConfig.brightness?.let { brightness ->
-                    bitmap = imageProcessor.adjustBrightness(bitmap, brightness.toFloat())
-                }
-                
-                filterConfig.saturation?.let { saturation ->
-                    bitmap = imageProcessor.adjustSaturation(bitmap, saturation.toFloat())
-                }
-                
-                filterConfig.contrast?.let { contrast ->
-                    bitmap = imageProcessor.adjustContrast(bitmap, contrast.toFloat())
                 }
                 
                 // Save the processed bitmap back to the file

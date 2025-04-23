@@ -48,12 +48,8 @@ enum FilterType {
   none,
   /// Beauty filter for skin smoothing
   beauty,
-  /// Vintage effect filter
-  vintage,
   /// Black and white filter
   blackAndWhite,
-  /// Custom filter with parameters
-  custom,
 }
 
 /// Represents possible camera error types
@@ -160,31 +156,23 @@ class CameraSettings {
 class FilterConfig {
   FilterConfig({
     this.filterType,
-    this.parameters,
-    this.effectMode,
     this.brightness,
+    this.smoothness,
     this.saturation,
     this.contrast,
     this.sharpness,
     this.whiteBalance,
-    this.iso,
+    this.effectMode,
   });
 
   /// The type of filter to apply
-  String? filterType;
-
-  /// Additional parameters for the filter
-  /// The structure depends on the filter type:
-  /// - For beauty filter: {'smoothness': 0.0-1.0, 'brightness': 0.0-1.0}
-  /// - For vintage: {'intensity': 0.0-1.0}
-  /// - For custom: varies based on implementation
-  Map<String, Object?>? parameters;
-
-  /// The effect mode
-  CameraEffectMode? effectMode;
+  FilterType? filterType;
 
   /// Brightness adjustment (-1.0 to 1.0)
   double? brightness;
+
+  /// Smoothness level for beauty filter (0.0 to 1.0)
+  double? smoothness;
 
   /// Saturation adjustment (0.0 to 2.0)
   double? saturation;
@@ -198,20 +186,19 @@ class FilterConfig {
   /// White balance mode
   WhiteBalanceMode? whiteBalance;
 
-  /// ISO value
-  int? iso;
+  /// The effect mode
+  CameraEffectMode? effectMode;
 
   List<Object?> _toList() {
     return <Object?>[
       filterType,
-      parameters,
-      effectMode,
       brightness,
+      smoothness,
       saturation,
       contrast,
       sharpness,
       whiteBalance,
-      iso,
+      effectMode,
     ];
   }
 
@@ -221,15 +208,14 @@ class FilterConfig {
   static FilterConfig decode(Object result) {
     result as List<Object?>;
     return FilterConfig(
-      filterType: result[0] as String?,
-      parameters: (result[1] as Map<Object?, Object?>?)?.cast<String, Object?>(),
-      effectMode: result[2] as CameraEffectMode?,
-      brightness: result[3] as double?,
-      saturation: result[4] as double?,
-      contrast: result[5] as double?,
-      sharpness: result[6] as double?,
-      whiteBalance: result[7] as WhiteBalanceMode?,
-      iso: result[8] as int?,
+      filterType: result[0] as FilterType?,
+      brightness: result[1] as double?,
+      smoothness: result[2] as double?,
+      saturation: result[3] as double?,
+      contrast: result[4] as double?,
+      sharpness: result[5] as double?,
+      whiteBalance: result[6] as WhiteBalanceMode?,
+      effectMode: result[7] as CameraEffectMode?,
     );
   }
 

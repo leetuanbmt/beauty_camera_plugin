@@ -159,18 +159,62 @@ class BeautyCameraPlugin {
   /// [filterType] specifies the type of filter to apply.
   /// [parameters] contains additional configuration for the filter.
   ///
-  /// Throws [ArgumentError] if textureId is invalid or filterType is empty.
+  /// Throws [ArgumentError] if textureId is invalid or filterType is null.
   /// Throws [CameraException] if filter application fails.
+  ///
+  /// @deprecated Use applyFilterWithConfig instead
   Future<void> applyFilter(int textureId, String filterType,
       [Map<String, Object?>? parameters]) async {
     try {
       if (textureId < 0) {
         throw ArgumentError('Invalid texture ID');
       }
+
+      // Convert string to FilterType if possible
+      FilterType? enumFilterType;
+      switch (filterType) {
+        case 'none':
+          enumFilterType = FilterType.none;
+          break;
+        case 'beauty':
+          enumFilterType = FilterType.beauty;
+          break;
+        case 'black_and_white':
+          enumFilterType = FilterType.blackAndWhite;
+          break;
+        default:
+          // Keep as null for any other filter type
+          break;
+      }
+
       final filterConfig = FilterConfig(
-        filterType: filterType,
-        parameters: parameters,
+        filterType: enumFilterType,
       );
+
+      validateFilterConfig(filterConfig);
+      await _api.applyFilter(textureId, filterConfig);
+    } catch (e) {
+      _handleError(CameraError(
+        type: CameraErrorType.initializationFailed,
+        message: 'Failed to apply filter: ${e.toString()}',
+      ));
+      rethrow;
+    }
+  }
+
+  /// Apply a filter to the camera preview using a FilterConfig
+  ///
+  /// [textureId] must be a valid texture ID.
+  /// [filterConfig] specifies the filter configuration to apply.
+  ///
+  /// Throws [ArgumentError] if textureId is invalid.
+  /// Throws [CameraException] if filter application fails.
+  Future<void> applyFilterWithConfig(
+      int textureId, FilterConfig filterConfig) async {
+    try {
+      if (textureId < 0) {
+        throw ArgumentError('Invalid texture ID');
+      }
       validateFilterConfig(filterConfig);
       await _api.applyFilter(textureId, filterConfig);
     } catch (e) {

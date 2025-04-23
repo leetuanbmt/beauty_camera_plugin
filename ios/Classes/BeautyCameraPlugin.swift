@@ -141,12 +141,8 @@ enum FilterType: Int {
   case none = 0
   /// Beauty filter for skin smoothing
   case beauty = 1
-  /// Vintage effect filter
-  case vintage = 2
   /// Black and white filter
-  case blackAndWhite = 3
-  /// Custom filter with parameters
-  case custom = 4
+  case blackAndWhite = 2
 }
 
 /// Represents possible camera error types
@@ -237,17 +233,11 @@ struct CameraSettings: Hashable {
 /// Generated class from Pigeon that represents data sent in messages.
 struct FilterConfig: Hashable {
   /// The type of filter to apply
-  var filterType: String? = nil
-  /// Additional parameters for the filter
-  /// The structure depends on the filter type:
-  /// - For beauty filter: {'smoothness': 0.0-1.0, 'brightness': 0.0-1.0}
-  /// - For vintage: {'intensity': 0.0-1.0}
-  /// - For custom: varies based on implementation
-  var parameters: [String: Any?]? = nil
-  /// The effect mode
-  var effectMode: CameraEffectMode? = nil
+  var filterType: FilterType? = nil
   /// Brightness adjustment (-1.0 to 1.0)
   var brightness: Double? = nil
+  /// Smoothness level for beauty filter (0.0 to 1.0)
+  var smoothness: Double? = nil
   /// Saturation adjustment (0.0 to 2.0)
   var saturation: Double? = nil
   /// Contrast adjustment (0.0 to 2.0)
@@ -256,45 +246,42 @@ struct FilterConfig: Hashable {
   var sharpness: Double? = nil
   /// White balance mode
   var whiteBalance: WhiteBalanceMode? = nil
-  /// ISO value
-  var iso: Int64? = nil
+  /// The effect mode
+  var effectMode: CameraEffectMode? = nil
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
   static func fromList(_ pigeonVar_list: [Any?]) -> FilterConfig? {
-    let filterType: String? = nilOrValue(pigeonVar_list[0])
-    let parameters: [String: Any?]? = nilOrValue(pigeonVar_list[1])
-    let effectMode: CameraEffectMode? = nilOrValue(pigeonVar_list[2])
-    let brightness: Double? = nilOrValue(pigeonVar_list[3])
-    let saturation: Double? = nilOrValue(pigeonVar_list[4])
-    let contrast: Double? = nilOrValue(pigeonVar_list[5])
-    let sharpness: Double? = nilOrValue(pigeonVar_list[6])
-    let whiteBalance: WhiteBalanceMode? = nilOrValue(pigeonVar_list[7])
-    let iso: Int64? = nilOrValue(pigeonVar_list[8])
+    let filterType: FilterType? = nilOrValue(pigeonVar_list[0])
+    let brightness: Double? = nilOrValue(pigeonVar_list[1])
+    let smoothness: Double? = nilOrValue(pigeonVar_list[2])
+    let saturation: Double? = nilOrValue(pigeonVar_list[3])
+    let contrast: Double? = nilOrValue(pigeonVar_list[4])
+    let sharpness: Double? = nilOrValue(pigeonVar_list[5])
+    let whiteBalance: WhiteBalanceMode? = nilOrValue(pigeonVar_list[6])
+    let effectMode: CameraEffectMode? = nilOrValue(pigeonVar_list[7])
 
     return FilterConfig(
       filterType: filterType,
-      parameters: parameters,
-      effectMode: effectMode,
       brightness: brightness,
+      smoothness: smoothness,
       saturation: saturation,
       contrast: contrast,
       sharpness: sharpness,
       whiteBalance: whiteBalance,
-      iso: iso
+      effectMode: effectMode
     )
   }
   func toList() -> [Any?] {
     return [
       filterType,
-      parameters,
-      effectMode,
       brightness,
+      smoothness,
       saturation,
       contrast,
       sharpness,
       whiteBalance,
-      iso,
+      effectMode,
     ]
   }
   static func == (lhs: FilterConfig, rhs: FilterConfig) -> Bool {

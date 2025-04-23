@@ -22,14 +22,8 @@ enum FilterType {
   /// Beauty filter for skin smoothing
   beauty,
 
-  /// Vintage effect filter
-  vintage,
-
   /// Black and white filter
   blackAndWhite,
-
-  /// Custom filter with parameters
-  custom
 }
 
 /// Represents possible camera error types
@@ -104,20 +98,13 @@ enum WhiteBalanceMode {
 /// Configuration for applying filters to the camera preview
 class FilterConfig {
   /// The type of filter to apply
-  String? filterType;
-
-  /// Additional parameters for the filter
-  /// The structure depends on the filter type:
-  /// - For beauty filter: {'smoothness': 0.0-1.0, 'brightness': 0.0-1.0}
-  /// - For vintage: {'intensity': 0.0-1.0}
-  /// - For custom: varies based on implementation
-  Map<String, Object?>? parameters;
-
-  /// The effect mode
-  CameraEffectMode? effectMode;
+  FilterType? filterType;
 
   /// Brightness adjustment (-1.0 to 1.0)
   double? brightness;
+
+  /// Smoothness level for beauty filter (0.0 to 1.0)
+  double? smoothness;
 
   /// Saturation adjustment (0.0 to 2.0)
   double? saturation;
@@ -131,23 +118,23 @@ class FilterConfig {
   /// White balance mode
   WhiteBalanceMode? whiteBalance;
 
-  /// ISO value
-  int? iso;
+  /// The effect mode
+  CameraEffectMode? effectMode;
 
   /// Creates a new [FilterConfig] instance
   ///
   /// [filterType] specifies the type of filter to apply
-  /// [parameters] contains additional configuration for the filter
-  FilterConfig(
-      {this.filterType,
-      this.parameters,
-      this.effectMode,
-      this.brightness,
-      this.saturation,
-      this.contrast,
-      this.sharpness,
-      this.whiteBalance,
-      this.iso});
+  /// Additional parameters control specific aspects of the filter
+  FilterConfig({
+    this.filterType,
+    this.brightness,
+    this.smoothness,
+    this.saturation,
+    this.contrast,
+    this.sharpness,
+    this.whiteBalance,
+    this.effectMode,
+  });
 }
 
 /// Represents a camera error with type and message

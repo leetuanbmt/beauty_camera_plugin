@@ -90,12 +90,8 @@ enum class FilterType(val raw: Int) {
   NONE(0),
   /** Beauty filter for skin smoothing */
   BEAUTY(1),
-  /** Vintage effect filter */
-  VINTAGE(2),
   /** Black and white filter */
-  BLACK_AND_WHITE(3),
-  /** Custom filter with parameters */
-  CUSTOM(4);
+  BLACK_AND_WHITE(2);
 
   companion object {
     fun ofRaw(raw: Int): FilterType? {
@@ -219,19 +215,11 @@ data class CameraSettings (
  */
 data class FilterConfig (
   /** The type of filter to apply */
-  val filterType: String? = null,
-  /**
-   * Additional parameters for the filter
-   * The structure depends on the filter type:
-   * - For beauty filter: {'smoothness': 0.0-1.0, 'brightness': 0.0-1.0}
-   * - For vintage: {'intensity': 0.0-1.0}
-   * - For custom: varies based on implementation
-   */
-  val parameters: Map<String, Any?>? = null,
-  /** The effect mode */
-  val effectMode: CameraEffectMode? = null,
+  val filterType: FilterType? = null,
   /** Brightness adjustment (-1.0 to 1.0) */
   val brightness: Double? = null,
+  /** Smoothness level for beauty filter (0.0 to 1.0) */
+  val smoothness: Double? = null,
   /** Saturation adjustment (0.0 to 2.0) */
   val saturation: Double? = null,
   /** Contrast adjustment (0.0 to 2.0) */
@@ -240,35 +228,33 @@ data class FilterConfig (
   val sharpness: Double? = null,
   /** White balance mode */
   val whiteBalance: WhiteBalanceMode? = null,
-  /** ISO value */
-  val iso: Long? = null
+  /** The effect mode */
+  val effectMode: CameraEffectMode? = null
 )
  {
   companion object {
     fun fromList(pigeonVar_list: List<Any?>): FilterConfig {
-      val filterType = pigeonVar_list[0] as String?
-      val parameters = pigeonVar_list[1] as Map<String, Any?>?
-      val effectMode = pigeonVar_list[2] as CameraEffectMode?
-      val brightness = pigeonVar_list[3] as Double?
-      val saturation = pigeonVar_list[4] as Double?
-      val contrast = pigeonVar_list[5] as Double?
-      val sharpness = pigeonVar_list[6] as Double?
-      val whiteBalance = pigeonVar_list[7] as WhiteBalanceMode?
-      val iso = pigeonVar_list[8] as Long?
-      return FilterConfig(filterType, parameters, effectMode, brightness, saturation, contrast, sharpness, whiteBalance, iso)
+      val filterType = pigeonVar_list[0] as FilterType?
+      val brightness = pigeonVar_list[1] as Double?
+      val smoothness = pigeonVar_list[2] as Double?
+      val saturation = pigeonVar_list[3] as Double?
+      val contrast = pigeonVar_list[4] as Double?
+      val sharpness = pigeonVar_list[5] as Double?
+      val whiteBalance = pigeonVar_list[6] as WhiteBalanceMode?
+      val effectMode = pigeonVar_list[7] as CameraEffectMode?
+      return FilterConfig(filterType, brightness, smoothness, saturation, contrast, sharpness, whiteBalance, effectMode)
     }
   }
   fun toList(): List<Any?> {
     return listOf(
       filterType,
-      parameters,
-      effectMode,
       brightness,
+      smoothness,
       saturation,
       contrast,
       sharpness,
       whiteBalance,
-      iso,
+      effectMode,
     )
   }
   override fun equals(other: Any?): Boolean {

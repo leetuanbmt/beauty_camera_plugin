@@ -15,7 +15,8 @@ class BeautyCameraController extends ChangeNotifier {
   int? _textureId;
   bool _isInitialized = false;
   bool _isRecording = false;
-  String _currentFilter = 'none';
+  FilterType _currentFilter = FilterType.none;
+  CameraEffectMode? _effectMode;
   String? _lastMediaPath;
 
   Size? _previewSize;
@@ -35,7 +36,10 @@ class BeautyCameraController extends ChangeNotifier {
   bool get isRecording => _isRecording;
 
   /// Current applied filter
-  String get currentFilter => _currentFilter;
+  FilterType get currentFilter => _currentFilter;
+
+  /// Current applied camera effect mode
+  CameraEffectMode? get effectMode => _effectMode;
 
   /// Path to the last captured media (photo or video)
   String? get lastMediaPath => _lastMediaPath;
@@ -61,7 +65,7 @@ class BeautyCameraController extends ChangeNotifier {
   Future<void> initialize({
     int? width,
     int? height,
-    String defaultFilter = 'none',
+    FilterType defaultFilter = FilterType.none,
   }) async {
     try {
       await _plugin.initializeCamera(width: width, height: height);
@@ -82,7 +86,7 @@ class BeautyCameraController extends ChangeNotifier {
           "BeautyCameraController - Starting preview with textureId: $_textureId");
       await _plugin.startPreview(_textureId!);
 
-      await applyFilter(defaultFilter);
+      await applyFilterWithType(defaultFilter);
 
       _isInitialized = true;
       _currentFilter = defaultFilter;
@@ -221,7 +225,8 @@ class BeautyCameraController extends ChangeNotifier {
     }
   }
 
-  /// Apply a filter to the camera preview
+  /// Apply a filter to the camera preview using string type (legacy method)
+  @Deprecated('Use applyFilterWithType with FilterType instead')
   Future<void> applyFilter(String filterType,
       [Map<String, Object?>? parameters]) async {
     if (!_isInitialized) {
@@ -241,14 +246,158 @@ class BeautyCameraController extends ChangeNotifier {
 
       Logger.log(
           "BeautyCameraController - Applying filter $filterType with textureId: $_textureId");
+
       await _plugin.applyFilter(_textureId!, filterType, parameters);
-      _currentFilter = filterType;
       notifyListeners();
     } catch (e) {
       Logger.log("BeautyCameraController - Error applying filter: $e");
       onCameraError(CameraError(
         type: CameraErrorType.initializationFailed,
         message: 'Failed to apply filter: ${e.toString()}',
+      ));
+      rethrow;
+    }
+  }
+
+  /// Apply a filter to the camera preview
+  Future<void> applyFilterWithType(
+    FilterType filterType, {
+    double? brightness,
+    double? smoothness,
+    double? contrast,
+    double? saturation,
+    double? sharpness,
+    CameraEffectMode? effectMode,
+    WhiteBalanceMode? whiteBalance,
+  }) async {
+    if (!_isInitialized) {
+      throw CameraException(
+        CameraErrorType.initializationFailed,
+        'Camera not initialized',
+      );
+    }
+
+    try {
+      if (_textureId == null) {
+        throw CameraException(
+          CameraErrorType.initializationFailed,
+          'TextureId is null',
+        );
+      }
+
+      Logger.log(
+          "BeautyCameraController - Applying filter $filterType with textureId: $_textureId");
+
+      final filterConfig = FilterConfig(
+        filterType: filterType,
+        brightness: brightness,
+        smoothness: smoothness,
+        contrast: contrast,
+        saturation: saturation,
+        sharpness: sharpness,
+        effectMode: effectMode,
+        whiteBalance: whiteBalance,
+      );
+
+      await _plugin.applyFilterWithConfig(_textureId!, filterConfig);
+      _currentFilter = filterType;
+      _effectMode = effectMode;
+
+      // Reset effect mode khi áp dụng filter thông thường không có effect
+      if (effectMode == null &&
+          (filterType == FilterType.none ||
+              filterType == FilterType.beauty ||
+              filterType == FilterType.blackAndWhite)) {
+        _effectMode = null;
+      }
+
+      notifyListeners();
+    } catch (e) {
+      Logger.log("BeautyCameraController - Error applying filter: $e");
+      onCameraError(CameraError(
+        type: CameraErrorType.initializationFailed,
+        message: 'Failed to apply filter: ${e.toString()}',
+      ));
+      rethrow;
+    }
+  }
+
+  /// Apply beauty filter with customizable parameters
+  Future<void> applyBeautyFilter({
+    double smoothness = 0.5,
+    double brightness = 0.0,
+  }) async {
+    return applyFilterWithType(
+      FilterType.beauty,
+      smoothness: smoothness,
+      brightness: brightness,
+    );
+  }
+
+  /// Apply black and white filter with customizable contrast
+  Future<void> applyBlackAndWhiteFilter({
+    double contrast = 1.2,
+  }) async {
+    return applyFilterWithType(
+      FilterType.blackAndWhite,
+      contrast: contrast,
+    );
+  }
+
+  /// Apply brightness adjustment using the "none" filter type
+  Future<void> adjustBrightness({
+    double brightness = 0.3,
+  }) async {
+    return applyFilterWithType(
+      FilterType.none,
+      brightness: brightness,
+    );
+  }
+
+  /// Apply skin smoothing using the beauty filter
+  Future<void> applySkinSmoothing({
+    double smoothness = 0.7,
+  }) async {
+    return applyFilterWithType(
+      FilterType.beauty,
+      smoothness: smoothness,
+    );
+  }
+
+  /// Apply camera effect mode
+  Future<void> applyEffectMode(CameraEffectMode effectMode) async {
+    if (!_isInitialized) {
+      throw CameraException(
+        CameraErrorType.initializationFailed,
+        'Camera not initialized',
+      );
+    }
+
+    try {
+      if (_textureId == null) {
+        throw CameraException(
+          CameraErrorType.initializationFailed,
+          'TextureId is null',
+        );
+      }
+
+      Logger.log(
+          "BeautyCameraController - Applying effect mode: $effectMode with textureId: $_textureId");
+
+      final filterConfig = FilterConfig(
+        filterType: FilterType.none,
+        effectMode: effectMode,
+      );
+
+      await _plugin.applyFilterWithConfig(_textureId!, filterConfig);
+      _currentFilter = FilterType.none;
+      _effectMode = effectMode;
+      notifyListeners();
+    } catch (e) {
+      Logger.log("BeautyCameraController - Error applying effect mode: $e");
+      onCameraError(CameraError(
+        type: CameraErrorType.initializationFailed,
+        message: 'Failed to apply effect mode: ${e.toString()}',
       ));
       rethrow;
     }
@@ -325,7 +474,7 @@ class BeautyCameraController extends ChangeNotifier {
 class CameraState {
   final bool isInitialized;
   final bool isRecording;
-  final String currentFilter;
+  final FilterType currentFilter;
   final int? textureId;
 
   CameraState({

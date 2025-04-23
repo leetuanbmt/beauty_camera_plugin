@@ -94,43 +94,45 @@ class _CameraScreenState extends State<CameraScreen> {
   // Define available filters
   final List<FilterConfig> filters = [
     FilterConfig(
-      type: 'none',
+      type: FilterType.none,
       name: 'Normal',
       icon: Icons.lens_outlined,
     ),
     FilterConfig(
-      type: 'beauty',
+      type: FilterType.beauty,
       name: 'Beauty',
       icon: Icons.face,
       params: {'smoothness': 0.7, 'brightness': 0.3},
     ),
     FilterConfig(
-      type: 'vintage',
-      name: 'Vintage',
-      icon: Icons.camera_roll,
-      params: {'intensity': 0.6},
-    ),
-    FilterConfig(
-      type: 'mono',
-      name: 'Mono',
+      type: FilterType.blackAndWhite,
+      name: 'Black & White',
       icon: Icons.monochrome_photos,
-      params: {'intensity': 0.5},
+      params: {'contrast': 1.2},
     ),
-    FilterConfig(
-      type: 'sepia',
+  ];
+
+  // Define camera effect filters
+  final List<CameraEffectConfig> effectFilters = [
+    CameraEffectConfig(
+      effectMode: CameraEffectMode.mono,
+      name: 'Mono',
+      icon: Icons.filter_b_and_w,
+    ),
+    CameraEffectConfig(
+      effectMode: CameraEffectMode.sepia,
       name: 'Sepia',
       icon: Icons.filter_vintage,
-      params: {'intensity': 0.5},
     ),
-    FilterConfig(
-      type: 'custom',
-      name: 'Custom',
-      icon: Icons.tune,
-      params: {
-        'edge_mode': 1,
-        'noise_reduction': 2,
-        'saturation': 1.2,
-      },
+    CameraEffectConfig(
+      effectMode: CameraEffectMode.negative,
+      name: 'Negative',
+      icon: Icons.exposure_neg_1,
+    ),
+    CameraEffectConfig(
+      effectMode: CameraEffectMode.aqua,
+      name: 'Aqua',
+      icon: Icons.water,
     ),
   ];
 
@@ -164,7 +166,7 @@ class _CameraScreenState extends State<CameraScreen> {
       await _controller.initialize(
         width: 720,
         height: 1280,
-        defaultFilter: 'none',
+        defaultFilter: FilterType.none,
       );
 
       // Preview should start automatically after initialization
@@ -266,10 +268,55 @@ class _CameraScreenState extends State<CameraScreen> {
     }
   }
 
-  Future<void> _applyFilter(FilterConfig filter) async {
+  Future<void> _applyFilter(FilterType filterType) async {
     try {
-      await _controller.applyFilter(filter.type, filter.params ?? {});
-      setState(() {});
+      // Tìm filter config tương ứng theo type
+      final filterConfig = filters.firstWhere((f) => f.type == filterType);
+      final params = filterConfig.params ?? {};
+
+      Logger.log("Applying filter: $filterType with params: $params");
+
+      if (_controller.textureId != null) {
+        // Kiểm tra xem filter có effectMode không
+        final effectMode = params['effectMode'] as CameraEffectMode?;
+
+        if (effectMode != null) {
+          // Nếu có effectMode, ưu tiên áp dụng effectMode
+          await _controller.applyFilterWithType(
+            filterType,
+            effectMode: effectMode,
+            brightness: params['brightness']?.toDouble(),
+            contrast: params['contrast']?.toDouble(),
+            saturation: params['saturation']?.toDouble(),
+          );
+        } else {
+          // Nếu không có effectMode, xử lý theo filter type
+          switch (filterType) {
+            case FilterType.none:
+              await _controller.applyFilterWithType(
+                filterType,
+                brightness: params['brightness']?.toDouble(),
+                contrast: params['contrast']?.toDouble(),
+                saturation: params['saturation']?.toDouble(),
+              );
+              break;
+            case FilterType.beauty:
+              await _controller.applyFilterWithType(
+                filterType,
+                smoothness: params['smoothness']?.toDouble(),
+                brightness: params['brightness']?.toDouble(),
+              );
+              break;
+            case FilterType.blackAndWhite:
+              await _controller.applyFilterWithType(
+                filterType,
+                contrast: params['contrast']?.toDouble(),
+              );
+              break;
+          }
+        }
+        setState(() {});
+      }
     } catch (e) {
       _showSnackBar('Failed to apply filter: $e');
     }
@@ -379,56 +426,34 @@ class _CameraScreenState extends State<CameraScreen> {
                     // Filter List
                     SizedBox(
                       height: 100,
-                      child: ListView.builder(
+                      child: ListView(
                         scrollDirection: Axis.horizontal,
-                        itemCount: filters.length,
-                        itemBuilder: (context, index) {
-                          final filter = filters[index];
-                          final isSelected =
-                              _controller.currentFilter == filter.type;
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                InkWell(
-                                  onTap: _controller.isInitialized
-                                      ? () => _applyFilter(filter)
-                                      : null,
-                                  child: Container(
-                                    width: 60,
-                                    height: 60,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: isSelected
-                                            ? Colors.blue
-                                            : Colors.white,
-                                        width: 2,
-                                      ),
-                                    ),
-                                    child: Icon(
-                                      filter.icon,
-                                      color: isSelected
-                                          ? Colors.blue
-                                          : Colors.white,
-                                      size: 30,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  filter.name,
-                                  style: TextStyle(
-                                    color:
-                                        isSelected ? Colors.blue : Colors.white,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
+                        children: [
+                          // Regular filters
+                          ...filters.map((filter) {
+                            final isSelected =
+                                _controller.currentFilter == filter.type &&
+                                    _controller.effectMode == null;
+                            return _buildFilterItem(
+                              filter.name,
+                              filter.icon,
+                              isSelected,
+                              () => _applyFilter(filter.type),
+                            );
+                          }),
+
+                          // Effect mode filters
+                          ...effectFilters.map((effect) {
+                            final isSelected =
+                                _controller.effectMode == effect.effectMode;
+                            return _buildFilterItem(
+                              effect.name,
+                              effect.icon,
+                              isSelected,
+                              () => _applyEffectMode(effect.effectMode),
+                            );
+                          }),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -488,16 +513,78 @@ class _CameraScreenState extends State<CameraScreen> {
       ),
     );
   }
+
+  Widget _buildFilterItem(
+      String name, IconData icon, bool isSelected, VoidCallback onPressed) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          InkWell(
+            onTap: onPressed,
+            child: Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isSelected ? Colors.blue : Colors.white,
+                  width: 2,
+                ),
+              ),
+              child: Icon(
+                icon,
+                color: isSelected ? Colors.blue : Colors.white,
+                size: 30,
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            name,
+            style: TextStyle(
+              color: isSelected ? Colors.blue : Colors.white,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _applyEffectMode(CameraEffectMode effectMode) async {
+    try {
+      await _controller.applyEffectMode(effectMode);
+      setState(() {});
+    } catch (e) {
+      _showSnackBar('Failed to apply effect mode: $e');
+    }
+  }
 }
 
 class FilterConfig {
-  final String type;
+  final FilterType type;
   final String name;
   final IconData icon;
   final Map<String, dynamic>? params;
 
   const FilterConfig({
     required this.type,
+    required this.name,
+    required this.icon,
+    this.params,
+  });
+}
+
+class CameraEffectConfig {
+  final CameraEffectMode effectMode;
+  final String name;
+  final IconData icon;
+  final Map<String, dynamic>? params;
+
+  const CameraEffectConfig({
+    required this.effectMode,
     required this.name,
     required this.icon,
     this.params,

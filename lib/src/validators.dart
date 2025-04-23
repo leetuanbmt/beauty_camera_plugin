@@ -12,7 +12,36 @@ void validateCameraSettings(CameraSettings settings) {
 
 /// Validates filter configuration and throws appropriate errors if invalid
 void validateFilterConfig(FilterConfig config) {
-  if (config.filterType == null || config.filterType!.isEmpty) {
-    throw ArgumentError('Filter type cannot be null or empty');
+  // Filter type can be null to indicate no specific filter
+  // but using individual parameters
+
+  // Validate brightness range if provided
+  if (config.brightness != null &&
+      (config.brightness! < -1.0 || config.brightness! > 1.0)) {
+    throw ArgumentError('Brightness must be between -1.0 and 1.0');
+  }
+
+  // Validate smoothness range if provided
+  if (config.smoothness != null &&
+      (config.smoothness! < 0.0 || config.smoothness! > 1.0)) {
+    throw ArgumentError('Smoothness must be between 0.0 and 1.0');
+  }
+
+  // Validate contrast range if provided
+  if (config.contrast != null &&
+      (config.contrast! < 0.0 || config.contrast! > 2.0)) {
+    throw ArgumentError('Contrast must be between 0.0 and 2.0');
+  }
+
+  // Validate saturation range if provided
+  if (config.saturation != null &&
+      (config.saturation! < 0.0 || config.saturation! > 2.0)) {
+    throw ArgumentError('Saturation must be between 0.0 and 2.0');
+  }
+
+  // Validate sharpness range if provided
+  if (config.sharpness != null &&
+      (config.sharpness! < 0.0 || config.sharpness! > 1.0)) {
+    throw ArgumentError('Sharpness must be between 0.0 and 1.0');
   }
 }
