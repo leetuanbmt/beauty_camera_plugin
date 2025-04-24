@@ -84,218 +84,166 @@ class FlutterError (
   val details: Any? = null
 ) : Throwable()
 
-/** Represents the available filter types for camera effects */
-enum class FilterType(val raw: Int) {
-  /** No filter applied */
+enum class CameraFilterMode(val raw: Int) {
   NONE(0),
-  /** Beauty filter for skin smoothing */
   BEAUTY(1),
-  /** Black and white filter */
-  BLACK_AND_WHITE(2);
-
-  companion object {
-    fun ofRaw(raw: Int): FilterType? {
-      return values().firstOrNull { it.raw == raw }
-    }
-  }
-}
-
-/** Represents possible camera error types */
-enum class CameraErrorType(val raw: Int) {
-  /** Camera initialization failed */
-  INITIALIZATION_FAILED(0),
-  /** Camera permission denied */
-  PERMISSION_DENIED(1),
-  /** Camera hardware not available */
-  HARDWARE_NOT_AVAILABLE(2),
-  /** Invalid camera settings */
-  INVALID_SETTINGS(3),
-  /** Recording failed */
-  RECORDING_FAILED(4),
-  /** Picture capture failed */
-  CAPTURE_FAILED(5),
-  /** Unknown error occurred */
-  UNKNOWN(6);
-
-  companion object {
-    fun ofRaw(raw: Int): CameraErrorType? {
-      return values().firstOrNull { it.raw == raw }
-    }
-  }
-}
-
-/** Camera effect modes */
-enum class CameraEffectMode(val raw: Int) {
-  NONE(0),
-  MONO(1),
-  NEGATIVE(2),
-  SOLARIZE(3),
+  MONO(2),
+  NEGATIVE(3),
   SEPIA(4),
-  POSTERIZE(5),
-  WHITEBOARD(6),
-  BLACKBOARD(7),
-  AQUA(8);
+  SOLARIZE(5),
+  POSTERIZE(6),
+  WHITEBOARD(7),
+  BLACKBOARD(8),
+  AQUA(9),
+  EMBOSS(10),
+  SKETCH(11),
+  NEON(12),
+  VINTAGE(13),
+  BRIGHTNESS(14),
+  CONTRAST(15),
+  SATURATION(16),
+  SHARPEN(17),
+  GAUSSIAN_BLUR(18),
+  VIGNETTE(19),
+  HUE(20),
+  EXPOSURE(21),
+  HIGHLIGHT_SHADOW(22),
+  LEVELS(23),
+  COLOR_BALANCE(24),
+  LOOKUP(25);
 
   companion object {
-    fun ofRaw(raw: Int): CameraEffectMode? {
+    fun ofRaw(raw: Int): CameraFilterMode? {
       return values().firstOrNull { it.raw == raw }
     }
   }
 }
 
-/** White balance modes */
-enum class WhiteBalanceMode(val raw: Int) {
-  AUTO(0),
-  INCANDESCENT(1),
-  FLUORESCENT(2),
-  WARM_FLUORESCENT(3),
-  DAYLIGHT(4),
-  CLOUDY_DAYLIGHT(5),
-  TWILIGHT(6),
-  SHADE(7);
+enum class VideoQuality(val raw: Int) {
+  LOW(0),
+  MEDIUM(1),
+  HIGH(2),
+  VERY_HIGH(3),
+  ULTRA(4);
 
   companion object {
-    fun ofRaw(raw: Int): WhiteBalanceMode? {
+    fun ofRaw(raw: Int): VideoQuality? {
       return values().firstOrNull { it.raw == raw }
     }
   }
 }
 
-/**
- * Configuration settings for camera initialization
- *
- * Generated class from Pigeon that represents data sent in messages.
- */
-data class CameraSettings (
-  /**
-   * The desired width of the camera preview in pixels
-   * If null, the default camera resolution will be used
-   */
-  val width: Long? = null,
-  /**
-   * The desired height of the camera preview in pixels
-   * If null, the default camera resolution will be used
-   */
-  val height: Long? = null,
-  /** The camera ID */
-  val cameraId: String? = null
+enum class FlashMode(val raw: Int) {
+  OFF(0),
+  ON(1),
+  AUTO(2),
+  TORCH(3);
+
+  companion object {
+    fun ofRaw(raw: Int): FlashMode? {
+      return values().firstOrNull { it.raw == raw }
+    }
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class AdvancedCameraSettings (
+  val videoQuality: VideoQuality? = null,
+  val maxFrameRate: Long? = null,
+  val videoStabilization: Boolean? = null,
+  val autoExposure: Boolean? = null,
+  val enableFaceDetection: Boolean? = null
 )
  {
   companion object {
-    fun fromList(pigeonVar_list: List<Any?>): CameraSettings {
-      val width = pigeonVar_list[0] as Long?
-      val height = pigeonVar_list[1] as Long?
-      val cameraId = pigeonVar_list[2] as String?
-      return CameraSettings(width, height, cameraId)
+    fun fromList(pigeonVar_list: List<Any?>): AdvancedCameraSettings {
+      val videoQuality = pigeonVar_list[0] as VideoQuality?
+      val maxFrameRate = pigeonVar_list[1] as Long?
+      val videoStabilization = pigeonVar_list[2] as Boolean?
+      val autoExposure = pigeonVar_list[3] as Boolean?
+      val enableFaceDetection = pigeonVar_list[4] as Boolean?
+      return AdvancedCameraSettings(videoQuality, maxFrameRate, videoStabilization, autoExposure, enableFaceDetection)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      videoQuality,
+      maxFrameRate,
+      videoStabilization,
+      autoExposure,
+      enableFaceDetection,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other !is AdvancedCameraSettings) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    return BeautyCameraPluginPigeonPigeonUtils.deepEquals(toList(), other.toList())  }
+
+  override fun hashCode(): Int = toList().hashCode()
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class FaceData (
+  val x: Double,
+  val y: Double,
+  val size: Double,
+  val id: Long
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): FaceData {
+      val x = pigeonVar_list[0] as Double
+      val y = pigeonVar_list[1] as Double
+      val size = pigeonVar_list[2] as Double
+      val id = pigeonVar_list[3] as Long
+      return FaceData(x, y, size, id)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      x,
+      y,
+      size,
+      id,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other !is FaceData) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    return BeautyCameraPluginPigeonPigeonUtils.deepEquals(toList(), other.toList())  }
+
+  override fun hashCode(): Int = toList().hashCode()
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class PreviewSize (
+  val width: Long,
+  val height: Long
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): PreviewSize {
+      val width = pigeonVar_list[0] as Long
+      val height = pigeonVar_list[1] as Long
+      return PreviewSize(width, height)
     }
   }
   fun toList(): List<Any?> {
     return listOf(
       width,
       height,
-      cameraId,
     )
   }
   override fun equals(other: Any?): Boolean {
-    if (other !is CameraSettings) {
-      return false
-    }
-    if (this === other) {
-      return true
-    }
-    return BeautyCameraPluginPigeonPigeonUtils.deepEquals(toList(), other.toList())  }
-
-  override fun hashCode(): Int = toList().hashCode()
-}
-
-/**
- * Configuration for applying filters to the camera preview
- *
- * Generated class from Pigeon that represents data sent in messages.
- */
-data class FilterConfig (
-  /** The type of filter to apply */
-  val filterType: FilterType? = null,
-  /** Brightness adjustment (-1.0 to 1.0) */
-  val brightness: Double? = null,
-  /** Smoothness level for beauty filter (0.0 to 1.0) */
-  val smoothness: Double? = null,
-  /** Saturation adjustment (0.0 to 2.0) */
-  val saturation: Double? = null,
-  /** Contrast adjustment (0.0 to 2.0) */
-  val contrast: Double? = null,
-  /** Sharpness adjustment (0.0 to 1.0) */
-  val sharpness: Double? = null,
-  /** White balance mode */
-  val whiteBalance: WhiteBalanceMode? = null,
-  /** The effect mode */
-  val effectMode: CameraEffectMode? = null
-)
- {
-  companion object {
-    fun fromList(pigeonVar_list: List<Any?>): FilterConfig {
-      val filterType = pigeonVar_list[0] as FilterType?
-      val brightness = pigeonVar_list[1] as Double?
-      val smoothness = pigeonVar_list[2] as Double?
-      val saturation = pigeonVar_list[3] as Double?
-      val contrast = pigeonVar_list[4] as Double?
-      val sharpness = pigeonVar_list[5] as Double?
-      val whiteBalance = pigeonVar_list[6] as WhiteBalanceMode?
-      val effectMode = pigeonVar_list[7] as CameraEffectMode?
-      return FilterConfig(filterType, brightness, smoothness, saturation, contrast, sharpness, whiteBalance, effectMode)
-    }
-  }
-  fun toList(): List<Any?> {
-    return listOf(
-      filterType,
-      brightness,
-      smoothness,
-      saturation,
-      contrast,
-      sharpness,
-      whiteBalance,
-      effectMode,
-    )
-  }
-  override fun equals(other: Any?): Boolean {
-    if (other !is FilterConfig) {
-      return false
-    }
-    if (this === other) {
-      return true
-    }
-    return BeautyCameraPluginPigeonPigeonUtils.deepEquals(toList(), other.toList())  }
-
-  override fun hashCode(): Int = toList().hashCode()
-}
-
-/**
- * Represents a camera error with type and message
- *
- * Generated class from Pigeon that represents data sent in messages.
- */
-data class CameraError (
-  /** The type of error that occurred */
-  val type: CameraErrorType,
-  /** A human-readable description of the error */
-  val message: String
-)
- {
-  companion object {
-    fun fromList(pigeonVar_list: List<Any?>): CameraError {
-      val type = pigeonVar_list[0] as CameraErrorType
-      val message = pigeonVar_list[1] as String
-      return CameraError(type, message)
-    }
-  }
-  fun toList(): List<Any?> {
-    return listOf(
-      type,
-      message,
-    )
-  }
-  override fun equals(other: Any?): Boolean {
-    if (other !is CameraError) {
+    if (other !is PreviewSize) {
       return false
     }
     if (this === other) {
@@ -310,37 +258,32 @@ private open class BeautyCameraPluginPigeonPigeonCodec : StandardMessageCodec() 
     return when (type) {
       129.toByte() -> {
         return (readValue(buffer) as Long?)?.let {
-          FilterType.ofRaw(it.toInt())
+          CameraFilterMode.ofRaw(it.toInt())
         }
       }
       130.toByte() -> {
         return (readValue(buffer) as Long?)?.let {
-          CameraErrorType.ofRaw(it.toInt())
+          VideoQuality.ofRaw(it.toInt())
         }
       }
       131.toByte() -> {
         return (readValue(buffer) as Long?)?.let {
-          CameraEffectMode.ofRaw(it.toInt())
+          FlashMode.ofRaw(it.toInt())
         }
       }
       132.toByte() -> {
-        return (readValue(buffer) as Long?)?.let {
-          WhiteBalanceMode.ofRaw(it.toInt())
+        return (readValue(buffer) as? List<Any?>)?.let {
+          AdvancedCameraSettings.fromList(it)
         }
       }
       133.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          CameraSettings.fromList(it)
+          FaceData.fromList(it)
         }
       }
       134.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          FilterConfig.fromList(it)
-        }
-      }
-      135.toByte() -> {
-        return (readValue(buffer) as? List<Any?>)?.let {
-          CameraError.fromList(it)
+          PreviewSize.fromList(it)
         }
       }
       else -> super.readValueOfType(type, buffer)
@@ -348,32 +291,28 @@ private open class BeautyCameraPluginPigeonPigeonCodec : StandardMessageCodec() 
   }
   override fun writeValue(stream: ByteArrayOutputStream, value: Any?)   {
     when (value) {
-      is FilterType -> {
+      is CameraFilterMode -> {
         stream.write(129)
         writeValue(stream, value.raw)
       }
-      is CameraErrorType -> {
+      is VideoQuality -> {
         stream.write(130)
         writeValue(stream, value.raw)
       }
-      is CameraEffectMode -> {
+      is FlashMode -> {
         stream.write(131)
         writeValue(stream, value.raw)
       }
-      is WhiteBalanceMode -> {
+      is AdvancedCameraSettings -> {
         stream.write(132)
-        writeValue(stream, value.raw)
+        writeValue(stream, value.toList())
       }
-      is CameraSettings -> {
+      is FaceData -> {
         stream.write(133)
         writeValue(stream, value.toList())
       }
-      is FilterConfig -> {
+      is PreviewSize -> {
         stream.write(134)
-        writeValue(stream, value.toList())
-      }
-      is CameraError -> {
-        stream.write(135)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -382,57 +321,22 @@ private open class BeautyCameraPluginPigeonPigeonCodec : StandardMessageCodec() 
 }
 
 
-/**
- * Host API for camera operations
- *
- * Generated interface from Pigeon that represents a handler of messages from Flutter.
- */
+/** Generated interface from Pigeon that represents a handler of messages from Flutter. */
 interface BeautyCameraHostApi {
-  /**
-   * Initializes the camera with the specified settings
-   *
-   * Returns a Future that completes when the camera is initialized
-   * Throws [CameraException] if initialization fails
-   */
-  fun initializeCamera(settings: CameraSettings, callback: (Result<Unit>) -> Unit)
-  /**
-   * Creates a new preview texture and returns its ID
-   *
-   * Returns the texture ID that can be used to display the camera preview
-   * Returns null if texture creation fails
-   */
-  fun createPreviewTexture(callback: (Result<Long?>) -> Unit)
-  /**
-   * Starts the camera preview on the specified texture
-   *
-   * [textureId] must be a valid texture ID returned by [createPreviewTexture]
-   */
-  fun startPreview(textureId: Long, callback: (Result<Unit>) -> Unit)
-  /** Stops the camera preview */
-  fun stopPreview(callback: (Result<Unit>) -> Unit)
-  /** Disposes of all camera resources */
-  fun disposeCamera(callback: (Result<Unit>) -> Unit)
-  /**
-   * Takes a picture and saves it to the specified path
-   *
-   * [path] must be a valid file path where the image will be saved
-   */
-  fun takePicture(path: String, callback: (Result<Unit>) -> Unit)
-  /**
-   * Starts recording video to the specified path
-   *
-   * [path] must be a valid file path where the video will be saved
-   */
-  fun startRecording(path: String, callback: (Result<Unit>) -> Unit)
-  /** Stops the current video recording */
-  fun stopRecording(callback: (Result<Unit>) -> Unit)
-  /**
-   * Applies a filter to the camera preview
-   *
-   * [textureId] must be a valid texture ID
-   * [filterConfig] specifies the filter type and parameters
-   */
-  fun applyFilter(textureId: Long, filterConfig: FilterConfig, callback: (Result<Unit>) -> Unit)
+  fun initialize(settings: AdvancedCameraSettings, callback: (Result<Unit>) -> Unit)
+  fun dispose(callback: (Result<Unit>) -> Unit)
+  fun switchCamera(callback: (Result<Unit>) -> Unit)
+  fun setZoom(zoomLevel: Double, callback: (Result<Unit>) -> Unit)
+  fun focusOnPoint(x: Long, y: Long, callback: (Result<Unit>) -> Unit)
+  fun setFlashMode(mode: FlashMode, callback: (Result<Unit>) -> Unit)
+  fun setDisplayOrientation(degrees: Long, callback: (Result<Unit>) -> Unit)
+  fun getPreviewTexture(callback: (Result<Long>) -> Unit)
+  fun getPreviewSize(callback: (Result<PreviewSize>) -> Unit)
+  fun takePhoto(callback: (Result<String>) -> Unit)
+  fun startVideoRecording(callback: (Result<Unit>) -> Unit)
+  fun stopVideoRecording(callback: (Result<String>) -> Unit)
+  fun getCameraSensorAspectRatio(callback: (Result<Double>) -> Unit)
+  fun setFilterMode(mode: CameraFilterMode, level: Double, callback: (Result<Unit>) -> Unit)
 
   companion object {
     /** The codec used by BeautyCameraHostApi. */
@@ -444,12 +348,12 @@ interface BeautyCameraHostApi {
     fun setUp(binaryMessenger: BinaryMessenger, api: BeautyCameraHostApi?, messageChannelSuffix: String = "") {
       val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.initializeCamera$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.initialize$separatedMessageChannelSuffix", codec)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
-            val settingsArg = args[0] as CameraSettings
-            api.initializeCamera(settingsArg) { result: Result<Unit> ->
+            val settingsArg = args[0] as AdvancedCameraSettings
+            api.initialize(settingsArg) { result: Result<Unit> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(BeautyCameraPluginPigeonPigeonUtils.wrapError(error))
@@ -463,10 +367,121 @@ interface BeautyCameraHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.createPreviewTexture$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.dispose$separatedMessageChannelSuffix", codec)
         if (api != null) {
           channel.setMessageHandler { _, reply ->
-            api.createPreviewTexture{ result: Result<Long?> ->
+            api.dispose{ result: Result<Unit> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(BeautyCameraPluginPigeonPigeonUtils.wrapError(error))
+              } else {
+                reply.reply(BeautyCameraPluginPigeonPigeonUtils.wrapResult(null))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.switchCamera$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.switchCamera{ result: Result<Unit> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(BeautyCameraPluginPigeonPigeonUtils.wrapError(error))
+              } else {
+                reply.reply(BeautyCameraPluginPigeonPigeonUtils.wrapResult(null))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.setZoom$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val zoomLevelArg = args[0] as Double
+            api.setZoom(zoomLevelArg) { result: Result<Unit> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(BeautyCameraPluginPigeonPigeonUtils.wrapError(error))
+              } else {
+                reply.reply(BeautyCameraPluginPigeonPigeonUtils.wrapResult(null))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.focusOnPoint$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val xArg = args[0] as Long
+            val yArg = args[1] as Long
+            api.focusOnPoint(xArg, yArg) { result: Result<Unit> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(BeautyCameraPluginPigeonPigeonUtils.wrapError(error))
+              } else {
+                reply.reply(BeautyCameraPluginPigeonPigeonUtils.wrapResult(null))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.setFlashMode$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val modeArg = args[0] as FlashMode
+            api.setFlashMode(modeArg) { result: Result<Unit> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(BeautyCameraPluginPigeonPigeonUtils.wrapError(error))
+              } else {
+                reply.reply(BeautyCameraPluginPigeonPigeonUtils.wrapResult(null))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.setDisplayOrientation$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val degreesArg = args[0] as Long
+            api.setDisplayOrientation(degreesArg) { result: Result<Unit> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(BeautyCameraPluginPigeonPigeonUtils.wrapError(error))
+              } else {
+                reply.reply(BeautyCameraPluginPigeonPigeonUtils.wrapResult(null))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.getPreviewTexture$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.getPreviewTexture{ result: Result<Long> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(BeautyCameraPluginPigeonPigeonUtils.wrapError(error))
@@ -481,34 +496,16 @@ interface BeautyCameraHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.startPreview$separatedMessageChannelSuffix", codec)
-        if (api != null) {
-          channel.setMessageHandler { message, reply ->
-            val args = message as List<Any?>
-            val textureIdArg = args[0] as Long
-            api.startPreview(textureIdArg) { result: Result<Unit> ->
-              val error = result.exceptionOrNull()
-              if (error != null) {
-                reply.reply(BeautyCameraPluginPigeonPigeonUtils.wrapError(error))
-              } else {
-                reply.reply(BeautyCameraPluginPigeonPigeonUtils.wrapResult(null))
-              }
-            }
-          }
-        } else {
-          channel.setMessageHandler(null)
-        }
-      }
-      run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.stopPreview$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.getPreviewSize$separatedMessageChannelSuffix", codec)
         if (api != null) {
           channel.setMessageHandler { _, reply ->
-            api.stopPreview{ result: Result<Unit> ->
+            api.getPreviewSize{ result: Result<PreviewSize> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(BeautyCameraPluginPigeonPigeonUtils.wrapError(error))
               } else {
-                reply.reply(BeautyCameraPluginPigeonPigeonUtils.wrapResult(null))
+                val data = result.getOrNull()
+                reply.reply(BeautyCameraPluginPigeonPigeonUtils.wrapResult(data))
               }
             }
           }
@@ -517,15 +514,16 @@ interface BeautyCameraHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.disposeCamera$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.takePhoto$separatedMessageChannelSuffix", codec)
         if (api != null) {
           channel.setMessageHandler { _, reply ->
-            api.disposeCamera{ result: Result<Unit> ->
+            api.takePhoto{ result: Result<String> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(BeautyCameraPluginPigeonPigeonUtils.wrapError(error))
               } else {
-                reply.reply(BeautyCameraPluginPigeonPigeonUtils.wrapResult(null))
+                val data = result.getOrNull()
+                reply.reply(BeautyCameraPluginPigeonPigeonUtils.wrapResult(data))
               }
             }
           }
@@ -534,48 +532,10 @@ interface BeautyCameraHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.takePicture$separatedMessageChannelSuffix", codec)
-        if (api != null) {
-          channel.setMessageHandler { message, reply ->
-            val args = message as List<Any?>
-            val pathArg = args[0] as String
-            api.takePicture(pathArg) { result: Result<Unit> ->
-              val error = result.exceptionOrNull()
-              if (error != null) {
-                reply.reply(BeautyCameraPluginPigeonPigeonUtils.wrapError(error))
-              } else {
-                reply.reply(BeautyCameraPluginPigeonPigeonUtils.wrapResult(null))
-              }
-            }
-          }
-        } else {
-          channel.setMessageHandler(null)
-        }
-      }
-      run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.startRecording$separatedMessageChannelSuffix", codec)
-        if (api != null) {
-          channel.setMessageHandler { message, reply ->
-            val args = message as List<Any?>
-            val pathArg = args[0] as String
-            api.startRecording(pathArg) { result: Result<Unit> ->
-              val error = result.exceptionOrNull()
-              if (error != null) {
-                reply.reply(BeautyCameraPluginPigeonPigeonUtils.wrapError(error))
-              } else {
-                reply.reply(BeautyCameraPluginPigeonPigeonUtils.wrapResult(null))
-              }
-            }
-          }
-        } else {
-          channel.setMessageHandler(null)
-        }
-      }
-      run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.stopRecording$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.startVideoRecording$separatedMessageChannelSuffix", codec)
         if (api != null) {
           channel.setMessageHandler { _, reply ->
-            api.stopRecording{ result: Result<Unit> ->
+            api.startVideoRecording{ result: Result<Unit> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(BeautyCameraPluginPigeonPigeonUtils.wrapError(error))
@@ -589,13 +549,49 @@ interface BeautyCameraHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.applyFilter$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.stopVideoRecording$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.stopVideoRecording{ result: Result<String> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(BeautyCameraPluginPigeonPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(BeautyCameraPluginPigeonPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.getCameraSensorAspectRatio$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.getCameraSensorAspectRatio{ result: Result<Double> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(BeautyCameraPluginPigeonPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(BeautyCameraPluginPigeonPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.setFilterMode$separatedMessageChannelSuffix", codec)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
-            val textureIdArg = args[0] as Long
-            val filterConfigArg = args[1] as FilterConfig
-            api.applyFilter(textureIdArg, filterConfigArg) { result: Result<Unit> ->
+            val modeArg = args[0] as CameraFilterMode
+            val levelArg = args[1] as Double
+            api.setFilterMode(modeArg, levelArg) { result: Result<Unit> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(BeautyCameraPluginPigeonPigeonUtils.wrapError(error))
@@ -611,11 +607,7 @@ interface BeautyCameraHostApi {
     }
   }
 }
-/**
- * Flutter API for camera events
- *
- * Generated class from Pigeon that represents Flutter messages that can be called from Kotlin.
- */
+/** Generated class from Pigeon that represents Flutter messages that can be called from Kotlin. */
 class BeautyCameraFlutterApi(private val binaryMessenger: BinaryMessenger, private val messageChannelSuffix: String = "") {
   companion object {
     /** The codec used by BeautyCameraFlutterApi. */
@@ -623,18 +615,12 @@ class BeautyCameraFlutterApi(private val binaryMessenger: BinaryMessenger, priva
       BeautyCameraPluginPigeonPigeonCodec()
     }
   }
-  /**
-   * Called when the camera is successfully initialized
-   *
-   * [textureId] is the ID of the preview texture
-   * [width] and [height] are the actual dimensions of the camera preview
-   */
-  fun onCameraInitialized(textureIdArg: Long, widthArg: Long, heightArg: Long, callback: (Result<Unit>) -> Unit)
+  fun onZoomChanged(zoomLevelArg: Double, callback: (Result<Unit>) -> Unit)
 {
     val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
-    val channelName = "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onCameraInitialized$separatedMessageChannelSuffix"
+    val channelName = "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onZoomChanged$separatedMessageChannelSuffix"
     val channel = BasicMessageChannel<Any?>(binaryMessenger, channelName, codec)
-    channel.send(listOf(textureIdArg, widthArg, heightArg)) {
+    channel.send(listOf(zoomLevelArg)) {
       if (it is List<*>) {
         if (it.size > 1) {
           callback(Result.failure(FlutterError(it[0] as String, it[1] as String, it[2] as String?)))
@@ -646,17 +632,12 @@ class BeautyCameraFlutterApi(private val binaryMessenger: BinaryMessenger, priva
       } 
     }
   }
-  /**
-   * Called when a picture has been taken and saved
-   *
-   * [path] is the path where the image was saved
-   */
-  fun onTakePictureCompleted(pathArg: String, callback: (Result<Unit>) -> Unit)
+  fun onFlashModeChanged(modeArg: FlashMode, callback: (Result<Unit>) -> Unit)
 {
     val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
-    val channelName = "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onTakePictureCompleted$separatedMessageChannelSuffix"
+    val channelName = "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onFlashModeChanged$separatedMessageChannelSuffix"
     val channel = BasicMessageChannel<Any?>(binaryMessenger, channelName, codec)
-    channel.send(listOf(pathArg)) {
+    channel.send(listOf(modeArg)) {
       if (it is List<*>) {
         if (it.size > 1) {
           callback(Result.failure(FlutterError(it[0] as String, it[1] as String, it[2] as String?)))
@@ -668,11 +649,44 @@ class BeautyCameraFlutterApi(private val binaryMessenger: BinaryMessenger, priva
       } 
     }
   }
-  /** Called when video recording has started */
-  fun onRecordingStarted(callback: (Result<Unit>) -> Unit)
+  fun onCameraSwitched(cameraIdArg: String, callback: (Result<Unit>) -> Unit)
 {
     val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
-    val channelName = "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onRecordingStarted$separatedMessageChannelSuffix"
+    val channelName = "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onCameraSwitched$separatedMessageChannelSuffix"
+    val channel = BasicMessageChannel<Any?>(binaryMessenger, channelName, codec)
+    channel.send(listOf(cameraIdArg)) {
+      if (it is List<*>) {
+        if (it.size > 1) {
+          callback(Result.failure(FlutterError(it[0] as String, it[1] as String, it[2] as String?)))
+        } else {
+          callback(Result.success(Unit))
+        }
+      } else {
+        callback(Result.failure(BeautyCameraPluginPigeonPigeonUtils.createConnectionError(channelName)))
+      } 
+    }
+  }
+  fun onFaceDetected(facesArg: List<FaceData>, callback: (Result<Unit>) -> Unit)
+{
+    val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
+    val channelName = "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onFaceDetected$separatedMessageChannelSuffix"
+    val channel = BasicMessageChannel<Any?>(binaryMessenger, channelName, codec)
+    channel.send(listOf(facesArg)) {
+      if (it is List<*>) {
+        if (it.size > 1) {
+          callback(Result.failure(FlutterError(it[0] as String, it[1] as String, it[2] as String?)))
+        } else {
+          callback(Result.success(Unit))
+        }
+      } else {
+        callback(Result.failure(BeautyCameraPluginPigeonPigeonUtils.createConnectionError(channelName)))
+      } 
+    }
+  }
+  fun onVideoRecordingStarted(callback: (Result<Unit>) -> Unit)
+{
+    val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
+    val channelName = "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onVideoRecordingStarted$separatedMessageChannelSuffix"
     val channel = BasicMessageChannel<Any?>(binaryMessenger, channelName, codec)
     channel.send(null) {
       if (it is List<*>) {
@@ -686,15 +700,10 @@ class BeautyCameraFlutterApi(private val binaryMessenger: BinaryMessenger, priva
       } 
     }
   }
-  /**
-   * Called when video recording has stopped
-   *
-   * [path] is the path where the video was saved
-   */
-  fun onRecordingStopped(pathArg: String, callback: (Result<Unit>) -> Unit)
+  fun onVideoRecordingStopped(pathArg: String, callback: (Result<Unit>) -> Unit)
 {
     val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
-    val channelName = "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onRecordingStopped$separatedMessageChannelSuffix"
+    val channelName = "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onVideoRecordingStopped$separatedMessageChannelSuffix"
     val channel = BasicMessageChannel<Any?>(binaryMessenger, channelName, codec)
     channel.send(listOf(pathArg)) {
       if (it is List<*>) {
@@ -708,17 +717,12 @@ class BeautyCameraFlutterApi(private val binaryMessenger: BinaryMessenger, priva
       } 
     }
   }
-  /**
-   * Called when a camera error occurs
-   *
-   * [error] contains both the type and message of the error
-   */
-  fun onCameraError(errorArg: CameraError, callback: (Result<Unit>) -> Unit)
+  fun onFilterModeChanged(modeArg: CameraFilterMode, callback: (Result<Unit>) -> Unit)
 {
     val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
-    val channelName = "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onCameraError$separatedMessageChannelSuffix"
+    val channelName = "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onFilterModeChanged$separatedMessageChannelSuffix"
     val channel = BasicMessageChannel<Any?>(binaryMessenger, channelName, codec)
-    channel.send(listOf(errorArg)) {
+    channel.send(listOf(modeArg)) {
       if (it is List<*>) {
         if (it.size > 1) {
           callback(Result.failure(FlutterError(it[0] as String, it[1] as String, it[2] as String?)))

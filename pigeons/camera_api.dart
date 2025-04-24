@@ -1,6 +1,5 @@
 import 'package:pigeon/pigeon.dart';
 
-/// Configuration for the Pigeon code generation
 @ConfigurePigeon(
   PigeonOptions(
     swiftOptions: SwiftOptions(),
@@ -13,229 +12,163 @@ import 'package:pigeon/pigeon.dart';
     dartOut: 'lib/src/camera_api.g.dart',
   ),
 )
-
-/// Represents the available filter types for camera effects
-enum FilterType {
-  /// No filter applied
+enum CameraFilterMode {
   none,
-
-  /// Beauty filter for skin smoothing
   beauty,
-
-  /// Black and white filter
-  blackAndWhite,
-}
-
-/// Represents possible camera error types
-enum CameraErrorType {
-  /// Camera initialization failed
-  initializationFailed,
-
-  /// Camera permission denied
-  permissionDenied,
-
-  /// Camera hardware not available
-  hardwareNotAvailable,
-
-  /// Invalid camera settings
-  invalidSettings,
-
-  /// Recording failed
-  recordingFailed,
-
-  /// Picture capture failed
-  captureFailed,
-
-  /// Unknown error occurred
-  unknown
-}
-
-/// Configuration settings for camera initialization
-class CameraSettings {
-  /// The desired width of the camera preview in pixels
-  /// If null, the default camera resolution will be used
-  int? width;
-
-  /// The desired height of the camera preview in pixels
-  /// If null, the default camera resolution will be used
-  int? height;
-
-  /// The camera ID
-  String? cameraId;
-
-  /// Creates a new [CameraSettings] instance
-  ///
-  /// [width] and [height] are optional. If both are null,
-  /// the camera will use its default resolution.
-  CameraSettings({this.width, this.height, this.cameraId});
-}
-
-/// Camera effect modes
-enum CameraEffectMode {
-  none,
   mono,
   negative,
-  solarize,
   sepia,
+  solarize,
   posterize,
   whiteboard,
   blackboard,
   aqua,
+  emboss,
+  sketch,
+  neon,
+  vintage,
+  brightness,
+  contrast,
+  saturation,
+  sharpen,
+  gaussianBlur,
+  vignette,
+  hue,
+  exposure,
+  highlightShadow,
+  levels,
+  colorBalance,
+  lookup;
 }
 
-/// White balance modes
-enum WhiteBalanceMode {
-  auto,
-  incandescent,
-  fluorescent,
-  warmFluorescent,
-  daylight,
-  cloudyDaylight,
-  twilight,
-  shade,
-}
+class AdvancedCameraSettings {
+  VideoQuality? videoQuality;
 
-/// Configuration for applying filters to the camera preview
-class FilterConfig {
-  /// The type of filter to apply
-  FilterType? filterType;
+  int? maxFrameRate;
 
-  /// Brightness adjustment (-1.0 to 1.0)
-  double? brightness;
+  bool? videoStabilization;
 
-  /// Smoothness level for beauty filter (0.0 to 1.0)
-  double? smoothness;
+  bool? autoExposure;
 
-  /// Saturation adjustment (0.0 to 2.0)
-  double? saturation;
+  bool? enableFaceDetection;
 
-  /// Contrast adjustment (0.0 to 2.0)
-  double? contrast;
-
-  /// Sharpness adjustment (0.0 to 1.0)
-  double? sharpness;
-
-  /// White balance mode
-  WhiteBalanceMode? whiteBalance;
-
-  /// The effect mode
-  CameraEffectMode? effectMode;
-
-  /// Creates a new [FilterConfig] instance
-  ///
-  /// [filterType] specifies the type of filter to apply
-  /// Additional parameters control specific aspects of the filter
-  FilterConfig({
-    this.filterType,
-    this.brightness,
-    this.smoothness,
-    this.saturation,
-    this.contrast,
-    this.sharpness,
-    this.whiteBalance,
-    this.effectMode,
+  AdvancedCameraSettings({
+    this.videoQuality,
+    this.maxFrameRate,
+    this.videoStabilization,
+    this.autoExposure,
+    this.enableFaceDetection,
   });
 }
 
-/// Represents a camera error with type and message
-class CameraError {
-  /// The type of error that occurred
-  CameraErrorType type;
-
-  /// A human-readable description of the error
-  String message;
-
-  /// Creates a new [CameraError] instance
-  ///
-  /// [type] specifies the category of the error
-  /// [message] provides additional details about the error
-  CameraError({required this.type, required this.message});
+enum VideoQuality {
+  low,
+  medium,
+  high,
+  veryHigh,
+  ultra,
 }
 
-/// Host API for camera operations
 @HostApi()
 abstract class BeautyCameraHostApi {
-  /// Initializes the camera with the specified settings
-  ///
-  /// Returns a Future that completes when the camera is initialized
-  /// Throws [CameraException] if initialization fails
   @async
-  void initializeCamera(CameraSettings settings);
+  void initialize(AdvancedCameraSettings settings);
 
-  /// Creates a new preview texture and returns its ID
-  ///
-  /// Returns the texture ID that can be used to display the camera preview
-  /// Returns null if texture creation fails
   @async
-  int? createPreviewTexture();
+  void dispose();
 
-  /// Starts the camera preview on the specified texture
-  ///
-  /// [textureId] must be a valid texture ID returned by [createPreviewTexture]
   @async
-  void startPreview(int textureId);
+  void switchCamera();
 
-  /// Stops the camera preview
   @async
-  void stopPreview();
+  void setZoom(double zoomLevel);
 
-  /// Disposes of all camera resources
   @async
-  void disposeCamera();
+  void focusOnPoint(int x, int y);
 
-  /// Takes a picture and saves it to the specified path
-  ///
-  /// [path] must be a valid file path where the image will be saved
   @async
-  void takePicture(String path);
+  void setFlashMode(FlashMode mode);
 
-  /// Starts recording video to the specified path
-  ///
-  /// [path] must be a valid file path where the video will be saved
   @async
-  void startRecording(String path);
+  void setDisplayOrientation(int degrees);
 
-  /// Stops the current video recording
   @async
-  void stopRecording();
+  int getPreviewTexture();
 
-  /// Applies a filter to the camera preview
-  ///
-  /// [textureId] must be a valid texture ID
-  /// [filterConfig] specifies the filter type and parameters
   @async
-  void applyFilter(int textureId, FilterConfig filterConfig);
+  PreviewSize getPreviewSize();
+
+  @async
+  String takePhoto();
+
+  @async
+  void startVideoRecording();
+
+  @async
+  String stopVideoRecording();
+
+  @async
+  double getCameraSensorAspectRatio();
+
+  @async
+  void setFilterMode(CameraFilterMode mode, {double level = 5});
 }
 
-/// Flutter API for camera events
+enum FlashMode {
+  off,
+  on,
+  auto,
+  torch,
+}
+
 @FlutterApi()
 abstract class BeautyCameraFlutterApi {
-  /// Called when the camera is successfully initialized
-  ///
-  /// [textureId] is the ID of the preview texture
-  /// [width] and [height] are the actual dimensions of the camera preview
   @async
-  void onCameraInitialized(int textureId, int width, int height);
+  void onZoomChanged(double zoomLevel);
 
-  /// Called when a picture has been taken and saved
-  ///
-  /// [path] is the path where the image was saved
   @async
-  void onTakePictureCompleted(String path);
+  void onFlashModeChanged(FlashMode mode);
 
-  /// Called when video recording has started
   @async
-  void onRecordingStarted();
+  void onCameraSwitched(String cameraId);
 
-  /// Called when video recording has stopped
-  ///
-  /// [path] is the path where the video was saved
   @async
-  void onRecordingStopped(String path);
+  void onFaceDetected(List<FaceData> faces);
 
-  /// Called when a camera error occurs
-  ///
-  /// [error] contains both the type and message of the error
   @async
-  void onCameraError(CameraError error);
+  void onVideoRecordingStarted();
+
+  @async
+  void onVideoRecordingStopped(String path);
+
+  @async
+  void onFilterModeChanged(CameraFilterMode mode);
+}
+
+class FaceData {
+  double x;
+
+  double y;
+
+  double size;
+
+  int id;
+
+  FaceData({
+    required this.x,
+    required this.y,
+    required this.size,
+    required this.id,
+  });
+}
+
+class PreviewSize {
+  int width;
+
+  int height;
+
+  PreviewSize({
+    required this.width,
+    required this.height,
+  });
 }

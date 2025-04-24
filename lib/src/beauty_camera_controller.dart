@@ -1,518 +1,428 @@
 import 'dart:async';
+import 'package:flutter/services.dart';
 
-import 'package:flutter/foundation.dart';
-import 'package:flutter/widgets.dart';
-import 'package:path_provider/path_provider.dart';
+import 'camera_api.g.dart';
 
-import '../beauty_camera_plugin.dart';
-import 'utils/logger.dart';
+/// Controller for managing a beauty camera with various effects and settings
+class BeautyCameraController {
+  /// The native API interface for communicating with platform-specific code
+  final BeautyCameraHostApi _api = BeautyCameraHostApi();
 
-/// A controller class for managing beauty camera operations
-class BeautyCameraController extends ChangeNotifier {
-  final BeautyCameraPlugin _plugin;
-  CameraError? _lastError;
+  /// Stream controller for camera events
+  final _eventStreamController = StreamController<CameraEvent>.broadcast();
 
-  int? _textureId;
+  /// Stream of camera events
+  Stream<CameraEvent> get events => _eventStreamController.stream;
+
+  /// Current flash mode of the camera
+  FlashMode _currentFlashMode = FlashMode.off;
+
+  /// Current camera effect mode
+  CameraFilterMode _currentEffectMode = CameraFilterMode.none;
+
+  /// Current zoom level
+  double _currentZoomLevel = 1.0;
+
+  /// Flag indicating if the camera is initialized
   bool _isInitialized = false;
+
+  /// Flag indicating if the camera is currently recording
   bool _isRecording = false;
-  FilterType _currentFilter = FilterType.none;
-  CameraEffectMode? _effectMode;
-  String? _lastMediaPath;
 
-  Size? _previewSize;
+  /// Flag indicating which camera is currently active (true = front, false = back)
+  bool _isFrontCamera = false;
 
-  double get aspectRatio => _previewSize?.aspectRatio ?? 1.0;
+  /// Gets the current flash mode
+  FlashMode get flashMode => _currentFlashMode;
 
-  /// Last camera error
-  CameraError? get lastError => _lastError;
+  /// Gets the current effect mode
+  CameraFilterMode get effectMode => _currentEffectMode;
 
-  /// Current texture ID for camera preview
-  int? get textureId => _textureId;
+  /// Gets the current zoom level
+  double get zoomLevel => _currentZoomLevel;
 
-  /// Whether the camera is initialized
+  /// Gets whether the camera is initialized
   bool get isInitialized => _isInitialized;
 
-  /// Whether the camera is currently recording
+  /// Gets whether the camera is currently recording
   bool get isRecording => _isRecording;
 
-  /// Current applied filter
-  FilterType get currentFilter => _currentFilter;
+  /// Gets whether the front camera is active
+  bool get isFrontCamera => _isFrontCamera;
 
-  /// Current applied camera effect mode
-  CameraEffectMode? get effectMode => _effectMode;
+  /// Face detected data
+  FaceData? _faceDetected;
 
-  /// Path to the last captured media (photo or video)
-  String? get lastMediaPath => _lastMediaPath;
+  /// Gets the face detected data
+  FaceData? get faceDetected => _faceDetected;
 
-  /// Current camera state
-  CameraState get state => CameraState(
-        isInitialized: _isInitialized,
-        isRecording: _isRecording,
-        currentFilter: _currentFilter,
-        textureId: _textureId,
-      );
-
-  /// Creates a new [BeautyCameraController]
-  BeautyCameraController() : _plugin = BeautyCameraPlugin() {
-    _setupCallbacks();
+  /// Creates a new camera controller
+  BeautyCameraController() {
+    _setupFlutterApi();
   }
 
-  void _setupCallbacks() {
-    BeautyCameraPlugin.setup(_CameraCallbacks(this));
+  /// Sets up the Flutter API to receive callbacks from the platform
+  void _setupFlutterApi() {
+    final flutterApi = BeautyCameraPlugin(
+      onEvent: (event) {
+        _eventStreamController.add(event);
+        switch (event.type) {
+          case CameraEventType.zoomChanged:
+            _currentZoomLevel = event.data;
+            break;
+          case CameraEventType.flashModeChanged:
+            _currentFlashMode = event.data;
+            break;
+          case CameraEventType.cameraSwitched:
+            _isFrontCamera = event.data == 'front';
+            break;
+          case CameraEventType.effectChanged:
+            _currentEffectMode = event.data;
+            break;
+          case CameraEventType.recordingStarted:
+            _isRecording = true;
+            break;
+          case CameraEventType.recordingStopped:
+            _isRecording = false;
+            break;
+          case CameraEventType.faceDetected:
+            _faceDetected = event.data;
+            break;
+          default:
+            break;
+        }
+      },
+    );
+
+    BeautyCameraFlutterApi.setUp(flutterApi);
   }
 
-  /// Initialize the camera with specified settings
+  /// Initializes the camera with the specified settings
   Future<void> initialize({
-    int? width,
-    int? height,
-    FilterType defaultFilter = FilterType.none,
+    AdvancedCameraSettings? settings,
   }) async {
     try {
-      await _plugin.initializeCamera(width: width, height: height);
-
-      _textureId = await _plugin.createPreviewTexture();
-
-      Logger.log("BeautyCameraController - textureId: $_textureId");
-
-      if (_textureId == null) {
-        throw CameraException(
-          CameraErrorType.initializationFailed,
-          'Failed to create preview texture',
-        );
-      }
-
-      // TextureId 0 is valid, so we continue
-      Logger.log(
-          "BeautyCameraController - Starting preview with textureId: $_textureId");
-      await _plugin.startPreview(_textureId!);
-
-      await applyFilterWithType(defaultFilter);
+      await _api.initialize(settings ?? AdvancedCameraSettings());
 
       _isInitialized = true;
-      _currentFilter = defaultFilter;
-      notifyListeners();
-    } catch (e) {
-      Logger.log("BeautyCameraController - Initialization error: $e");
-      onCameraError(CameraError(
-        type: CameraErrorType.initializationFailed,
-        message: e.toString(),
+
+      _eventStreamController.add(CameraEvent(
+        type: CameraEventType.initialized,
       ));
-      rethrow;
-    }
-  }
 
-  /// Generate a path for saving a photo
-  Future<String> generatePhotoPath() async {
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final directory = await getTemporaryDirectory();
-    return '${directory.path}/beauty_camera_$timestamp.jpg';
-  }
-
-  /// Generate a path for saving a video
-  Future<String> generateVideoPath() async {
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final directory = await getTemporaryDirectory();
-    return '${directory.path}/beauty_camera_$timestamp.mp4';
-  }
-
-  /// Take a picture and save it
-  Future<String> takePicture() async {
-    if (!_isInitialized) {
+      return;
+    } on PlatformException catch (e) {
       throw CameraException(
-        CameraErrorType.initializationFailed,
-        'Camera not initialized',
+        e.code,
+        e.message ?? 'An unknown camera error occurred',
       );
     }
+  }
 
+  /// Switches between front and back camera
+  Future<void> switchCamera() async {
     try {
-      final path = await generatePhotoPath();
-      await _plugin.takePicture(path);
-      _lastMediaPath = path;
+      await _api.switchCamera();
+    } on PlatformException catch (e) {
+      throw CameraException(
+        e.code,
+        e.message ?? 'Failed to switch camera',
+      );
+    }
+  }
+
+  /// Sets the zoom level of the camera
+  Future<void> setZoom(double zoomLevel) async {
+    try {
+      if (zoomLevel < 1.0) zoomLevel = 1.0;
+      if (zoomLevel > 10.0) zoomLevel = 10.0;
+
+      await _api.setZoom(zoomLevel);
+      _currentZoomLevel = zoomLevel;
+    } on PlatformException catch (e) {
+      throw CameraException(
+        e.code,
+        e.message ?? 'Failed to set zoom level',
+      );
+    }
+  }
+
+  /// Sets the flash mode of the camera
+  Future<void> setFlashMode(FlashMode mode) async {
+    try {
+      await _api.setFlashMode(mode);
+      _currentFlashMode = mode;
+    } on PlatformException catch (e) {
+      throw CameraException(
+        e.code,
+        e.message ?? 'Failed to set flash mode',
+      );
+    }
+  }
+
+  /// Sets the effect mode of the camera
+  Future<void> setEffectMode(CameraFilterMode mode) async {
+    try {
+      await _api.setFilterMode(mode);
+      _currentEffectMode = mode;
+      _eventStreamController.add(CameraEvent(
+        type: CameraEventType.effectChanged,
+        data: mode,
+      ));
+    } on PlatformException catch (e) {
+      throw CameraException(
+        e.code,
+        e.message ?? 'Failed to set effect mode',
+      );
+    }
+  }
+
+  /// Focuses the camera on a specific point in the preview
+  Future<void> focusOnPoint(int x, int y) async {
+    try {
+      await _api.focusOnPoint(x, y);
+    } on PlatformException catch (e) {
+      throw CameraException(
+        e.code,
+        e.message ?? 'Failed to focus on point',
+      );
+    }
+  }
+
+  /// Takes a photo and returns the path to the saved image
+  Future<String> takePhoto({String? savePath}) async {
+    try {
+      // Call to native implementation to take photo
+      final path = await _api.takePhoto();
+
+      // Notify about photo taken event
+      _eventStreamController.add(CameraEvent(
+        type: CameraEventType.photoTaken,
+        data: path,
+      ));
+
       return path;
-    } catch (e) {
-      onCameraError(CameraError(
-        type: CameraErrorType.captureFailed,
-        message: e.toString(),
-      ));
-      rethrow;
+    } on PlatformException catch (e) {
+      throw CameraException(
+        e.code,
+        e.message ?? 'Failed to take photo',
+      );
     }
   }
 
-  /// Take a picture and save it to the specified path
-  Future<void> takePictureWithPath(String path) async {
-    if (!_isInitialized) {
-      throw CameraException(
-        CameraErrorType.initializationFailed,
-        'Camera not initialized',
-      );
-    }
-
+  /// Starts recording a video
+  Future<void> startVideoRecording({String? savePath}) async {
     try {
-      await _plugin.takePicture(path);
-      _lastMediaPath = path;
-    } catch (e) {
-      onCameraError(CameraError(
-        type: CameraErrorType.captureFailed,
-        message: e.toString(),
-      ));
-      rethrow;
-    }
-  }
+      if (_isRecording) {
+        return;
+      }
 
-  /// Start recording video
-  Future<String> startRecording() async {
-    if (!_isInitialized) {
-      throw CameraException(
-        CameraErrorType.initializationFailed,
-        'Camera not initialized',
-      );
-    }
+      await _api.startVideoRecording();
 
-    try {
-      final path = await generateVideoPath();
-      await _plugin.startRecording(path);
       _isRecording = true;
-      _lastMediaPath = path;
-      notifyListeners();
-      return path;
-    } catch (e) {
-      onCameraError(CameraError(
-        type: CameraErrorType.recordingFailed,
-        message: e.toString(),
+      _eventStreamController.add(CameraEvent(
+        type: CameraEventType.recordingStarted,
       ));
-      rethrow;
-    }
-  }
-
-  /// Start recording video to the specified path
-  Future<void> startRecordingWithPath(String path) async {
-    if (!_isInitialized) {
+    } on PlatformException catch (e) {
       throw CameraException(
-        CameraErrorType.initializationFailed,
-        'Camera not initialized',
+        e.code,
+        e.message ?? 'Failed to start video recording',
       );
     }
-
-    try {
-      await _plugin.startRecording(path);
-      _isRecording = true;
-      _lastMediaPath = path;
-      notifyListeners();
-    } catch (e) {
-      onCameraError(CameraError(
-        type: CameraErrorType.recordingFailed,
-        message: e.toString(),
-      ));
-      rethrow;
-    }
   }
 
-  /// Stop recording video
-  Future<String?> stopRecording() async {
-    if (!_isRecording) return null;
-
+  /// Stops recording a video and returns the path to the saved video
+  Future<String> stopVideoRecording() async {
     try {
-      await _plugin.stopRecording();
+      if (!_isRecording) {
+        throw CameraException(
+          'recording_not_started',
+          'Cannot stop recording if recording was not started',
+        );
+      }
+
+      // In a real implementation, we would call a method on the API
+      // to stop recording a video and get the path
+
+      final path = await _api.stopVideoRecording();
+
       _isRecording = false;
-      notifyListeners();
-      return _lastMediaPath;
-    } catch (e) {
-      onCameraError(CameraError(
-        type: CameraErrorType.recordingFailed,
-        message: e.toString(),
-      ));
-      rethrow;
-    }
-  }
 
-  /// Apply a filter to the camera preview using string type (legacy method)
-  @Deprecated('Use applyFilterWithType with FilterType instead')
-  Future<void> applyFilter(String filterType,
-      [Map<String, Object?>? parameters]) async {
-    if (!_isInitialized) {
+      _eventStreamController.add(CameraEvent(
+        type: CameraEventType.recordingStopped,
+        data: path,
+      ));
+
+      return path;
+    } on PlatformException catch (e) {
       throw CameraException(
-        CameraErrorType.initializationFailed,
-        'Camera not initialized',
+        e.code,
+        e.message ?? 'Failed to stop video recording',
       );
-    }
-
-    try {
-      if (_textureId == null) {
-        throw CameraException(
-          CameraErrorType.initializationFailed,
-          'TextureId is null',
-        );
-      }
-
-      Logger.log(
-          "BeautyCameraController - Applying filter $filterType with textureId: $_textureId");
-
-      await _plugin.applyFilter(_textureId!, filterType, parameters);
-      notifyListeners();
-    } catch (e) {
-      Logger.log("BeautyCameraController - Error applying filter: $e");
-      onCameraError(CameraError(
-        type: CameraErrorType.initializationFailed,
-        message: 'Failed to apply filter: ${e.toString()}',
-      ));
-      rethrow;
     }
   }
 
-  /// Apply a filter to the camera preview
-  Future<void> applyFilterWithType(
-    FilterType filterType, {
-    double? brightness,
-    double? smoothness,
-    double? contrast,
-    double? saturation,
-    double? sharpness,
-    CameraEffectMode? effectMode,
-    WhiteBalanceMode? whiteBalance,
-  }) async {
-    if (!_isInitialized) {
+  /// Sets the display orientation of the camera
+  Future<void> setDisplayOrientation(int degrees) async {
+    try {
+      await _api.setDisplayOrientation(degrees);
+    } on PlatformException catch (e) {
       throw CameraException(
-        CameraErrorType.initializationFailed,
-        'Camera not initialized',
+        e.code,
+        e.message ?? 'Failed to set display orientation',
       );
     }
+  }
 
+  /// Gets the preview texture ID for rendering the camera feed
+  Future<int> getPreviewTexture() async {
     try {
-      if (_textureId == null) {
-        throw CameraException(
-          CameraErrorType.initializationFailed,
-          'TextureId is null',
-        );
-      }
-
-      Logger.log(
-          "BeautyCameraController - Applying filter $filterType with textureId: $_textureId");
-
-      final filterConfig = FilterConfig(
-        filterType: filterType,
-        brightness: brightness,
-        smoothness: smoothness,
-        contrast: contrast,
-        saturation: saturation,
-        sharpness: sharpness,
-        effectMode: effectMode,
-        whiteBalance: whiteBalance,
-      );
-
-      await _plugin.applyFilterWithConfig(_textureId!, filterConfig);
-      _currentFilter = filterType;
-      _effectMode = effectMode;
-
-      // Reset effect mode khi áp dụng filter thông thường không có effect
-      if (effectMode == null &&
-          (filterType == FilterType.none ||
-              filterType == FilterType.beauty ||
-              filterType == FilterType.blackAndWhite)) {
-        _effectMode = null;
-      }
-
-      notifyListeners();
-    } catch (e) {
-      Logger.log("BeautyCameraController - Error applying filter: $e");
-      onCameraError(CameraError(
-        type: CameraErrorType.initializationFailed,
-        message: 'Failed to apply filter: ${e.toString()}',
-      ));
-      rethrow;
-    }
-  }
-
-  /// Apply beauty filter with customizable parameters
-  Future<void> applyBeautyFilter({
-    double smoothness = 0.5,
-    double brightness = 0.0,
-  }) async {
-    return applyFilterWithType(
-      FilterType.beauty,
-      smoothness: smoothness,
-      brightness: brightness,
-    );
-  }
-
-  /// Apply black and white filter with customizable contrast
-  Future<void> applyBlackAndWhiteFilter({
-    double contrast = 1.2,
-  }) async {
-    return applyFilterWithType(
-      FilterType.blackAndWhite,
-      contrast: contrast,
-    );
-  }
-
-  /// Apply brightness adjustment using the "none" filter type
-  Future<void> adjustBrightness({
-    double brightness = 0.3,
-  }) async {
-    return applyFilterWithType(
-      FilterType.none,
-      brightness: brightness,
-    );
-  }
-
-  /// Apply skin smoothing using the beauty filter
-  Future<void> applySkinSmoothing({
-    double smoothness = 0.7,
-  }) async {
-    return applyFilterWithType(
-      FilterType.beauty,
-      smoothness: smoothness,
-    );
-  }
-
-  /// Apply camera effect mode
-  Future<void> applyEffectMode(CameraEffectMode effectMode) async {
-    if (!_isInitialized) {
+      final textureId = await _api.getPreviewTexture();
+      return textureId;
+    } on PlatformException catch (e) {
       throw CameraException(
-        CameraErrorType.initializationFailed,
-        'Camera not initialized',
+        e.code,
+        e.message ?? 'Failed to get preview texture',
       );
     }
+  }
 
+  /// Gets the size of the preview
+  Future<Size> getPreviewSize() async {
     try {
-      if (_textureId == null) {
-        throw CameraException(
-          CameraErrorType.initializationFailed,
-          'TextureId is null',
-        );
-      }
-
-      Logger.log(
-          "BeautyCameraController - Applying effect mode: $effectMode with textureId: $_textureId");
-
-      final filterConfig = FilterConfig(
-        filterType: FilterType.none,
-        effectMode: effectMode,
+      final size = await _api.getPreviewSize();
+      return Size(size.width.toDouble(), size.height.toDouble());
+    } on PlatformException catch (e) {
+      throw CameraException(
+        e.code,
+        e.message ?? 'Failed to get preview size',
       );
-
-      await _plugin.applyFilterWithConfig(_textureId!, filterConfig);
-      _currentFilter = FilterType.none;
-      _effectMode = effectMode;
-      notifyListeners();
-    } catch (e) {
-      Logger.log("BeautyCameraController - Error applying effect mode: $e");
-      onCameraError(CameraError(
-        type: CameraErrorType.initializationFailed,
-        message: 'Failed to apply effect mode: ${e.toString()}',
-      ));
-      rethrow;
     }
   }
 
-  Future<void> resetCamera() async {
-    _isInitialized = false;
-    _isRecording = false;
-    _textureId = null;
-    _previewSize = null;
-    await _plugin.stopPreview();
-
-    await _plugin.disposeCamera();
-
-    await initialize();
-
-    notifyListeners();
+  /// Get the camera sensor's aspect ratio
+  /// Returns a float value representing width/height
+  Future<double> getCameraSensorAspectRatio() async {
+    try {
+      final aspectRatio = await _api.getCameraSensorAspectRatio();
+      return aspectRatio;
+    } on PlatformException catch (e) {
+      throw CameraException(
+        e.code,
+        e.message ?? 'Failed to get camera aspect ratio',
+      );
+    }
   }
 
-  /// Dispose of all camera resources
-  @override
+  /// Disposes of the controller and releases resources
   Future<void> dispose() async {
-    try {
-      await _plugin.stopPreview();
-
-      await _plugin.disposeCamera();
-
-      _isInitialized = false;
-      _isRecording = false;
-      _textureId = null;
-    } catch (e) {
-      onCameraError(CameraError(
-        type: CameraErrorType.initializationFailed,
-        message: 'Failed to dispose camera: ${e.toString()}',
-      ));
-    } finally {
-      super.dispose();
-    }
+    await _api.dispose();
+    await _eventStreamController.close();
   }
+}
 
-  void onCameraInitialized(int textureId, int width, int height) {
-    Logger.log(
-      "BeautyCameraController - onCameraInitialized: $textureId, $width, $height",
+/// Implementation of the BeautyCameraFlutterApi for receiving callbacks from the platform
+class BeautyCameraPlugin implements BeautyCameraFlutterApi {
+  final Function(CameraEvent) _onEvent;
+  BeautyCameraPlugin({
+    required Function(CameraEvent) onEvent,
+  }) : _onEvent = onEvent;
+
+  @override
+  Future<void> onZoomChanged(double zoomLevel) async {
+    final event = CameraEvent(
+      type: CameraEventType.zoomChanged,
+      data: zoomLevel,
     );
-    _textureId = textureId;
-    _previewSize = Size(width.toDouble(), height.toDouble());
-    _isInitialized = true;
-    notifyListeners();
+    _onEvent(event);
   }
 
-  void onTakePictureCompleted(String path) {
-    _lastMediaPath = path;
-    notifyListeners();
+  @override
+  Future<void> onFlashModeChanged(FlashMode mode) async {
+    final event = CameraEvent(
+      type: CameraEventType.flashModeChanged,
+      data: mode,
+    );
+    _onEvent(event);
   }
 
-  void onRecordingStarted() {
-    _isRecording = true;
-    notifyListeners();
+  @override
+  Future<void> onCameraSwitched(String cameraId) async {
+    final event = CameraEvent(
+      type: CameraEventType.cameraSwitched,
+      data: cameraId,
+    );
+    _onEvent(event);
   }
 
-  void onRecordingStopped(String path) {
-    _isRecording = false;
-    _lastMediaPath = path;
-    notifyListeners();
+  @override
+  Future<void> onFaceDetected(List<FaceData> faces) async {
+    final event = CameraEvent(
+      type: CameraEventType.faceDetected,
+      data: faces,
+    );
+    _onEvent(event);
   }
 
-  void onCameraError(CameraError error) {
-    _lastError = error;
-    notifyListeners();
+  @override
+  Future<void> onFilterModeChanged(CameraFilterMode mode) async {
+    final event = CameraEvent(
+      type: CameraEventType.effectChanged,
+      data: mode,
+    );
+    _onEvent(event);
+  }
+
+  @override
+  Future<void> onVideoRecordingStarted() async {
+    final event = CameraEvent(
+      type: CameraEventType.recordingStarted,
+    );
+    _onEvent(event);
+  }
+
+  @override
+  Future<void> onVideoRecordingStopped(String path) async {
+    final event = CameraEvent(
+      type: CameraEventType.recordingStopped,
+      data: path,
+    );
+    _onEvent(event);
   }
 }
 
-/// Represents the current state of the camera
-class CameraState {
-  final bool isInitialized;
-  final bool isRecording;
-  final FilterType currentFilter;
-  final int? textureId;
+/// Exception thrown when a camera operation fails
+class CameraException implements Exception {
+  final String code;
+  final String message;
 
-  CameraState({
-    required this.isInitialized,
-    required this.isRecording,
-    required this.currentFilter,
-    this.textureId,
+  CameraException(this.code, this.message);
+
+  @override
+  String toString() => 'CameraException($code, $message)';
+}
+
+/// Types of camera events
+enum CameraEventType {
+  initialized,
+  zoomChanged,
+  flashModeChanged,
+  effectChanged,
+  whiteBalanceChanged,
+  cameraSwitched,
+  faceDetected,
+  photoTaken,
+  recordingStarted,
+  recordingStopped,
+}
+
+/// Camera event data
+class CameraEvent {
+  final CameraEventType type;
+  final dynamic data;
+
+  CameraEvent({
+    required this.type,
+    this.data,
   });
-}
-
-/// Implementation of BeautyCameraFlutterApi for handling callbacks
-class _CameraCallbacks extends BeautyCameraFlutterApi {
-  final BeautyCameraController _controller;
-
-  _CameraCallbacks(this._controller);
-
-  @override
-  Future<void> onCameraInitialized(int textureId, int width, int height) async {
-    _controller.onCameraInitialized(textureId, width, height);
-  }
-
-  @override
-  Future<void> onTakePictureCompleted(String path) async {
-    _controller.onTakePictureCompleted(path);
-  }
-
-  @override
-  Future<void> onRecordingStarted() async {
-    _controller.onRecordingStarted();
-  }
-
-  @override
-  Future<void> onRecordingStopped(String path) async {
-    _controller.onRecordingStopped(path);
-  }
-
-  @override
-  Future<void> onCameraError(CameraError error) async {
-    _controller.onCameraError(error);
-  }
 }

@@ -1,15 +1,18 @@
 # Beauty Camera Plugin
 
-A Flutter plugin for implementing beauty camera functionality with filters and effects.
+A Flutter plugin for implementing beauty camera functionality with filters and effects. This plugin uses CameraX for camera operations and GPUImage for applying real-time filters on Android.
 
 ## Features
 
-- Camera preview with texture
+- Camera preview with texture rendering
 - Take pictures with beauty filters
 - Record videos with real-time filters
 - Multiple filter types (beauty, vintage, etc.)
+- Face detection support
+- Camera controls (flash, zoom, focus)
+- Video quality settings
 - Error handling and state management
-- Cross-platform support (iOS & Android)
+- Cross-platform support (Android & iOS)
 
 ## Installation
 
@@ -18,6 +21,33 @@ Add this to your package's `pubspec.yaml` file:
 ```yaml
 dependencies:
   beauty_camera_plugin: ^1.0.0
+```
+
+### Android Setup
+
+Add the following permissions to your Android Manifest (`android/app/src/main/AndroidManifest.xml`):
+
+```xml
+<uses-permission android:name="android.permission.CAMERA" />
+<uses-permission android:name="android.permission.RECORD_AUDIO" />
+<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+    android:maxSdkVersion="28" />
+<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+    android:maxSdkVersion="28" />
+
+<uses-feature android:name="android.hardware.camera" android:required="true" />
+<uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+```
+
+### iOS Setup
+
+Add the following keys to your `ios/Runner/Info.plist`:
+
+```xml
+<key>NSCameraUsageDescription</key>
+<string>This app needs camera access to take photos and record videos</string>
+<key>NSMicrophoneUsageDescription</key>
+<string>This app needs microphone access to record videos</string>
 ```
 
 ## Usage
@@ -37,164 +67,143 @@ final controller = BeautyCameraController();
 
 // Initialize with settings
 await controller.initialize(
-  width: 1920,
-  height: 1080,
-  defaultFilter: 'none',
+  settings: AdvancedCameraSettings(
+    videoQuality: VideoQuality.high,
+    maxFrameRate: 30,
+    videoStabilization: true,
+    autoExposure: true,
+    enableFaceDetection: true,
+  ),
 );
 ```
 
-3. Display the camera preview:
+3. Create a camera view:
 
 ```dart
-Texture(textureId: controller.textureId!)
+BeautyCameraView(
+  controller: controller,
+  onImageCaptured: (String path) {
+    print('Image captured: $path');
+  },
+  onVideoRecorded: (String path) {
+    print('Video recorded: $path');
+  },
+  onFaceDetected: (List<FaceData> faces) {
+    print('Faces detected: ${faces.length}');
+  },
+  showFaceDetection: true,
+  showControls: true,
+)
 ```
 
 ### Taking Pictures
 
 ```dart
-// Take a picture and save it
-final path = '/storage/emulated/0/Pictures/beauty_camera_${timestamp}.jpg';
-await controller.takePicture(path);
+// Take a picture
+final imagePath = await controller.takePhoto();
+print('Image saved to: $imagePath');
 ```
 
 ### Recording Videos
 
 ```dart
 // Start recording
-final path = '/storage/emulated/0/Movies/beauty_camera_${timestamp}.mp4';
-await controller.startRecording(path);
+await controller.startVideoRecording();
 
 // Stop recording
-await controller.stopRecording();
+final videoPath = await controller.stopVideoRecording();
+print('Video saved to: $videoPath');
 ```
 
 ### Applying Filters
 
 ```dart
-// Apply a filter with parameters
-await controller.applyFilter('beauty', {
-  'intensity': 0.5,
-  'smoothness': 0.7,
-});
+// Apply a filter with intensity level
+await controller.setFilterMode(
+  mode: CameraFilterMode.beauty,
+  level: 5.0, // Range: 0.0 to 10.0
+);
+```
+
+### Camera Controls
+
+```dart
+// Switch camera
+await controller.switchCamera();
+
+// Set zoom level
+await controller.setZoom(2.0);
+
+// Set flash mode
+await controller.setFlashMode(FlashMode.auto);
+
+// Focus on point
+await controller.focusOnPoint(x: 100, y: 100);
 ```
 
 ### Error Handling
 
 ```dart
-// Listen to error stream
-controller.errorStream.listen((error) {
-  print('Camera error: ${error.type} - ${error.message}');
-});
-
-// Listen to state changes
-controller.stateStream.listen((state) {
-  print('Camera state changed: ${state.isInitialized}');
-});
+try {
+  await controller.initialize();
+} on CameraException catch (e) {
+  print('Camera error: ${e.code} - ${e.message}');
+}
 ```
 
-### Complete Example
-
-Here's a complete example of using the plugin in a Flutter app:
+### Listening to Events
 
 ```dart
-class CameraScreen extends StatefulWidget {
-  @override
-  State<CameraScreen> createState() => _CameraScreenState();
-}
-
-class _CameraScreenState extends State<CameraScreen> {
-  late final BeautyCameraController _controller;
-  String? _errorMessage;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = BeautyCameraController();
-    _initializeCamera();
+controller.events.listen((event) {
+  switch (event.type) {
+    case CameraEventType.initialized:
+      print('Camera initialized');
+      break;
+    case CameraEventType.error:
+      print('Camera error: ${event.data}');
+      break;
+    // Handle other events...
   }
-
-  Future<void> _initializeCamera() async {
-    try {
-      await _controller.initialize(
-        width: 1920,
-        height: 1080,
-        defaultFilter: 'none',
-      );
-    } catch (e) {
-      setState(() => _errorMessage = e.toString());
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Column(
-        children: [
-          if (_errorMessage != null)
-            Text(_errorMessage!, style: TextStyle(color: Colors.red)),
-          Expanded(
-            child: _controller.textureId != null
-                ? Texture(textureId: _controller.textureId!)
-                : CircularProgressIndicator(),
-          ),
-          Row(
-            children: [
-              IconButton(
-                icon: Icon(Icons.camera_alt),
-                onPressed: _controller.isInitialized ? _takePicture : null,
-              ),
-              IconButton(
-                icon: Icon(Icons.fiber_manual_record),
-                onPressed: _controller.isInitialized ? _toggleRecording : null,
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
+});
 ```
 
-## API Reference
+## Available Filters
 
-### BeautyCameraController
+The plugin supports various filters including:
 
-The main controller class for managing camera operations.
-
-#### Properties
-
-- `textureId`: Current texture ID for camera preview
-- `isInitialized`: Whether the camera is initialized
-- `isRecording`: Whether the camera is currently recording
-- `currentFilter`: Current applied filter
-- `errorStream`: Stream of camera errors
-- `stateStream`: Stream of camera state changes
-
-#### Methods
-
-- `initialize({int? width, int? height, String defaultFilter})`: Initialize the camera
-- `takePicture(String path)`: Take a picture and save it
-- `startRecording(String path)`: Start recording video
-- `stopRecording()`: Stop recording video
-- `applyFilter(String filterType, [Map<String, Object?>? parameters])`: Apply a filter
-- `dispose()`: Dispose of all camera resources
-
-### CameraError
-
-Represents a camera error with type and message.
-
-### CameraState
-
-Represents the current state of the camera.
+- Beauty
+- Mono
+- Negative
+- Sepia
+- Solarize
+- Posterize
+- Whiteboard
+- Blackboard
+- Aqua
+- Emboss
+- Sketch
+- Neon
+- Vintage
+- Brightness
+- Contrast
+- Saturation
+- Sharpen
+- Gaussian Blur
+- Vignette
+- Hue
+- Exposure
+- Highlight Shadow
+- Levels
+- Color Balance
+- Lookup (Custom LUT)
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Feel free to contribute to this project by submitting issues and/or pull requests.
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 <h1 align="center">Hi 👋, I'm Van Minh Tuan</h1>
 <h3 align="center">Looking for a ambitious and professional working environment to perform and exlpore my more than 8-year experience in fullstack and mobile development.</h3>
