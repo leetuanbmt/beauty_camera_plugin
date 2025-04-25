@@ -1,11 +1,11 @@
 package com.beauty.camera_plugin.view
 
 import android.content.Context
-import android.graphics.SurfaceTexture
 import android.util.Log
 import androidx.lifecycle.LifecycleOwner
 import io.flutter.view.TextureRegistry
 import com.beauty.camera_plugin.repository.CameraRepository
+import android.view.Surface
 
 /**
  * Handles the Flutter texture registry integration for camera preview
@@ -24,8 +24,8 @@ class FlutterTextureHandler(
         const val SCALE_TYPE_CENTER_INSIDE = "centerInside"
     }
     
-    private var textureEntry: TextureRegistry.SurfaceTextureEntry? = null
-    private var surfaceTexture: SurfaceTexture? = null
+    private var textureEntry: TextureRegistry.SurfaceProducer? = null
+    private var surface: Surface? = null
     private var cameraView: CameraView? = null
     private var currentWidth: Int = 0
     private var currentHeight: Int = 0
@@ -39,30 +39,26 @@ class FlutterTextureHandler(
             cleanup()
             
             // Create a new texture entry
-            textureEntry = textureRegistry.createSurfaceTexture()
+            textureEntry = textureRegistry.createSurfaceProducer()
             
-            // Get the surface texture to render camera output to
-            surfaceTexture = textureEntry?.surfaceTexture()
+            // Get the surface to render camera output to
+            surface = textureEntry?.surface
 
-            // Create CameraView instance
-            cameraView = CameraView(context, repository, lifecycleOwner).also { view ->
-                // Set up the camera view
-                repository.setCameraView(view)
-            }
-            
-            // Start the camera with the surface
-            textureEntry?.id()?.let { textureId: Long ->
-                surfaceTexture?.let { texture: SurfaceTexture ->
-                    // Set the surface texture to CameraView
-                    cameraView?.customSurfaceTexture = texture
-                    return textureId
+            // Create or reuse CameraView instance
+            if (cameraView == null) {
+                cameraView = CameraView(context, repository, lifecycleOwner).also { view ->
+                    // Set up the camera view
+                    repository.setCameraView(view)
                 }
             }
+            
+            // Return the texture ID for Flutter
+            return textureEntry?.id() ?: -1
+            
         } catch (e: Exception) {
             Log.e(TAG, "Error initializing camera texture", e)
+            return -1
         }
-        
-        return -1
     }
     
     /**
@@ -100,11 +96,11 @@ class FlutterTextureHandler(
             Log.d(TAG, "Updating texture size: $width x $height")
             currentWidth = width
             currentHeight = height
-            
-            surfaceTexture?.setDefaultBufferSize(width, height)
-            
-            // Trigger a size update in CameraView
-            cameraView?.setupSurface(surfaceTexture!!, width, height)
+
+            surface?.let { surface ->
+                // Set up the camera view with the Flutter surface
+                cameraView?.setExternalTexture(surface, width, height)
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Error updating texture size", e)
         }
@@ -115,20 +111,19 @@ class FlutterTextureHandler(
      */
     fun cleanup() {
         try {
-            // Release texture entry
+            // Clean up camera view first
+            cameraView?.release()
+            
+            // Release texture entry which will also release the surface
             textureEntry?.release()
             textureEntry = null
-            
-            // Release surface texture
-            surfaceTexture?.release()
-            surfaceTexture = null
-            
-            // Clean up camera view
-            cameraView = null
+            surface = null
             
             // Reset dimensions
             currentWidth = 0
             currentHeight = 0
+            
+            Log.d(TAG, "Resources cleaned up")
         } catch (e: Exception) {
             Log.e(TAG, "Error during cleanup", e)
         }

@@ -51,7 +51,7 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
         repository = CameraRepository(flutterPluginBinding.applicationContext)
         
         // Create filter manager
-        filterManager = CameraFilterManager(flutterPluginBinding.applicationContext)
+        filterManager = CameraFilterManager.getInstance(flutterPluginBinding.applicationContext)
         
         // Create the view model
         cameraViewModel = CameraViewModel(flutterPluginBinding.applicationContext)

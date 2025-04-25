@@ -57,13 +57,9 @@ class CameraRepository(private val context: Context) {
     private var currentLifecycleOwner: LifecycleOwner? = null
 
     // Filter manager
-    private var filterManager: CameraFilterManager? = null
+    private val filterManager: CameraFilterManager = CameraFilterManager.getInstance(context)
 
     private var cameraView: CameraView? = null
-
-    init {
-        filterManager = CameraFilterManager(context)
-    }
 
     /**
      * Initialize the camera system with settings
@@ -156,7 +152,7 @@ class CameraRepository(private val context: Context) {
             Log.d(TAG, "Target resolution: ${targetResolution.width}x${targetResolution.height}")
 
             // Set up filter manager with preview size
-            filterManager?.setupSurfaceTexture(targetResolution.width, targetResolution.height)
+            filterManager.setupSurfaceTexture(targetResolution.width, targetResolution.height)
 
             // Create preview use case with settings
             preview = Preview.Builder()
@@ -165,11 +161,18 @@ class CameraRepository(private val context: Context) {
                 .build()
                 .also { preview: Preview ->
                     preview.setSurfaceProvider { request: SurfaceRequest ->
-                        // Get filtered surface from filter manager
-                        val filteredSurface = filterManager?.getOutputSurface() ?: surface
+                        // Get surface texture from filter manager
+                        val surfaceTexture = filterManager.getSurfaceTexture()
+                        if (surfaceTexture == null) {
+                            Log.e(TAG, "Failed to get surface texture from filter manager")
+                            return@setSurfaceProvider
+                        }
+                        
+                        // Create surface from texture
+                        val previewSurface = Surface(surfaceTexture)
                         
                         request.provideSurface(
-                            filteredSurface,
+                            previewSurface,
                             ContextCompat.getMainExecutor(context)
                         ) { result: SurfaceRequest.Result ->
                             when (result.resultCode) {
@@ -177,7 +180,7 @@ class CameraRepository(private val context: Context) {
                                     Log.d(TAG, "Surface provided successfully")
                                     // Update filter manager with actual preview size
                                     preview.resolutionInfo?.let { info ->
-                                        filterManager?.updatePreviewSize(
+                                        filterManager.updatePreviewSize(
                                             info.resolution.width,
                                             info.resolution.height
                                         )
@@ -198,6 +201,9 @@ class CameraRepository(private val context: Context) {
                                 else ->
                                     Log.w(TAG, "Unknown surface result code: ${result.resultCode}")
                             }
+                            
+                            // Clean up preview surface
+                            previewSurface.release()
                         }
                     }
                 }
