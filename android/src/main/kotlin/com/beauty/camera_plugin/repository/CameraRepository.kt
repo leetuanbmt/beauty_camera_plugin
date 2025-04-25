@@ -148,8 +148,8 @@ class CameraRepository(private val context: Context) {
             Log.d(TAG, "Target resolution: ${targetResolution.width}x${targetResolution.height}")
 
             // Create preview use case with settings
-
             preview = Preview.Builder()
+                .setTargetResolution(targetResolution)
                 .setTargetRotation(settings.displayOrientation)
                 .build()
                 .also { preview: Preview ->
@@ -161,12 +161,23 @@ class CameraRepository(private val context: Context) {
                             when (result.resultCode) {
                                 SurfaceRequest.Result.RESULT_SURFACE_USED_SUCCESSFULLY -> {
                                     Log.d(TAG, "Surface provided successfully")
+                                    // Log preview details
+                                    preview.resolutionInfo?.let { info ->
+                                        Log.d(TAG, """
+                                            Preview configured:
+                                            - Resolution: ${info.resolution.width}x${info.resolution.height}
+                                            - Crop rect: ${info.cropRect}
+                                            - Rotation: ${info.rotationDegrees}°
+                                            - Target resolution: ${targetResolution.width}x${targetResolution.height}
+                                            - Front camera: ${isFrontCamera()}
+                                        """.trimIndent())
+                                    }
                                 }
-                                SurfaceRequest.Result.RESULT_REQUEST_CANCELLED ->
+                                SurfaceRequest.Result.RESULT_REQUEST_CANCELLED -> 
                                     Log.w(TAG, "Surface request was cancelled")
-                                SurfaceRequest.Result.RESULT_INVALID_SURFACE ->
+                                SurfaceRequest.Result.RESULT_INVALID_SURFACE -> 
                                     Log.e(TAG, "Invalid surface provided")
-                                else ->
+                                else -> 
                                     Log.w(TAG, "Unknown surface result code: ${result.resultCode}")
                             }
                         }
@@ -179,23 +190,23 @@ class CameraRepository(private val context: Context) {
                 .setTargetRotation(settings.displayOrientation)
                 .setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY)
                 .build()
-
+            
             // Set up face detection if enabled
             if (settings.enableFaceDetection) {
                 setupFaceDetection()
             }
-
+            
             // Bind use cases to camera
             val useCases = mutableListOf<UseCase>()
             preview?.let { useCases.add(it) }
             imageCapture?.let { useCases.add(it) }
             imageAnalysis?.let { useCases.add(it) }
-
+            
             if (useCases.isEmpty()) {
                 Log.e(TAG, "No use cases to bind")
                 return
             }
-
+            
             try {
                 camera = cameraProvider!!.bindToLifecycle(
                     currentLifecycleOwner!!,
@@ -206,11 +217,11 @@ class CameraRepository(private val context: Context) {
                 // Apply initial settings
                 camera?.cameraControl?.setZoomRatio(settings.zoom.toFloat())
                 setFlashMode(settings.flashMode)
-
+                
                 // Notify camera switched if callback is set
                 val cameraId = camera?.cameraInfo.toString()
                 onCameraSwitched?.invoke(cameraId)
-
+                
             } catch (e: Exception) {
                 Log.e(TAG, "Error binding use cases", e)
             }
@@ -356,6 +367,13 @@ class CameraRepository(private val context: Context) {
     }
 
     /**
+     * Check if current camera is front facing
+     */
+    fun isFrontCamera(): Boolean {
+        return settings.cameraLensFacing == CameraSettings.CAMERA_FACING_FRONT
+    }
+
+    /**
      * Take a photo with the current settings and effects
      */
     fun takePhoto(callback: PhotoCaptureCallback) {
@@ -363,28 +381,43 @@ class CameraRepository(private val context: Context) {
             callback.onFailure(Exception("Camera not initialized"))
             return
         }
-
+        
         // Create output file
         val photoFile = File(getCacheDirectory(), "photo_${System.currentTimeMillis()}.jpg")
-
+        
+        // Get current preview info for cropping
+        val previewInfo = preview?.resolutionInfo
+        val cropRect = previewInfo?.cropRect
+        
         // Create output options with the same rotation as preview
         val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile)
             .setMetadata(ImageCapture.Metadata().apply {
-                // Set JPEG quality
-                isReversedHorizontal = settings.cameraLensFacing == CameraSettings.CAMERA_FACING_FRONT
+                // Mirror image for front camera
+                isReversedHorizontal = isFrontCamera()
             })
             .build()
-
+        
         // Take the picture
         imageCapture!!.takePicture(
             outputOptions,
             ContextCompat.getMainExecutor(context),
             object : ImageCapture.OnImageSavedCallback {
                 override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
+                    // Log capture details
+                    Log.d(TAG, """
+                        Photo captured:
+                        - File: ${photoFile.absolutePath}
+                        - Preview size: ${previewInfo?.resolution?.width}x${previewInfo?.resolution?.height}
+                        - Crop rect: $cropRect
+                        - Rotation: ${previewInfo?.rotationDegrees}°
+                        - Front camera: ${isFrontCamera()}
+                    """.trimIndent())
+                    
                     callback.onSuccess(photoFile.absolutePath)
                 }
-
+                
                 override fun onError(exception: ImageCaptureException) {
+                    Log.e(TAG, "Error capturing photo", exception)
                     callback.onFailure(exception)
                 }
             }

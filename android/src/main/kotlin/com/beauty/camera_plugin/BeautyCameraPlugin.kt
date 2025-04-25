@@ -1,5 +1,5 @@
 package com.beauty.camera_plugin
-
+import android.content.Context
 import androidx.lifecycle.LifecycleOwner
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
@@ -36,6 +36,9 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
     private var previewWidth: Int = 1280
     private var previewHeight: Int = 720
 
+
+    private var context: Context? = null
+
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         // Set up Pigeon communication
         BeautyCameraHostApi.setUp(flutterPluginBinding.binaryMessenger, this)
@@ -53,6 +56,9 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
         // Create the view model
         cameraViewModel = CameraViewModel(flutterPluginBinding.applicationContext)
         cameraViewModel.setFlutterApi(flutterApi)
+
+        // Store context
+        context = flutterPluginBinding.applicationContext
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
@@ -75,6 +81,7 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
         
         // Cancel all coroutines
         coroutineScope.cancel()
+        context = null
     }
     
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
@@ -85,6 +92,7 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
         repository?.let { repo ->
             textureRegistry?.let { registry ->
                 textureHandler = FlutterTextureHandler(
+                    context!!,
                     registry,
                     repo,
                     binding.activity as LifecycleOwner
@@ -99,6 +107,7 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
         textureHandler = null
         textureId = -1L
         lifecycleOwner = null
+        context = null
     }
 
     override fun onDetachedFromActivityForConfigChanges() {
@@ -107,6 +116,7 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
         textureHandler = null
         textureId = -1L
         lifecycleOwner = null
+        context = null
     }
 
     override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
@@ -144,6 +154,7 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
                         // Create new texture handler
                         textureRegistry?.let { registry ->
                             textureHandler = FlutterTextureHandler(
+                                context = context!!,
                                 textureRegistry = registry,
                                 repository = repo,
                                 lifecycleOwner = owner
@@ -244,6 +255,7 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
             // Create new texture handler if needed
             if (textureHandler == null) {
                 textureHandler = FlutterTextureHandler(
+                    context!!,
                     textureRegistry = textureRegistry!!,
                     repository = repository!!,
                     lifecycleOwner = lifecycleOwner!!
@@ -338,4 +350,19 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
             callback(Result.failure(e))
         }
     }
+
+    override fun setScaleType(scaleType: ScaleType, callback: (Result<Unit>) -> Unit) {
+        try {
+            val scaleTypeString = when (scaleType) {
+                ScaleType.CENTER_CROP -> FlutterTextureHandler.SCALE_TYPE_CENTER_CROP
+                ScaleType.CENTER_INSIDE -> FlutterTextureHandler.SCALE_TYPE_CENTER_INSIDE
+            }
+            textureHandler?.setScaleType(scaleTypeString)
+            callback(Result.success(Unit))
+        } catch (e: Exception) {
+            callback(Result.failure(e))
+        }
+    }
+
+
 } 

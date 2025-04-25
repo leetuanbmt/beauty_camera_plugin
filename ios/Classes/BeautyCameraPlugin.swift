@@ -179,6 +179,16 @@ enum FlashMode: Int {
   case torch = 3
 }
 
+enum CameraFacing: Int {
+  case front = 0
+  case back = 1
+}
+
+enum ScaleType: Int {
+  case centerCrop = 0
+  case centerInside = 1
+}
+
 /// Generated class from Pigeon that represents data sent in messages.
 struct AdvancedCameraSettings: Hashable {
   var videoQuality: VideoQuality? = nil
@@ -214,6 +224,55 @@ struct AdvancedCameraSettings: Hashable {
     ]
   }
   static func == (lhs: AdvancedCameraSettings, rhs: AdvancedCameraSettings) -> Bool {
+    return deepEqualsBeautyCameraPlugin(lhs.toList(), rhs.toList())  }
+  func hash(into hasher: inout Hasher) {
+    deepHashBeautyCameraPlugin(value: toList(), hasher: &hasher)
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
+struct CameraSettings: Hashable {
+  var cameraLensFacing: CameraFacing? = nil
+  var flashMode: FlashMode? = nil
+  var zoom: Double? = nil
+  var displayOrientation: Int64? = nil
+  var enableFaceDetection: Bool? = nil
+  var previewWidth: Int64? = nil
+  var previewHeight: Int64? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> CameraSettings? {
+    let cameraLensFacing: CameraFacing? = nilOrValue(pigeonVar_list[0])
+    let flashMode: FlashMode? = nilOrValue(pigeonVar_list[1])
+    let zoom: Double? = nilOrValue(pigeonVar_list[2])
+    let displayOrientation: Int64? = nilOrValue(pigeonVar_list[3])
+    let enableFaceDetection: Bool? = nilOrValue(pigeonVar_list[4])
+    let previewWidth: Int64? = nilOrValue(pigeonVar_list[5])
+    let previewHeight: Int64? = nilOrValue(pigeonVar_list[6])
+
+    return CameraSettings(
+      cameraLensFacing: cameraLensFacing,
+      flashMode: flashMode,
+      zoom: zoom,
+      displayOrientation: displayOrientation,
+      enableFaceDetection: enableFaceDetection,
+      previewWidth: previewWidth,
+      previewHeight: previewHeight
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      cameraLensFacing,
+      flashMode,
+      zoom,
+      displayOrientation,
+      enableFaceDetection,
+      previewWidth,
+      previewHeight,
+    ]
+  }
+  static func == (lhs: CameraSettings, rhs: CameraSettings) -> Bool {
     return deepEqualsBeautyCameraPlugin(lhs.toList(), rhs.toList())  }
   func hash(into hasher: inout Hasher) {
     deepHashBeautyCameraPlugin(value: toList(), hasher: &hasher)
@@ -308,10 +367,24 @@ private class BeautyCameraPluginPigeonCodecReader: FlutterStandardReader {
       }
       return nil
     case 132:
-      return AdvancedCameraSettings.fromList(self.readValue() as! [Any?])
+      let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
+      if let enumResultAsInt = enumResultAsInt {
+        return CameraFacing(rawValue: enumResultAsInt)
+      }
+      return nil
     case 133:
-      return FaceData.fromList(self.readValue() as! [Any?])
+      let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
+      if let enumResultAsInt = enumResultAsInt {
+        return ScaleType(rawValue: enumResultAsInt)
+      }
+      return nil
     case 134:
+      return AdvancedCameraSettings.fromList(self.readValue() as! [Any?])
+    case 135:
+      return CameraSettings.fromList(self.readValue() as! [Any?])
+    case 136:
+      return FaceData.fromList(self.readValue() as! [Any?])
+    case 137:
       return PreviewSize.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
@@ -330,14 +403,23 @@ private class BeautyCameraPluginPigeonCodecWriter: FlutterStandardWriter {
     } else if let value = value as? FlashMode {
       super.writeByte(131)
       super.writeValue(value.rawValue)
-    } else if let value = value as? AdvancedCameraSettings {
+    } else if let value = value as? CameraFacing {
       super.writeByte(132)
+      super.writeValue(value.rawValue)
+    } else if let value = value as? ScaleType {
+      super.writeByte(133)
+      super.writeValue(value.rawValue)
+    } else if let value = value as? AdvancedCameraSettings {
+      super.writeByte(134)
+      super.writeValue(value.toList())
+    } else if let value = value as? CameraSettings {
+      super.writeByte(135)
       super.writeValue(value.toList())
     } else if let value = value as? FaceData {
-      super.writeByte(133)
+      super.writeByte(136)
       super.writeValue(value.toList())
     } else if let value = value as? PreviewSize {
-      super.writeByte(134)
+      super.writeByte(137)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -376,6 +458,7 @@ protocol BeautyCameraHostApi {
   func stopVideoRecording(completion: @escaping (Result<String, Error>) -> Void)
   func getCameraSensorAspectRatio(completion: @escaping (Result<Double, Error>) -> Void)
   func setFilterMode(mode: CameraFilterMode, level: Double, completion: @escaping (Result<Void, Error>) -> Void)
+  func setScaleType(scaleType: ScaleType, completion: @escaping (Result<Void, Error>) -> Void)
 }
 
 /// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
@@ -607,6 +690,223 @@ class BeautyCameraHostApiSetup {
       }
     } else {
       setFilterModeChannel.setMessageHandler(nil)
+    }
+    let setScaleTypeChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.setScaleType\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      setScaleTypeChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let scaleTypeArg = args[0] as! ScaleType
+        api.setScaleType(scaleType: scaleTypeArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      setScaleTypeChannel.setMessageHandler(nil)
+    }
+  }
+}
+/// Generated protocol from Pigeon that represents a handler of messages from Flutter.
+protocol CameraApi {
+  func initialize(settings: CameraSettings, completion: @escaping (Result<Void, Error>) -> Void)
+  func startPreview(textureId: Int64, completion: @escaping (Result<Void, Error>) -> Void)
+  func stopPreview(completion: @escaping (Result<Void, Error>) -> Void)
+  func switchCamera(completion: @escaping (Result<Void, Error>) -> Void)
+  func setFlashMode(mode: FlashMode, completion: @escaping (Result<Void, Error>) -> Void)
+  func setZoom(zoom: Double, completion: @escaping (Result<Void, Error>) -> Void)
+  func setScaleType(scaleType: ScaleType, completion: @escaping (Result<Void, Error>) -> Void)
+  func takePhoto(completion: @escaping (Result<String, Error>) -> Void)
+  func startVideoRecording(filePath: String, completion: @escaping (Result<Void, Error>) -> Void)
+  func stopVideoRecording(completion: @escaping (Result<String, Error>) -> Void)
+  func dispose(completion: @escaping (Result<Void, Error>) -> Void)
+}
+
+/// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
+class CameraApiSetup {
+  static var codec: FlutterStandardMessageCodec { BeautyCameraPluginPigeonCodec.shared }
+  /// Sets up an instance of `CameraApi` to handle messages through the `binaryMessenger`.
+  static func setUp(binaryMessenger: FlutterBinaryMessenger, api: CameraApi?, messageChannelSuffix: String = "") {
+    let channelSuffix = messageChannelSuffix.count > 0 ? ".\(messageChannelSuffix)" : ""
+    let initializeChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.com.beauty.camera_plugin.CameraApi.initialize\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      initializeChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let settingsArg = args[0] as! CameraSettings
+        api.initialize(settings: settingsArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      initializeChannel.setMessageHandler(nil)
+    }
+    let startPreviewChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.com.beauty.camera_plugin.CameraApi.startPreview\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      startPreviewChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let textureIdArg = args[0] as! Int64
+        api.startPreview(textureId: textureIdArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      startPreviewChannel.setMessageHandler(nil)
+    }
+    let stopPreviewChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.com.beauty.camera_plugin.CameraApi.stopPreview\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      stopPreviewChannel.setMessageHandler { _, reply in
+        api.stopPreview { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      stopPreviewChannel.setMessageHandler(nil)
+    }
+    let switchCameraChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.com.beauty.camera_plugin.CameraApi.switchCamera\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      switchCameraChannel.setMessageHandler { _, reply in
+        api.switchCamera { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      switchCameraChannel.setMessageHandler(nil)
+    }
+    let setFlashModeChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.com.beauty.camera_plugin.CameraApi.setFlashMode\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      setFlashModeChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let modeArg = args[0] as! FlashMode
+        api.setFlashMode(mode: modeArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      setFlashModeChannel.setMessageHandler(nil)
+    }
+    let setZoomChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.com.beauty.camera_plugin.CameraApi.setZoom\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      setZoomChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let zoomArg = args[0] as! Double
+        api.setZoom(zoom: zoomArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      setZoomChannel.setMessageHandler(nil)
+    }
+    let setScaleTypeChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.com.beauty.camera_plugin.CameraApi.setScaleType\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      setScaleTypeChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let scaleTypeArg = args[0] as! ScaleType
+        api.setScaleType(scaleType: scaleTypeArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      setScaleTypeChannel.setMessageHandler(nil)
+    }
+    let takePhotoChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.com.beauty.camera_plugin.CameraApi.takePhoto\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      takePhotoChannel.setMessageHandler { _, reply in
+        api.takePhoto { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      takePhotoChannel.setMessageHandler(nil)
+    }
+    let startVideoRecordingChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.com.beauty.camera_plugin.CameraApi.startVideoRecording\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      startVideoRecordingChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let filePathArg = args[0] as! String
+        api.startVideoRecording(filePath: filePathArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      startVideoRecordingChannel.setMessageHandler(nil)
+    }
+    let stopVideoRecordingChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.com.beauty.camera_plugin.CameraApi.stopVideoRecording\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      stopVideoRecordingChannel.setMessageHandler { _, reply in
+        api.stopVideoRecording { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      stopVideoRecordingChannel.setMessageHandler(nil)
+    }
+    let disposeChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.com.beauty.camera_plugin.CameraApi.dispose\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      disposeChannel.setMessageHandler { _, reply in
+        api.dispose { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      disposeChannel.setMessageHandler(nil)
     }
   }
 }

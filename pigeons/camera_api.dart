@@ -112,6 +112,9 @@ abstract class BeautyCameraHostApi {
 
   @async
   void setFilterMode(CameraFilterMode mode, {double level = 5});
+
+  @async
+  void setScaleType(ScaleType scaleType);
 }
 
 enum FlashMode {
@@ -119,6 +122,62 @@ enum FlashMode {
   on,
   auto,
   torch,
+}
+
+enum CameraFacing {
+  front,
+  back,
+}
+
+enum ScaleType {
+  centerCrop,
+  centerInside,
+}
+
+class CameraSettings {
+  CameraFacing? cameraLensFacing;
+  FlashMode? flashMode;
+  double? zoom;
+  int? displayOrientation;
+  bool? enableFaceDetection;
+  int? previewWidth;
+  int? previewHeight;
+}
+
+@HostApi()
+abstract class CameraApi {
+  @async
+  void initialize(CameraSettings settings);
+
+  @async
+  void startPreview(int textureId);
+
+  @async
+  void stopPreview();
+
+  @async
+  void switchCamera();
+
+  @async
+  void setFlashMode(FlashMode mode);
+
+  @async
+  void setZoom(double zoom);
+
+  @async
+  void setScaleType(ScaleType scaleType);
+
+  @async
+  String takePhoto();
+
+  @async
+  void startVideoRecording(String filePath);
+
+  @async
+  String stopVideoRecording();
+
+  @async
+  void dispose();
 }
 
 @FlutterApi()

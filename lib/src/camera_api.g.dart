@@ -18,8 +18,7 @@ PlatformException _createConnectionError(String channelName) {
   );
 }
 
-List<Object?> wrapResponse(
-    {Object? result, PlatformException? error, bool empty = false}) {
+List<Object?> wrapResponse({Object? result, PlatformException? error, bool empty = false}) {
   if (empty) {
     return <Object?>[];
   }
@@ -28,21 +27,20 @@ List<Object?> wrapResponse(
   }
   return <Object?>[error.code, error.message, error.details];
 }
-
 bool _deepEquals(Object? a, Object? b) {
   if (a is List && b is List) {
     return a.length == b.length &&
         a.indexed
-            .every(((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]));
+        .every(((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]));
   }
   if (a is Map && b is Map) {
-    return a.length == b.length &&
-        a.entries.every((MapEntry<Object?, Object?> entry) =>
-            (b as Map<Object?, Object?>).containsKey(entry.key) &&
-            _deepEquals(entry.value, b[entry.key]));
+    return a.length == b.length && a.entries.every((MapEntry<Object?, Object?> entry) =>
+        (b as Map<Object?, Object?>).containsKey(entry.key) &&
+        _deepEquals(entry.value, b[entry.key]));
   }
   return a == b;
 }
+
 
 enum CameraFilterMode {
   none,
@@ -74,11 +72,11 @@ enum CameraFilterMode {
 }
 
 enum VideoQuality {
-  low, // 240p
-  medium, // 480p
-  high, // 1080p
-  veryHigh, // 4K
-  ultra, // 8K
+  low,
+  medium,
+  high,
+  veryHigh,
+  ultra,
 }
 
 enum FlashMode {
@@ -86,6 +84,16 @@ enum FlashMode {
   on,
   auto,
   torch,
+}
+
+enum CameraFacing {
+  front,
+  back,
+}
+
+enum ScaleType {
+  centerCrop,
+  centerInside,
 }
 
 class AdvancedCameraSettings {
@@ -118,8 +126,7 @@ class AdvancedCameraSettings {
   }
 
   Object encode() {
-    return _toList();
-  }
+    return _toList();  }
 
   static AdvancedCameraSettings decode(Object result) {
     result as List<Object?>;
@@ -146,7 +153,79 @@ class AdvancedCameraSettings {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList());
+  int get hashCode => Object.hashAll(_toList())
+;
+}
+
+class CameraSettings {
+  CameraSettings({
+    this.cameraLensFacing,
+    this.flashMode,
+    this.zoom,
+    this.displayOrientation,
+    this.enableFaceDetection,
+    this.previewWidth,
+    this.previewHeight,
+  });
+
+  CameraFacing? cameraLensFacing;
+
+  FlashMode? flashMode;
+
+  double? zoom;
+
+  int? displayOrientation;
+
+  bool? enableFaceDetection;
+
+  int? previewWidth;
+
+  int? previewHeight;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      cameraLensFacing,
+      flashMode,
+      zoom,
+      displayOrientation,
+      enableFaceDetection,
+      previewWidth,
+      previewHeight,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static CameraSettings decode(Object result) {
+    result as List<Object?>;
+    return CameraSettings(
+      cameraLensFacing: result[0] as CameraFacing?,
+      flashMode: result[1] as FlashMode?,
+      zoom: result[2] as double?,
+      displayOrientation: result[3] as int?,
+      enableFaceDetection: result[4] as bool?,
+      previewWidth: result[5] as int?,
+      previewHeight: result[6] as int?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! CameraSettings || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(encode(), other.encode());
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => Object.hashAll(_toList())
+;
 }
 
 class FaceData {
@@ -175,8 +254,7 @@ class FaceData {
   }
 
   Object encode() {
-    return _toList();
-  }
+    return _toList();  }
 
   static FaceData decode(Object result) {
     result as List<Object?>;
@@ -202,7 +280,8 @@ class FaceData {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList());
+  int get hashCode => Object.hashAll(_toList())
+;
 }
 
 class PreviewSize {
@@ -223,8 +302,7 @@ class PreviewSize {
   }
 
   Object encode() {
-    return _toList();
-  }
+    return _toList();  }
 
   static PreviewSize decode(Object result) {
     result as List<Object?>;
@@ -248,8 +326,10 @@ class PreviewSize {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList());
+  int get hashCode => Object.hashAll(_toList())
+;
 }
+
 
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
@@ -258,23 +338,32 @@ class _PigeonCodec extends StandardMessageCodec {
     if (value is int) {
       buffer.putUint8(4);
       buffer.putInt64(value);
-    } else if (value is CameraFilterMode) {
+    }    else if (value is CameraFilterMode) {
       buffer.putUint8(129);
       writeValue(buffer, value.index);
-    } else if (value is VideoQuality) {
+    }    else if (value is VideoQuality) {
       buffer.putUint8(130);
       writeValue(buffer, value.index);
-    } else if (value is FlashMode) {
+    }    else if (value is FlashMode) {
       buffer.putUint8(131);
       writeValue(buffer, value.index);
-    } else if (value is AdvancedCameraSettings) {
+    }    else if (value is CameraFacing) {
       buffer.putUint8(132);
-      writeValue(buffer, value.encode());
-    } else if (value is FaceData) {
+      writeValue(buffer, value.index);
+    }    else if (value is ScaleType) {
       buffer.putUint8(133);
-      writeValue(buffer, value.encode());
-    } else if (value is PreviewSize) {
+      writeValue(buffer, value.index);
+    }    else if (value is AdvancedCameraSettings) {
       buffer.putUint8(134);
+      writeValue(buffer, value.encode());
+    }    else if (value is CameraSettings) {
+      buffer.putUint8(135);
+      writeValue(buffer, value.encode());
+    }    else if (value is FaceData) {
+      buffer.putUint8(136);
+      writeValue(buffer, value.encode());
+    }    else if (value is PreviewSize) {
+      buffer.putUint8(137);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -284,20 +373,28 @@ class _PigeonCodec extends StandardMessageCodec {
   @override
   Object? readValueOfType(int type, ReadBuffer buffer) {
     switch (type) {
-      case 129:
+      case 129: 
         final int? value = readValue(buffer) as int?;
         return value == null ? null : CameraFilterMode.values[value];
-      case 130:
+      case 130: 
         final int? value = readValue(buffer) as int?;
         return value == null ? null : VideoQuality.values[value];
-      case 131:
+      case 131: 
         final int? value = readValue(buffer) as int?;
         return value == null ? null : FlashMode.values[value];
-      case 132:
+      case 132: 
+        final int? value = readValue(buffer) as int?;
+        return value == null ? null : CameraFacing.values[value];
+      case 133: 
+        final int? value = readValue(buffer) as int?;
+        return value == null ? null : ScaleType.values[value];
+      case 134: 
         return AdvancedCameraSettings.decode(readValue(buffer)!);
-      case 133:
+      case 135: 
+        return CameraSettings.decode(readValue(buffer)!);
+      case 136: 
         return FaceData.decode(readValue(buffer)!);
-      case 134:
+      case 137: 
         return PreviewSize.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -309,11 +406,9 @@ class BeautyCameraHostApi {
   /// Constructor for [BeautyCameraHostApi].  The [binaryMessenger] named argument is
   /// available for dependency injection.  If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
-  BeautyCameraHostApi(
-      {BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
+  BeautyCameraHostApi({BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
       : pigeonVar_binaryMessenger = binaryMessenger,
-        pigeonVar_messageChannelSuffix =
-            messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
   final BinaryMessenger? pigeonVar_binaryMessenger;
 
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
@@ -321,16 +416,13 @@ class BeautyCameraHostApi {
   final String pigeonVar_messageChannelSuffix;
 
   Future<void> initialize(AdvancedCameraSettings settings) async {
-    final String pigeonVar_channelName =
-        'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.initialize$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel =
-        BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.initialize$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture =
-        pigeonVar_channel.send(<Object?>[settings]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[settings]);
     final List<Object?>? pigeonVar_replyList =
         await pigeonVar_sendFuture as List<Object?>?;
     if (pigeonVar_replyList == null) {
@@ -347,10 +439,8 @@ class BeautyCameraHostApi {
   }
 
   Future<void> dispose() async {
-    final String pigeonVar_channelName =
-        'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.dispose$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel =
-        BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.dispose$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
@@ -372,10 +462,8 @@ class BeautyCameraHostApi {
   }
 
   Future<void> switchCamera() async {
-    final String pigeonVar_channelName =
-        'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.switchCamera$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel =
-        BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.switchCamera$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
@@ -397,16 +485,13 @@ class BeautyCameraHostApi {
   }
 
   Future<void> setZoom(double zoomLevel) async {
-    final String pigeonVar_channelName =
-        'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.setZoom$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel =
-        BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.setZoom$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture =
-        pigeonVar_channel.send(<Object?>[zoomLevel]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[zoomLevel]);
     final List<Object?>? pigeonVar_replyList =
         await pigeonVar_sendFuture as List<Object?>?;
     if (pigeonVar_replyList == null) {
@@ -423,16 +508,13 @@ class BeautyCameraHostApi {
   }
 
   Future<void> focusOnPoint(int x, int y) async {
-    final String pigeonVar_channelName =
-        'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.focusOnPoint$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel =
-        BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.focusOnPoint$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture =
-        pigeonVar_channel.send(<Object?>[x, y]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[x, y]);
     final List<Object?>? pigeonVar_replyList =
         await pigeonVar_sendFuture as List<Object?>?;
     if (pigeonVar_replyList == null) {
@@ -449,16 +531,13 @@ class BeautyCameraHostApi {
   }
 
   Future<void> setFlashMode(FlashMode mode) async {
-    final String pigeonVar_channelName =
-        'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.setFlashMode$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel =
-        BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.setFlashMode$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture =
-        pigeonVar_channel.send(<Object?>[mode]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[mode]);
     final List<Object?>? pigeonVar_replyList =
         await pigeonVar_sendFuture as List<Object?>?;
     if (pigeonVar_replyList == null) {
@@ -475,16 +554,13 @@ class BeautyCameraHostApi {
   }
 
   Future<void> setDisplayOrientation(int degrees) async {
-    final String pigeonVar_channelName =
-        'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.setDisplayOrientation$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel =
-        BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.setDisplayOrientation$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture =
-        pigeonVar_channel.send(<Object?>[degrees]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[degrees]);
     final List<Object?>? pigeonVar_replyList =
         await pigeonVar_sendFuture as List<Object?>?;
     if (pigeonVar_replyList == null) {
@@ -501,10 +577,8 @@ class BeautyCameraHostApi {
   }
 
   Future<int> getPreviewTexture() async {
-    final String pigeonVar_channelName =
-        'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.getPreviewTexture$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel =
-        BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.getPreviewTexture$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
@@ -531,10 +605,8 @@ class BeautyCameraHostApi {
   }
 
   Future<PreviewSize> getPreviewSize() async {
-    final String pigeonVar_channelName =
-        'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.getPreviewSize$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel =
-        BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.getPreviewSize$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
@@ -561,10 +633,8 @@ class BeautyCameraHostApi {
   }
 
   Future<String> takePhoto() async {
-    final String pigeonVar_channelName =
-        'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.takePhoto$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel =
-        BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.takePhoto$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
@@ -591,10 +661,8 @@ class BeautyCameraHostApi {
   }
 
   Future<void> startVideoRecording() async {
-    final String pigeonVar_channelName =
-        'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.startVideoRecording$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel =
-        BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.startVideoRecording$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
@@ -616,10 +684,8 @@ class BeautyCameraHostApi {
   }
 
   Future<String> stopVideoRecording() async {
-    final String pigeonVar_channelName =
-        'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.stopVideoRecording$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel =
-        BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.stopVideoRecording$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
@@ -646,10 +712,8 @@ class BeautyCameraHostApi {
   }
 
   Future<double> getCameraSensorAspectRatio() async {
-    final String pigeonVar_channelName =
-        'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.getCameraSensorAspectRatio$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel =
-        BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.getCameraSensorAspectRatio$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
@@ -676,16 +740,313 @@ class BeautyCameraHostApi {
   }
 
   Future<void> setFilterMode(CameraFilterMode mode, {double level = 5}) async {
-    final String pigeonVar_channelName =
-        'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.setFilterMode$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel =
-        BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.setFilterMode$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture =
-        pigeonVar_channel.send(<Object?>[mode, level]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[mode, level]);
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_sendFuture as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else {
+      return;
+    }
+  }
+
+  Future<void> setScaleType(ScaleType scaleType) async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.setScaleType$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[scaleType]);
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_sendFuture as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else {
+      return;
+    }
+  }
+}
+
+class CameraApi {
+  /// Constructor for [CameraApi].  The [binaryMessenger] named argument is
+  /// available for dependency injection.  If it is left null, the default
+  /// BinaryMessenger will be used which routes to the host platform.
+  CameraApi({BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
+      : pigeonVar_binaryMessenger = binaryMessenger,
+        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+  final BinaryMessenger? pigeonVar_binaryMessenger;
+
+  static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
+
+  final String pigeonVar_messageChannelSuffix;
+
+  Future<void> initialize(CameraSettings settings) async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.CameraApi.initialize$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[settings]);
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_sendFuture as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else {
+      return;
+    }
+  }
+
+  Future<void> startPreview(int textureId) async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.CameraApi.startPreview$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[textureId]);
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_sendFuture as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else {
+      return;
+    }
+  }
+
+  Future<void> stopPreview() async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.CameraApi.stopPreview$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_sendFuture as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else {
+      return;
+    }
+  }
+
+  Future<void> switchCamera() async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.CameraApi.switchCamera$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_sendFuture as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else {
+      return;
+    }
+  }
+
+  Future<void> setFlashMode(FlashMode mode) async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.CameraApi.setFlashMode$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[mode]);
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_sendFuture as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else {
+      return;
+    }
+  }
+
+  Future<void> setZoom(double zoom) async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.CameraApi.setZoom$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[zoom]);
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_sendFuture as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else {
+      return;
+    }
+  }
+
+  Future<void> setScaleType(ScaleType scaleType) async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.CameraApi.setScaleType$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[scaleType]);
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_sendFuture as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else {
+      return;
+    }
+  }
+
+  Future<String> takePhoto() async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.CameraApi.takePhoto$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_sendFuture as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else if (pigeonVar_replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (pigeonVar_replyList[0] as String?)!;
+    }
+  }
+
+  Future<void> startVideoRecording(String filePath) async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.CameraApi.startVideoRecording$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[filePath]);
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_sendFuture as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else {
+      return;
+    }
+  }
+
+  Future<String> stopVideoRecording() async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.CameraApi.stopVideoRecording$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_sendFuture as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else if (pigeonVar_replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (pigeonVar_replyList[0] as String?)!;
+    }
+  }
+
+  Future<void> dispose() async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.CameraApi.dispose$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
     final List<Object?>? pigeonVar_replyList =
         await pigeonVar_sendFuture as List<Object?>?;
     if (pigeonVar_replyList == null) {
@@ -719,26 +1080,18 @@ abstract class BeautyCameraFlutterApi {
 
   Future<void> onFilterModeChanged(CameraFilterMode mode);
 
-  static void setUp(
-    BeautyCameraFlutterApi? api, {
-    BinaryMessenger? binaryMessenger,
-    String messageChannelSuffix = '',
-  }) {
-    messageChannelSuffix =
-        messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+  static void setUp(BeautyCameraFlutterApi? api, {BinaryMessenger? binaryMessenger, String messageChannelSuffix = '',}) {
+    messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
     {
-      final BasicMessageChannel<
-          Object?> pigeonVar_channel = BasicMessageChannel<
-              Object?>(
-          'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onZoomChanged$messageChannelSuffix',
-          pigeonChannelCodec,
+      final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onZoomChanged$messageChannelSuffix', pigeonChannelCodec,
           binaryMessenger: binaryMessenger);
       if (api == null) {
         pigeonVar_channel.setMessageHandler(null);
       } else {
         pigeonVar_channel.setMessageHandler((Object? message) async {
           assert(message != null,
-              'Argument for dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onZoomChanged was null.');
+          'Argument for dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onZoomChanged was null.');
           final List<Object?> args = (message as List<Object?>?)!;
           final double? arg_zoomLevel = (args[0] as double?);
           assert(arg_zoomLevel != null,
@@ -748,26 +1101,22 @@ abstract class BeautyCameraFlutterApi {
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);
-          } catch (e) {
-            return wrapResponse(
-                error: PlatformException(code: 'error', message: e.toString()));
+          }          catch (e) {
+            return wrapResponse(error: PlatformException(code: 'error', message: e.toString()));
           }
         });
       }
     }
     {
-      final BasicMessageChannel<
-          Object?> pigeonVar_channel = BasicMessageChannel<
-              Object?>(
-          'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onFlashModeChanged$messageChannelSuffix',
-          pigeonChannelCodec,
+      final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onFlashModeChanged$messageChannelSuffix', pigeonChannelCodec,
           binaryMessenger: binaryMessenger);
       if (api == null) {
         pigeonVar_channel.setMessageHandler(null);
       } else {
         pigeonVar_channel.setMessageHandler((Object? message) async {
           assert(message != null,
-              'Argument for dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onFlashModeChanged was null.');
+          'Argument for dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onFlashModeChanged was null.');
           final List<Object?> args = (message as List<Object?>?)!;
           final FlashMode? arg_mode = (args[0] as FlashMode?);
           assert(arg_mode != null,
@@ -777,26 +1126,22 @@ abstract class BeautyCameraFlutterApi {
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);
-          } catch (e) {
-            return wrapResponse(
-                error: PlatformException(code: 'error', message: e.toString()));
+          }          catch (e) {
+            return wrapResponse(error: PlatformException(code: 'error', message: e.toString()));
           }
         });
       }
     }
     {
-      final BasicMessageChannel<
-          Object?> pigeonVar_channel = BasicMessageChannel<
-              Object?>(
-          'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onCameraSwitched$messageChannelSuffix',
-          pigeonChannelCodec,
+      final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onCameraSwitched$messageChannelSuffix', pigeonChannelCodec,
           binaryMessenger: binaryMessenger);
       if (api == null) {
         pigeonVar_channel.setMessageHandler(null);
       } else {
         pigeonVar_channel.setMessageHandler((Object? message) async {
           assert(message != null,
-              'Argument for dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onCameraSwitched was null.');
+          'Argument for dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onCameraSwitched was null.');
           final List<Object?> args = (message as List<Object?>?)!;
           final String? arg_cameraId = (args[0] as String?);
           assert(arg_cameraId != null,
@@ -806,29 +1151,24 @@ abstract class BeautyCameraFlutterApi {
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);
-          } catch (e) {
-            return wrapResponse(
-                error: PlatformException(code: 'error', message: e.toString()));
+          }          catch (e) {
+            return wrapResponse(error: PlatformException(code: 'error', message: e.toString()));
           }
         });
       }
     }
     {
-      final BasicMessageChannel<
-          Object?> pigeonVar_channel = BasicMessageChannel<
-              Object?>(
-          'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onFaceDetected$messageChannelSuffix',
-          pigeonChannelCodec,
+      final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onFaceDetected$messageChannelSuffix', pigeonChannelCodec,
           binaryMessenger: binaryMessenger);
       if (api == null) {
         pigeonVar_channel.setMessageHandler(null);
       } else {
         pigeonVar_channel.setMessageHandler((Object? message) async {
           assert(message != null,
-              'Argument for dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onFaceDetected was null.');
+          'Argument for dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onFaceDetected was null.');
           final List<Object?> args = (message as List<Object?>?)!;
-          final List<FaceData>? arg_faces =
-              (args[0] as List<Object?>?)?.cast<FaceData>();
+          final List<FaceData>? arg_faces = (args[0] as List<Object?>?)?.cast<FaceData>();
           assert(arg_faces != null,
               'Argument for dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onFaceDetected was null, expected non-null List<FaceData>.');
           try {
@@ -836,19 +1176,15 @@ abstract class BeautyCameraFlutterApi {
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);
-          } catch (e) {
-            return wrapResponse(
-                error: PlatformException(code: 'error', message: e.toString()));
+          }          catch (e) {
+            return wrapResponse(error: PlatformException(code: 'error', message: e.toString()));
           }
         });
       }
     }
     {
-      final BasicMessageChannel<
-          Object?> pigeonVar_channel = BasicMessageChannel<
-              Object?>(
-          'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onVideoRecordingStarted$messageChannelSuffix',
-          pigeonChannelCodec,
+      final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onVideoRecordingStarted$messageChannelSuffix', pigeonChannelCodec,
           binaryMessenger: binaryMessenger);
       if (api == null) {
         pigeonVar_channel.setMessageHandler(null);
@@ -859,26 +1195,22 @@ abstract class BeautyCameraFlutterApi {
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);
-          } catch (e) {
-            return wrapResponse(
-                error: PlatformException(code: 'error', message: e.toString()));
+          }          catch (e) {
+            return wrapResponse(error: PlatformException(code: 'error', message: e.toString()));
           }
         });
       }
     }
     {
-      final BasicMessageChannel<
-          Object?> pigeonVar_channel = BasicMessageChannel<
-              Object?>(
-          'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onVideoRecordingStopped$messageChannelSuffix',
-          pigeonChannelCodec,
+      final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onVideoRecordingStopped$messageChannelSuffix', pigeonChannelCodec,
           binaryMessenger: binaryMessenger);
       if (api == null) {
         pigeonVar_channel.setMessageHandler(null);
       } else {
         pigeonVar_channel.setMessageHandler((Object? message) async {
           assert(message != null,
-              'Argument for dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onVideoRecordingStopped was null.');
+          'Argument for dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onVideoRecordingStopped was null.');
           final List<Object?> args = (message as List<Object?>?)!;
           final String? arg_path = (args[0] as String?);
           assert(arg_path != null,
@@ -888,26 +1220,22 @@ abstract class BeautyCameraFlutterApi {
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);
-          } catch (e) {
-            return wrapResponse(
-                error: PlatformException(code: 'error', message: e.toString()));
+          }          catch (e) {
+            return wrapResponse(error: PlatformException(code: 'error', message: e.toString()));
           }
         });
       }
     }
     {
-      final BasicMessageChannel<
-          Object?> pigeonVar_channel = BasicMessageChannel<
-              Object?>(
-          'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onFilterModeChanged$messageChannelSuffix',
-          pigeonChannelCodec,
+      final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onFilterModeChanged$messageChannelSuffix', pigeonChannelCodec,
           binaryMessenger: binaryMessenger);
       if (api == null) {
         pigeonVar_channel.setMessageHandler(null);
       } else {
         pigeonVar_channel.setMessageHandler((Object? message) async {
           assert(message != null,
-              'Argument for dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onFilterModeChanged was null.');
+          'Argument for dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onFilterModeChanged was null.');
           final List<Object?> args = (message as List<Object?>?)!;
           final CameraFilterMode? arg_mode = (args[0] as CameraFilterMode?);
           assert(arg_mode != null,
@@ -917,9 +1245,8 @@ abstract class BeautyCameraFlutterApi {
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);
-          } catch (e) {
-            return wrapResponse(
-                error: PlatformException(code: 'error', message: e.toString()));
+          }          catch (e) {
+            return wrapResponse(error: PlatformException(code: 'error', message: e.toString()));
           }
         });
       }
