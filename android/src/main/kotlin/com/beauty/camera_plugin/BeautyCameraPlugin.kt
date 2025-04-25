@@ -343,7 +343,7 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
     override fun setFilterMode(mode: com.beauty.camera_plugin.CameraFilterMode, level: Double, callback: (Result<Unit>) -> Unit) {
         try {
             val internalMode = CameraFilterMode.fromPigeon(mode)
-            filterManager?.setFilter(internalMode, level)
+            repository?.setFilter(internalMode, level)
             flutterApi?.onFilterModeChanged(mode) {}
             callback(Result.success(Unit))
         } catch (e: Exception) {

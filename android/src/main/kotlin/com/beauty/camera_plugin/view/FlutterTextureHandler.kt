@@ -27,35 +27,39 @@ class FlutterTextureHandler(
     private var textureEntry: TextureRegistry.SurfaceTextureEntry? = null
     private var surfaceTexture: SurfaceTexture? = null
     private var cameraView: CameraView? = null
+    private var currentWidth: Int = 0
+    private var currentHeight: Int = 0
     
     /**
      * Initialize and register a texture for the Flutter preview
      */
     fun initialize(): Long {
-        // Clean up old texture if any
-        cleanup()
-        
-        // Create a new texture entry
-        textureEntry = textureRegistry.createSurfaceTexture()
-        
-        // Get the surface texture to render camera output to
-        surfaceTexture = textureEntry?.surfaceTexture()
+        try {
+            // Clean up old texture if any
+            cleanup()
+            
+            // Create a new texture entry
+            textureEntry = textureRegistry.createSurfaceTexture()
+            
+            // Get the surface texture to render camera output to
+            surfaceTexture = textureEntry?.surfaceTexture()
 
-        // Create CameraView instance with default CENTER_CROP scale type
-        cameraView = CameraView(context, repository, lifecycleOwner)
-        
-        // Start the camera with the surface
-        textureEntry?.id()?.let { textureId: Long ->
-            try {
-                // Initialize the camera with the surface
+            // Create CameraView instance
+            cameraView = CameraView(context, repository, lifecycleOwner).also { view ->
+                // Set up the camera view
+                repository.setCameraView(view)
+            }
+            
+            // Start the camera with the surface
+            textureEntry?.id()?.let { textureId: Long ->
                 surfaceTexture?.let { texture: SurfaceTexture ->
                     // Set the surface texture to CameraView
                     cameraView?.customSurfaceTexture = texture
                     return textureId
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error initializing camera texture", e)
             }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error initializing camera texture", e)
         }
         
         return -1
@@ -78,6 +82,11 @@ class FlutterTextureHandler(
             
             Log.d(TAG, "Setting scale type to: $scaleType")
             cameraView?.setScaleType(newScaleType)
+            
+            // Update texture size if we have current dimensions
+            if (currentWidth > 0 && currentHeight > 0) {
+                updateTexture(currentWidth, currentHeight)
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Error setting scale type", e)
         }
@@ -89,10 +98,13 @@ class FlutterTextureHandler(
     fun updateTexture(width: Int, height: Int) {
         try {
             Log.d(TAG, "Updating texture size: $width x $height")
+            currentWidth = width
+            currentHeight = height
+            
             surfaceTexture?.setDefaultBufferSize(width, height)
-            surfaceTexture?.let { texture ->
-                cameraView?.onSurfaceTextureSizeChanged(texture, width, height)
-            }
+            
+            // Trigger a size update in CameraView
+            cameraView?.setupSurface(surfaceTexture!!, width, height)
         } catch (e: Exception) {
             Log.e(TAG, "Error updating texture size", e)
         }
@@ -103,13 +115,20 @@ class FlutterTextureHandler(
      */
     fun cleanup() {
         try {
+            // Release texture entry
             textureEntry?.release()
             textureEntry = null
-            surfaceTexture?.let { texture ->
-                cameraView?.onSurfaceTextureDestroyed(texture)
-            }
+            
+            // Release surface texture
+            surfaceTexture?.release()
             surfaceTexture = null
+            
+            // Clean up camera view
             cameraView = null
+            
+            // Reset dimensions
+            currentWidth = 0
+            currentHeight = 0
         } catch (e: Exception) {
             Log.e(TAG, "Error during cleanup", e)
         }

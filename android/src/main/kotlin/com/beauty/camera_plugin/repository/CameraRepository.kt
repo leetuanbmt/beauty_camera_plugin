@@ -16,6 +16,9 @@ import java.util.concurrent.Executors
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlinx.coroutines.suspendCancellableCoroutine
+import com.beauty.camera_plugin.filters.CameraFilterManager
+import com.beauty.camera_plugin.models.CameraFilterMode
+import com.beauty.camera_plugin.view.CameraView
 
 
 class CameraRepository(private val context: Context) {
@@ -53,9 +56,14 @@ class CameraRepository(private val context: Context) {
     private var currentSurface: Surface? = null
     private var currentLifecycleOwner: LifecycleOwner? = null
 
+    // Filter manager
+    private var filterManager: CameraFilterManager? = null
 
+    private var cameraView: CameraView? = null
 
-
+    init {
+        filterManager = CameraFilterManager(context)
+    }
 
     /**
      * Initialize the camera system with settings
@@ -147,6 +155,9 @@ class CameraRepository(private val context: Context) {
             val targetResolution = settings.resolution
             Log.d(TAG, "Target resolution: ${targetResolution.width}x${targetResolution.height}")
 
+            // Set up filter manager with preview size
+            filterManager?.setupSurfaceTexture(targetResolution.width, targetResolution.height)
+
             // Create preview use case with settings
             preview = Preview.Builder()
                 .setTargetResolution(targetResolution)
@@ -154,15 +165,22 @@ class CameraRepository(private val context: Context) {
                 .build()
                 .also { preview: Preview ->
                     preview.setSurfaceProvider { request: SurfaceRequest ->
+                        // Get filtered surface from filter manager
+                        val filteredSurface = filterManager?.getOutputSurface() ?: surface
+                        
                         request.provideSurface(
-                            surface,
+                            filteredSurface,
                             ContextCompat.getMainExecutor(context)
                         ) { result: SurfaceRequest.Result ->
                             when (result.resultCode) {
                                 SurfaceRequest.Result.RESULT_SURFACE_USED_SUCCESSFULLY -> {
                                     Log.d(TAG, "Surface provided successfully")
-                                    // Log preview details
+                                    // Update filter manager with actual preview size
                                     preview.resolutionInfo?.let { info ->
+                                        filterManager?.updatePreviewSize(
+                                            info.resolution.width,
+                                            info.resolution.height
+                                        )
                                         Log.d(TAG, """
                                             Preview configured:
                                             - Resolution: ${info.resolution.width}x${info.resolution.height}
@@ -173,11 +191,11 @@ class CameraRepository(private val context: Context) {
                                         """.trimIndent())
                                     }
                                 }
-                                SurfaceRequest.Result.RESULT_REQUEST_CANCELLED -> 
+                                SurfaceRequest.Result.RESULT_REQUEST_CANCELLED ->
                                     Log.w(TAG, "Surface request was cancelled")
-                                SurfaceRequest.Result.RESULT_INVALID_SURFACE -> 
+                                SurfaceRequest.Result.RESULT_INVALID_SURFACE ->
                                     Log.e(TAG, "Invalid surface provided")
-                                else -> 
+                                else ->
                                     Log.w(TAG, "Unknown surface result code: ${result.resultCode}")
                             }
                         }
@@ -190,23 +208,23 @@ class CameraRepository(private val context: Context) {
                 .setTargetRotation(settings.displayOrientation)
                 .setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY)
                 .build()
-            
+
             // Set up face detection if enabled
             if (settings.enableFaceDetection) {
                 setupFaceDetection()
             }
-            
+
             // Bind use cases to camera
             val useCases = mutableListOf<UseCase>()
             preview?.let { useCases.add(it) }
             imageCapture?.let { useCases.add(it) }
             imageAnalysis?.let { useCases.add(it) }
-            
+
             if (useCases.isEmpty()) {
                 Log.e(TAG, "No use cases to bind")
                 return
             }
-            
+
             try {
                 camera = cameraProvider!!.bindToLifecycle(
                     currentLifecycleOwner!!,
@@ -217,11 +235,11 @@ class CameraRepository(private val context: Context) {
                 // Apply initial settings
                 camera?.cameraControl?.setZoomRatio(settings.zoom.toFloat())
                 setFlashMode(settings.flashMode)
-                
+
                 // Notify camera switched if callback is set
                 val cameraId = camera?.cameraInfo.toString()
                 onCameraSwitched?.invoke(cameraId)
-                
+
             } catch (e: Exception) {
                 Log.e(TAG, "Error binding use cases", e)
             }
@@ -528,6 +546,14 @@ class CameraRepository(private val context: Context) {
             Log.e(TAG, "Error getting aspect ratio", e)
             4.0 / 3.0
         }
+    }
+
+    fun setCameraView(view: CameraView) {
+        cameraView = view
+    }
+
+    fun setFilter(mode: CameraFilterMode, level: Double) {
+        cameraView?.setFilter(mode, level)
     }
 
 }
