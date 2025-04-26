@@ -46,7 +46,7 @@ class FlutterTextureHandler(
 
             // Create or reuse CameraView instance
             if (cameraView == null) {
-                cameraView = CameraView(context, repository, lifecycleOwner).also { view ->
+                cameraView = CameraView(context, repository, lifecycleOwner).also { view :CameraView ->
                     // Set up the camera view
                     repository.setCameraView(view)
                 }

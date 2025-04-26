@@ -28,8 +28,9 @@ class CameraFilterManager private constructor(context: Context) {
     private var glSurfaceView: GLSurfaceView? = null
     private var surfaceTexture: SurfaceTexture? = null
     private var textureId: Int = -1
-    private lateinit var renderer: GPUImageRenderer
+    private var renderer: GPUImageRenderer? = null
     private val transformMatrix = FloatArray(16)
+    private var isRendererSet = false
 
     companion object {
         @SuppressLint("StaticFieldLeak")
@@ -45,57 +46,129 @@ class CameraFilterManager private constructor(context: Context) {
 
     init {
         gpuImage.setFilter(currentFilter)
-        renderer = GPUImageRenderer(currentFilter)
-        renderer.setRotation(Rotation.NORMAL)
-        renderer.setScaleType(GPUImage.ScaleType.CENTER_CROP)
     }
 
     private fun setupGLSurfaceView() {
-        gpuImage.setGLSurfaceView(glSurfaceView)
-        glSurfaceView?.setEGLContextClientVersion(2)
-        glSurfaceView?.setRenderer(object : GLSurfaceView.Renderer {
-            override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
-                // Initialize GPUImage renderer
-                renderer.onSurfaceCreated(gl, config)
-                
-                // Generate texture for camera preview
-                val textures = IntArray(1)
-                GLES20.glGenTextures(1, textures, 0)
-                textureId = textures[0]
-                
-                // Create new SurfaceTexture
-                surfaceTexture?.release()
-                surfaceTexture = SurfaceTexture(textureId)
-                surfaceTexture?.setOnFrameAvailableListener { 
-                    glSurfaceView?.requestRender() 
-                }
-            }
+        if (isRendererSet) {
+            Log.w(tag, "Renderer already set, skipping setup")
+            return
+        }
 
-            override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
-                GLES20.glViewport(0, 0, width, height)
-                renderer.onSurfaceChanged(gl, width, height)
-            }
+        Log.d(tag, "Setting up GLSurfaceView")
 
-            override fun onDrawFrame(gl: GL10?) {
-                // Update texture with new frame
-                surfaceTexture?.let { texture ->
-                    texture.updateTexImage()
-                    texture.getTransformMatrix(transformMatrix)
+        glSurfaceView?.let { view ->
+            try {
+                view.setEGLContextClientVersion(2)
+                renderer = GPUImageRenderer(currentFilter).apply {
+                    setRotation(Rotation.NORMAL)
+                    setScaleType(GPUImage.ScaleType.CENTER_CROP)
                 }
-                
-                // Draw the frame
-                renderer.onDrawFrame(gl)
+
+                view.setRenderer(object : GLSurfaceView.Renderer {
+                    override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
+                        // Initialize GPUImage renderer
+                        renderer?.onSurfaceCreated(gl, config)
+                        
+                        // Generate texture for camera preview
+                        val textures = IntArray(1)
+                        GLES20.glGenTextures(1, textures, 0)
+                        textureId = textures[0]
+                        
+                        // Create new SurfaceTexture
+                        surfaceTexture?.release()
+                        surfaceTexture = SurfaceTexture(textureId)
+                        surfaceTexture?.setOnFrameAvailableListener { 
+                            view.requestRender() 
+                        }
+                    }
+
+                    override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
+                        GLES20.glViewport(0, 0, width, height)
+                        renderer?.onSurfaceChanged(gl, width, height)
+                    }
+
+                    override fun onDrawFrame(gl: GL10?) {
+                        // Update texture with new frame
+                        surfaceTexture?.let { texture ->
+                            texture.updateTexImage()
+                            texture.getTransformMatrix(transformMatrix)
+                        }
+                        
+                        // Draw the frame
+                        renderer?.onDrawFrame(gl)
+                    }
+                })
+                view.renderMode = GLSurfaceView.RENDERMODE_WHEN_DIRTY
+                isRendererSet = true
+                Log.d(tag, "GLSurfaceView setup completed successfully")
+            } catch (e: Exception) {
+                Log.e(tag, "Error setting up GLSurfaceView", e)
+                isRendererSet = false
             }
-        })
-        glSurfaceView?.renderMode = GLSurfaceView.RENDERMODE_WHEN_DIRTY
+        }
     }
 
     /**
      * Set GLSurfaceView for rendering
      */
     fun setGLSurfaceView(view: GLSurfaceView) {
+        if (glSurfaceView == view) {
+            Log.d(tag, "Same GLSurfaceView instance, skipping setup")
+            return
+        }
+
+        // Clean up previous GLSurfaceView if exists
+        releaseGLSurfaceView()
+        
         glSurfaceView = view
+        isRendererSet = false
         setupGLSurfaceView()
+    }
+
+    private fun releaseGLSurfaceView() {
+        try {
+            glSurfaceView?.queueEvent {
+                try {
+                    // Destroy current filter
+                    currentFilter.destroy()
+                    
+                    // Clean up GPUImage
+                    gpuImage.deleteImage()
+                    
+                    // Release surface texture
+                    surfaceTexture?.release()
+                    surfaceTexture = null
+                    
+                    // Delete texture if it exists
+                    if (textureId != -1) {
+                        val textures = intArrayOf(textureId)
+                        GLES20.glDeleteTextures(1, textures, 0)
+                        textureId = -1
+                    }
+                    
+                    // Clean up renderer
+                    renderer?.deleteImage()
+                    renderer = null
+                    
+                    Log.d(tag, "GLSurfaceView resources released successfully")
+                } catch (e: Exception) {
+                    Log.e(tag, "Error during GLSurfaceView cleanup", e)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(tag, "Error in releaseGLSurfaceView()", e)
+        }
+    }
+
+    fun release() {
+        try {
+            releaseGLSurfaceView()
+            glSurfaceView = null
+            instance = null
+            isRendererSet = false
+        } catch (e: Exception) {
+            Log.e(tag, "Error in release()", e)
+        }
     }
 
     fun getSurfaceTexture(): SurfaceTexture? {
@@ -148,17 +221,37 @@ class CameraFilterManager private constructor(context: Context) {
             currentFilterMode = mode
             currentFilterLevel = level
 
-            currentFilter = FilterFactory.createFilter(mode)
+            // Create new filter
+            val newFilter = FilterFactory.createFilter(mode)
+            
+            // Apply filter level
+            FilterFactory.applyFilterLevel(newFilter, level)
+            
+            // Clean up old filter
+            currentFilter.destroy()
+            currentFilter = newFilter
 
-            // Apply filter
-            gpuImage.setFilter(currentFilter)
-            
-            // Request render
-            glSurfaceView?.requestRender()
-            
-            Log.d(tag, "Filter set: mode=$mode, level=$level")
+            // Apply filter on GL thread
+            glSurfaceView?.queueEvent {
+                try {
+                    gpuImage.setFilter(currentFilter)
+                    glSurfaceView?.requestRender()
+                    Log.d(tag, "Filter set successfully: mode=$mode, level=$level")
+                } catch (e: Exception) {
+                    Log.e(tag, "Error applying filter on GL thread", e)
+                    // Revert to previous filter if possible
+                    try {
+                        currentFilter = FilterFactory.createFilter(CameraFilterMode.NONE)
+                        gpuImage.setFilter(currentFilter)
+                        glSurfaceView?.requestRender()
+                    } catch (e: Exception) {
+                        Log.e(tag, "Error reverting to default filter", e)
+                    }
+                }
+            }
         } catch (e: Exception) {
             Log.e(tag, "Error setting filter", e)
+            // Notify error through callback if available
         }
     }
 
@@ -176,35 +269,5 @@ class CameraFilterManager private constructor(context: Context) {
     fun setScaleType(scaleType: GPUImage.ScaleType) {
         gpuImage.setScaleType(scaleType)
         glSurfaceView?.requestRender()
-    }
-
-    fun onNewFrame() {
-        try {
-            // Request render to process new frame
-            glSurfaceView?.requestRender()
-        } catch (e: Exception) {
-            Log.e(tag, "Error processing new frame", e)
-        }
-    }
-
-    fun release() {
-        try {
-            currentFilter.destroy()
-            gpuImage.deleteImage()
-            
-            // Delete texture if it exists
-            if (textureId != -1) {
-                val textures = intArrayOf(textureId)
-                GLES20.glDeleteTextures(1, textures, 0)
-                textureId = -1
-            }
-            
-            surfaceTexture?.release()
-            surfaceTexture = null
-            
-            Log.d(tag, "Filter manager resources released")
-        } catch (e: Exception) {
-            Log.e(tag, "Error releasing resources", e)
-        }
     }
 } 

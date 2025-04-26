@@ -1,6 +1,7 @@
 package com.beauty.camera_plugin.repository
 
 import android.content.Context
+import android.os.Build
 import android.util.Log
 import android.view.Surface
 import androidx.camera.core.*
@@ -19,7 +20,12 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import com.beauty.camera_plugin.filters.CameraFilterManager
 import com.beauty.camera_plugin.models.CameraFilterMode
 import com.beauty.camera_plugin.view.CameraView
-
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.launch
+import java.util.concurrent.TimeoutException
 
 class CameraRepository(private val context: Context) {
     companion object {
@@ -61,48 +67,91 @@ class CameraRepository(private val context: Context) {
 
     private var cameraView: CameraView? = null
 
-    /**
-     * Initialize the camera system with settings
-     * @param lifecycleOwner The lifecycle owner for camera
-     * @param settings Camera settings to apply
-     */
-    suspend fun initialize(lifecycleOwner: LifecycleOwner, settings: CameraSettings) = try {
-        // Store settings
-        this.settings = settings
-        this.currentLifecycleOwner = lifecycleOwner
-
-        // Get camera provider using coroutines
-        cameraProvider = suspendCancellableCoroutine { continuation ->
-            val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
-            cameraProviderFuture.addListener({
-                try {
-                    continuation.resume(cameraProviderFuture.run { get() }
-                    )
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to get camera provider", e)
-                    continuation.resumeWithException(e)
-                }
-            }, ContextCompat.getMainExecutor(context))
-        }
-
-        // Update camera selector based on settings
-        cameraSelector = if (settings.cameraLensFacing == CameraSettings.CAMERA_FACING_FRONT) {
-            CameraSelector.DEFAULT_FRONT_CAMERA
-        } else {
-            CameraSelector.DEFAULT_BACK_CAMERA
-        }
-
-        // Apply initial settings
-        setFlashMode(settings.flashMode)
-        if (settings.zoom > 1.0) {
-            setZoom()
-        }
-        setDisplayOrientation()
-
-    } catch (e: Exception) {
-        Log.e(TAG, "Failed to initialize camera", e)
-        throw e
+    private suspend fun initializeCameraProvider(context: Context): ProcessCameraProvider {
+        return withTimeoutOrNull(10000) { // 10 second timeout
+            suspendCancellableCoroutine { continuation ->
+                val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
+                cameraProviderFuture.addListener({
+                    try {
+                        continuation.resume(cameraProviderFuture.run { get() })
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to get camera provider", e)
+                        continuation.resumeWithException(e)
+                    }
+                }, ContextCompat.getMainExecutor(context))
+            }
+        } ?: throw Exception("Camera initialization timed out after 10 seconds")
     }
+
+    private fun checkCameraPermissions(context: Context): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            context.checkSelfPermission(android.Manifest.permission.CAMERA) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        } else {
+            TODO("VERSION.SDK_INT < M")
+        }
+    }
+
+    private fun checkCameraAvailability(): Boolean {
+        return try {
+            val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as android.hardware.camera2.CameraManager
+            cameraManager.cameraIdList.isNotEmpty()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error checking camera availability", e)
+            false
+        }
+    }
+
+    suspend fun initialize(lifecycleOwner: LifecycleOwner, settings: CameraSettings) {
+        try {
+            // Check permissions first
+            if (!checkCameraPermissions(context)) {
+                throw SecurityException("Camera permission not granted")
+            }
+
+            // Check camera availability
+            if (!checkCameraAvailability()) {
+                throw Exception("No cameras available on device")
+            }
+
+            // Store settings and lifecycle owner
+            this.settings = settings
+            this.currentLifecycleOwner = lifecycleOwner
+
+            try {
+                // Initialize camera provider with timeout
+                cameraProvider = initializeCameraProvider(context)
+
+                // Update camera selector based on settings
+                cameraSelector = if (settings.cameraLensFacing == CameraSettings.CAMERA_FACING_FRONT) {
+                    CameraSelector.DEFAULT_FRONT_CAMERA
+                } else {
+                    CameraSelector.DEFAULT_BACK_CAMERA
+                }
+
+                // Apply initial settings
+                setFlashMode(settings.flashMode)
+                if (settings.zoom > 1.0) {
+                    setZoom()
+                }
+                setDisplayOrientation()
+
+            } catch (e: Exception) {
+                when (e) {
+                    is SecurityException -> throw e
+                    is TimeoutException -> throw Exception("Camera initialization timed out")
+                    else -> {
+                        Log.e(TAG, "Failed to initialize camera", e)
+                        throw Exception("Failed to initialize camera: ${e.message}")
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in initialize", e)
+            cleanup() // Clean up resources on failure
+            throw e
+        }
+    }
+
 
     /**
      * Start the camera with the current configuration
@@ -141,6 +190,16 @@ class CameraRepository(private val context: Context) {
                 return
             }
 
+            // Set a timeout for camera initialization
+            val timeoutJob = CoroutineScope(Dispatchers.Main).launch {
+                delay(5000) // 5 second timeout
+                if (camera == null) {
+                    Log.e(TAG, "Camera initialization timed out")
+                    cleanup()
+                    throw Exception("Camera initialization timed out after 5 seconds")
+                }
+            }
+
             // Unbind previous use cases
             cameraProvider?.unbindAll()
 
@@ -151,106 +210,116 @@ class CameraRepository(private val context: Context) {
             val targetResolution = settings.resolution
             Log.d(TAG, "Target resolution: ${targetResolution.width}x${targetResolution.height}")
 
-            // Set up filter manager with preview size
-            filterManager.setupSurfaceTexture(targetResolution.width, targetResolution.height)
+            try {
+                // Set up filter manager with preview size
+                filterManager.setupSurfaceTexture(targetResolution.width, targetResolution.height)
 
-            // Create preview use case with settings
-            preview = Preview.Builder()
-                .setTargetResolution(targetResolution)
-                .setTargetRotation(settings.displayOrientation)
-                .build()
-                .also { preview: Preview ->
-                    preview.setSurfaceProvider { request: SurfaceRequest ->
-                        // Get surface texture from filter manager
-                        val surfaceTexture = filterManager.getSurfaceTexture()
-                        if (surfaceTexture == null) {
-                            Log.e(TAG, "Failed to get surface texture from filter manager")
-                            return@setSurfaceProvider
-                        }
-                        
-                        // Create surface from texture
-                        val previewSurface = Surface(surfaceTexture)
-                        
-                        request.provideSurface(
-                            previewSurface,
-                            ContextCompat.getMainExecutor(context)
-                        ) { result: SurfaceRequest.Result ->
-                            when (result.resultCode) {
-                                SurfaceRequest.Result.RESULT_SURFACE_USED_SUCCESSFULLY -> {
-                                    Log.d(TAG, "Surface provided successfully")
-                                    // Update filter manager with actual preview size
-                                    preview.resolutionInfo?.let { info ->
-                                        filterManager.updatePreviewSize(
-                                            info.resolution.width,
-                                            info.resolution.height
-                                        )
-                                        Log.d(TAG, """
-                                            Preview configured:
-                                            - Resolution: ${info.resolution.width}x${info.resolution.height}
-                                            - Crop rect: ${info.cropRect}
-                                            - Rotation: ${info.rotationDegrees}°
-                                            - Target resolution: ${targetResolution.width}x${targetResolution.height}
-                                            - Front camera: ${isFrontCamera()}
-                                        """.trimIndent())
-                                    }
-                                }
-                                SurfaceRequest.Result.RESULT_REQUEST_CANCELLED ->
-                                    Log.w(TAG, "Surface request was cancelled")
-                                SurfaceRequest.Result.RESULT_INVALID_SURFACE ->
-                                    Log.e(TAG, "Invalid surface provided")
-                                else ->
-                                    Log.w(TAG, "Unknown surface result code: ${result.resultCode}")
+                // Create preview use case with settings
+                preview = Preview.Builder()
+                    .setTargetResolution(targetResolution)
+                    .setTargetRotation(settings.displayOrientation)
+                    .build()
+                    .also { preview: Preview ->
+                        preview.setSurfaceProvider { request: SurfaceRequest ->
+                            // Get surface texture from filter manager
+                            val surfaceTexture = filterManager.getSurfaceTexture()
+                            if (surfaceTexture == null) {
+                                Log.e(TAG, "Failed to get surface texture from filter manager")
+                                return@setSurfaceProvider
                             }
                             
-                            // Clean up preview surface
-                            previewSurface.release()
+                            // Create surface from texture
+                            val previewSurface = Surface(surfaceTexture)
+                            
+                            request.provideSurface(
+                                previewSurface,
+                                ContextCompat.getMainExecutor(context)
+                            ) { result ->
+                                when (result.resultCode) {
+                                    SurfaceRequest.Result.RESULT_SURFACE_USED_SUCCESSFULLY -> {
+                                        Log.d(TAG, "Surface provided successfully")
+                                        timeoutJob.cancel() // Cancel timeout if successful
+                                        
+                                        // Update filter manager with actual preview size
+                                        preview.resolutionInfo?.let { info ->
+                                            filterManager.updatePreviewSize(
+                                                info.resolution.width,
+                                                info.resolution.height
+                                            )
+                                            Log.d(TAG, """
+                                                Preview configured:
+                                                - Resolution: ${info.resolution.width}x${info.resolution.height}
+                                                - Crop rect: ${info.cropRect}
+                                                - Rotation: ${info.rotationDegrees}°
+                                                - Target resolution: ${targetResolution.width}x${targetResolution.height}
+                                                - Front camera: ${isFrontCamera()}
+                                            """.trimIndent())
+                                        }
+                                    }
+                                    SurfaceRequest.Result.RESULT_REQUEST_CANCELLED ->
+                                        Log.w(TAG, "Surface request was cancelled")
+                                    SurfaceRequest.Result.RESULT_INVALID_SURFACE ->
+                                        Log.e(TAG, "Invalid surface provided")
+                                    else ->
+                                        Log.w(TAG, "Unknown surface result code: ${result.resultCode}")
+                                }
+                                
+                                // Clean up preview surface
+                                previewSurface.release()
+                            }
                         }
                     }
+
+                // Create image capture use case with settings
+                imageCapture = ImageCapture.Builder()
+                    .setTargetResolution(targetResolution)
+                    .setTargetRotation(settings.displayOrientation)
+                    .setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY)
+                    .build()
+
+                // Set up face detection if enabled
+                if (settings.enableFaceDetection) {
+                    setupFaceDetection()
                 }
 
-            // Create image capture use case with settings
-            imageCapture = ImageCapture.Builder()
-                .setTargetResolution(targetResolution)
-                .setTargetRotation(settings.displayOrientation)
-                .setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY)
-                .build()
+                // Bind use cases to camera
+                val useCases = mutableListOf<UseCase>()
+                preview?.let { useCases.add(it) }
+                imageCapture?.let { useCases.add(it) }
+                imageAnalysis?.let { useCases.add(it) }
 
-            // Set up face detection if enabled
-            if (settings.enableFaceDetection) {
-                setupFaceDetection()
-            }
+                if (useCases.isEmpty()) {
+                    Log.e(TAG, "No use cases to bind")
+                    return
+                }
 
-            // Bind use cases to camera
-            val useCases = mutableListOf<UseCase>()
-            preview?.let { useCases.add(it) }
-            imageCapture?.let { useCases.add(it) }
-            imageAnalysis?.let { useCases.add(it) }
+                try {
+                    camera = cameraProvider!!.bindToLifecycle(
+                        currentLifecycleOwner!!,
+                        cameraSelector,
+                        *useCases.toTypedArray()
+                    )
 
-            if (useCases.isEmpty()) {
-                Log.e(TAG, "No use cases to bind")
-                return
-            }
+                    // Apply initial settings
+                    camera?.cameraControl?.setZoomRatio(settings.zoom.toFloat())
+                    setFlashMode(settings.flashMode)
 
-            try {
-                camera = cameraProvider!!.bindToLifecycle(
-                    currentLifecycleOwner!!,
-                    cameraSelector,
-                    *useCases.toTypedArray()
-                )
+                    // Notify camera switched if callback is set
+                    val cameraId = camera?.cameraInfo.toString()
+                    onCameraSwitched?.invoke(cameraId)
 
-                // Apply initial settings
-                camera?.cameraControl?.setZoomRatio(settings.zoom.toFloat())
-                setFlashMode(settings.flashMode)
-
-                // Notify camera switched if callback is set
-                val cameraId = camera?.cameraInfo.toString()
-                onCameraSwitched?.invoke(cameraId)
-
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error binding use cases", e)
+                    throw e
+                }
             } catch (e: Exception) {
-                Log.e(TAG, "Error binding use cases", e)
+                Log.e(TAG, "Error setting up camera components", e)
+                throw e
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error initializing camera", e)
+            cleanup()
+            throw e
         }
     }
 
@@ -381,13 +450,6 @@ class CameraRepository(private val context: Context) {
      */
     fun getPreviewResolution(): Pair<Int, Int> {
         return Pair(settings.resolution.width, settings.resolution.height)
-    }
-
-    /**
-     * Get current display rotation
-     */
-    fun getDisplayRotation(): Int {
-        return settings.displayOrientation
     }
 
     /**

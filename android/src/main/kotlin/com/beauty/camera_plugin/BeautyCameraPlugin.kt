@@ -8,7 +8,6 @@ import io.flutter.view.TextureRegistry
 import com.beauty.camera_plugin.repository.CameraRepository
 import com.beauty.camera_plugin.view.FlutterTextureHandler
 import com.beauty.camera_plugin.viewmodel.CameraViewModel
-import com.beauty.camera_plugin.filters.CameraFilterManager
 import com.beauty.camera_plugin.models.CameraSettings
 import com.beauty.camera_plugin.models.CameraFilterMode
 import kotlinx.coroutines.*
@@ -24,8 +23,7 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
     private var textureRegistry: TextureRegistry? = null
     private var textureHandler: FlutterTextureHandler? = null
     private var repository: CameraRepository? = null
-    private var filterManager: CameraFilterManager? = null
-    
+
     // Activity reference
     private var lifecycleOwner: LifecycleOwner? = null
     
@@ -50,9 +48,6 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
         // Create the camera repository
         repository = CameraRepository(flutterPluginBinding.applicationContext)
         
-        // Create filter manager
-        filterManager = CameraFilterManager.getInstance(flutterPluginBinding.applicationContext)
-        
         // Create the view model
         cameraViewModel = CameraViewModel(flutterPluginBinding.applicationContext)
         cameraViewModel.setFlutterApi(flutterApi)
@@ -70,9 +65,7 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
         textureHandler = null
         textureId = -1L
         
-        filterManager?.release()
-        filterManager = null
-        
+
         repository?.cleanup()
         repository = null
         
@@ -174,7 +167,6 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
     override fun dispose(callback: (Result<Unit>) -> Unit) {
         try {
             repository?.cleanup()
-            filterManager?.release()
             textureHandler?.cleanup()
             textureHandler = null
             textureId = -1L
