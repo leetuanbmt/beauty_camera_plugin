@@ -23,6 +23,21 @@ class BeautyCameraController {
   /// Current zoom level
   double _currentZoomLevel = 1.0;
 
+  /// Current parameters for the filter
+  FilterParameters _currentParameters = FilterParameters(
+    intensity: 0.5,
+    brightness: 0.0,
+    contrast: 1.0,
+    saturation: 1.0,
+    hue: 0.0,
+    sharpen: 0.0,
+    blurRadius: 0.0,
+    redChannel: 1.0,
+    greenChannel: 1.0,
+    blueChannel: 1.0,
+    skinSmoothness: 0.5,
+  );
+
   /// Flag indicating if the camera is initialized
   bool _isInitialized = false;
 
@@ -40,6 +55,9 @@ class BeautyCameraController {
 
   /// Gets the current zoom level
   double get zoomLevel => _currentZoomLevel;
+
+  /// Gets the current filter parameters
+  FilterParameters get currentParameters => _currentParameters;
 
   /// Gets whether the camera is initialized
   bool get isInitialized => _isInitialized;
@@ -163,7 +181,7 @@ class BeautyCameraController {
   /// Sets the effect mode of the camera
   Future<void> setEffectMode(CameraFilterMode mode) async {
     try {
-      await _api.setFilterMode(mode);
+      await _api.setFilterMode(mode, currentParameters);
       _currentEffectMode = mode;
       _eventStreamController.add(CameraEvent(
         type: CameraEventType.effectChanged,
@@ -389,6 +407,24 @@ class BeautyCameraPlugin implements BeautyCameraFlutterApi {
     );
     _onEvent(event);
   }
+
+  @override
+  Future<void> onFilterParametersChanged(FilterParameters parameters) async {
+    final event = CameraEvent(
+      type: CameraEventType.filterParametersChanged,
+      data: parameters,
+    );
+    _onEvent(event);
+  }
+
+  @override
+  Future<void> onCameraError(String errorCode, String errorMessage) async {
+    final event = CameraEvent(
+      type: CameraEventType.error,
+      data: CameraException(errorCode, errorMessage),
+    );
+    _onEvent(event);
+  }
 }
 
 /// Exception thrown when a camera operation fails
@@ -414,6 +450,8 @@ enum CameraEventType {
   photoTaken,
   recordingStarted,
   recordingStopped,
+  filterParametersChanged,
+  error,
 }
 
 /// Camera event data

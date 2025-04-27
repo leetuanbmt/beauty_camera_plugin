@@ -18,6 +18,7 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+        maven { url = uri("https://jitpack.io") }
     }
 }
 
@@ -44,35 +45,38 @@ android {
     }
 
     defaultConfig {
-        minSdk = 21
+        minSdk = 24
     }
 
     dependencies {
         testImplementation("org.jetbrains.kotlin:kotlin-test")
         testImplementation("org.mockito:mockito-core:5.2.0")
 
-        // CameraX
+        // CameraX core dependencies
         def camerax_version = "1.4.2"
         implementation "androidx.camera:camera-core:${camerax_version}"
         implementation "androidx.camera:camera-camera2:${camerax_version}"
         implementation "androidx.camera:camera-lifecycle:${camerax_version}"
         implementation "androidx.camera:camera-video:${camerax_version}"
         implementation "androidx.camera:camera-view:${camerax_version}"
+        
+        // CameraX Extensions
         implementation "androidx.camera:camera-extensions:${camerax_version}"
         
-        // GPUImage for applying filters
-        implementation 'jp.co.cyberagent.android:gpuimage:2.1.0'
+        // Important: SurfaceProcessor for effects support
+        implementation "androidx.camera:camera-effects:${camerax_version}"
         
-        // Google Guava for ListenableFuture
-        implementation "com.google.guava:guava:33.4.0-android"
+        // Media Pipe for face detection (optional)
+        implementation 'com.google.mediapipe:tasks-vision:0.10.9'
 
-        // Flutter embedding dependencies
+        // OpenGL ES for custom shaders - sử dụng OpenGL ES trực tiếp thay vì dùng thư viện Rajawali
+        implementation 'androidx.core:core-ktx:1.11.0'
        
+        // Support libraries
         implementation "androidx.lifecycle:lifecycle-common-java8:2.8.7"
-
         implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.0"
         implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0"
-
+        implementation "com.google.guava:guava:33.4.0-android"
     }
 
     testOptions {

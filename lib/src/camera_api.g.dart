@@ -42,60 +42,182 @@ bool _deepEquals(Object? a, Object? b) {
 }
 
 
+/// Định nghĩa các loại bộ lọc camera có thể áp dụng.
+/// Sử dụng theo mẫu Strategy Pattern, cho phép dễ dàng thêm filter mới.
 enum CameraFilterMode {
+  /// Không áp dụng bộ lọc
   none,
+  /// Làm mịn và tăng cường vẻ đẹp cho khuôn mặt
   beauty,
+  /// Chuyển đổi sang chế độ đen trắng
   mono,
+  /// Đảo ngược màu sắc
   negative,
+  /// Tông màu nâu đỏ hoài cổ
   sepia,
+  /// Hiệu ứng sáng cực đại tại một số vùng
   solarize,
+  /// Giảm số lượng màu sắc, tạo hiệu ứng poster
   posterize,
+  /// Hiệu ứng bảng trắng, tăng cường viền và độ tương phản
   whiteboard,
+  /// Hiệu ứng bảng đen, tăng cường viền trên nền tối
   blackboard,
+  /// Tông màu xanh nước biển
   aqua,
+  /// Hiệu ứng chạm nổi
   emboss,
+  /// Hiệu ứng phác họa
   sketch,
+  /// Hiệu ứng màu sắc rực rỡ, phong cách neon
   neon,
+  /// Hiệu ứng hoài cổ, tạo cảm giác hình ảnh cũ
   vintage,
+  /// Điều chỉnh độ sáng
   brightness,
+  /// Điều chỉnh độ tương phản
   contrast,
+  /// Điều chỉnh độ bão hòa màu sắc
   saturation,
+  /// Tăng cường chi tiết, làm sắc nét hình ảnh
   sharpen,
+  /// Làm mờ hình ảnh theo thuật toán Gaussian
   gaussianBlur,
+  /// Tạo hiệu ứng viền tối ở góc hình ảnh
   vignette,
+  /// Điều chỉnh tông màu
   hue,
+  /// Điều chỉnh độ phơi sáng
   exposure,
+  /// Điều chỉnh vùng tối và vùng sáng
   highlightShadow,
+  /// Điều chỉnh các mức độ màu sắc
   levels,
+  /// Cân bằng màu RGB
   colorBalance,
+  /// Áp dụng bảng màu tra cứu (Lookup Table - LUT)
   lookup,
 }
 
+/// Chất lượng video khi quay.
+/// Định nghĩa theo mức độ tăng dần.
 enum VideoQuality {
+  /// Chất lượng thấp (480p)
   low,
+  /// Chất lượng trung bình (720p)
   medium,
+  /// Chất lượng cao (1080p)
   high,
+  /// Chất lượng rất cao (1440p)
   veryHigh,
+  /// Chất lượng cực cao (2160p/4K)
   ultra,
 }
 
+/// Chế độ đèn flash
 enum FlashMode {
+  /// Tắt đèn flash
   off,
+  /// Bật đèn flash
   on,
+  /// Tự động điều chỉnh flash
   auto,
+  /// Bật đèn flash liên tục (đèn pin)
   torch,
 }
 
+/// Hướng camera (trước/sau)
 enum CameraFacing {
+  /// Camera trước (selfie)
   front,
+  /// Camera sau
   back,
 }
 
+/// Kiểu scale cho preview
 enum ScaleType {
+  /// Cắt để lấp đầy, có thể cắt bớt hình ảnh
   centerCrop,
+  /// Thu nhỏ để vừa khung, có thể có đường viền đen
   centerInside,
 }
 
+/// Thông tin chi tiết về bộ lọc được hỗ trợ.
+/// Cung cấp metadata về filter từ native lên Flutter.
+class FilterInfo {
+  FilterInfo({
+    required this.id,
+    required this.mode,
+    required this.displayName,
+    this.thumbnailPath,
+    this.description,
+    this.adjustableParameters,
+  });
+
+  /// Định danh độc nhất của filter
+  String id;
+
+  /// Loại bộ lọc
+  CameraFilterMode mode;
+
+  /// Tên hiển thị cho người dùng
+  String displayName;
+
+  /// Đường dẫn đến hình thu nhỏ nếu có
+  String? thumbnailPath;
+
+  /// Mô tả ngắn về bộ lọc
+  String? description;
+
+  /// Danh sách các tham số có thể điều chỉnh
+  List<String>? adjustableParameters;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      id,
+      mode,
+      displayName,
+      thumbnailPath,
+      description,
+      adjustableParameters,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static FilterInfo decode(Object result) {
+    result as List<Object?>;
+    return FilterInfo(
+      id: result[0]! as String,
+      mode: result[1]! as CameraFilterMode,
+      displayName: result[2]! as String,
+      thumbnailPath: result[3] as String?,
+      description: result[4] as String?,
+      adjustableParameters: (result[5] as List<Object?>?)?.cast<String>(),
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! FilterInfo || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(encode(), other.encode());
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => Object.hashAll(_toList())
+;
+}
+
+/// Cài đặt nâng cao cho camera.
+/// Sử dụng để cấu hình chi tiết cho CameraX.
 class AdvancedCameraSettings {
   AdvancedCameraSettings({
     this.videoQuality,
@@ -103,17 +225,30 @@ class AdvancedCameraSettings {
     this.videoStabilization,
     this.autoExposure,
     this.enableFaceDetection,
+    this.previewWidth,
+    this.previewHeight,
   });
 
+  /// Chất lượng video khi quay
   VideoQuality? videoQuality;
 
+  /// Tốc độ khung hình tối đa
   int? maxFrameRate;
 
+  /// Bật/tắt ổn định video
   bool? videoStabilization;
 
+  /// Bật/tắt tự động phơi sáng
   bool? autoExposure;
 
+  /// Bật/tắt nhận diện khuôn mặt
   bool? enableFaceDetection;
+
+  /// Chiều rộng của preview mong muốn
+  int? previewWidth;
+
+  /// Chiều cao của preview mong muốn
+  int? previewHeight;
 
   List<Object?> _toList() {
     return <Object?>[
@@ -122,6 +257,8 @@ class AdvancedCameraSettings {
       videoStabilization,
       autoExposure,
       enableFaceDetection,
+      previewWidth,
+      previewHeight,
     ];
   }
 
@@ -136,6 +273,8 @@ class AdvancedCameraSettings {
       videoStabilization: result[2] as bool?,
       autoExposure: result[3] as bool?,
       enableFaceDetection: result[4] as bool?,
+      previewWidth: result[5] as int?,
+      previewHeight: result[6] as int?,
     );
   }
 
@@ -157,6 +296,361 @@ class AdvancedCameraSettings {
 ;
 }
 
+/// Cài đặt tham số cho filter camera.
+/// Sử dụng Builder Pattern để dễ dàng xây dựng và tùy chỉnh.
+class FilterParameters {
+  FilterParameters({
+    required this.intensity,
+    required this.brightness,
+    required this.contrast,
+    required this.saturation,
+    required this.hue,
+    required this.sharpen,
+    required this.blurRadius,
+    required this.redChannel,
+    required this.greenChannel,
+    required this.blueChannel,
+    required this.skinSmoothness,
+    this.lookupTablePath,
+  });
+
+  /// Cường độ áp dụng bộ lọc (0.0 - 1.0)
+  double intensity;
+
+  /// Độ sáng (-1.0 đến 1.0, 0.0 là nguyên bản)
+  double brightness;
+
+  /// Độ tương phản (0.0 - 2.0, 1.0 là nguyên bản)
+  double contrast;
+
+  /// Độ bão hòa màu (0.0 - 2.0, 1.0 là nguyên bản)
+  double saturation;
+
+  /// Điều chỉnh tông màu (-1.0 đến 1.0)
+  double hue;
+
+  /// Độ sắc nét (0.0 - 2.0)
+  double sharpen;
+
+  /// Bán kính làm mờ (0.0 - 10.0)
+  double blurRadius;
+
+  /// Hệ số kênh đỏ (0.0 - 2.0, 1.0 là nguyên bản)
+  double redChannel;
+
+  /// Hệ số kênh xanh lá (0.0 - 2.0, 1.0 là nguyên bản)
+  double greenChannel;
+
+  /// Hệ số kênh xanh dương (0.0 - 2.0, 1.0 là nguyên bản)
+  double blueChannel;
+
+  /// Độ làm mịn da (0.0 - 1.0)
+  double skinSmoothness;
+
+  /// Đường dẫn đến file LUT (Lookup Table)
+  String? lookupTablePath;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      intensity,
+      brightness,
+      contrast,
+      saturation,
+      hue,
+      sharpen,
+      blurRadius,
+      redChannel,
+      greenChannel,
+      blueChannel,
+      skinSmoothness,
+      lookupTablePath,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static FilterParameters decode(Object result) {
+    result as List<Object?>;
+    return FilterParameters(
+      intensity: result[0]! as double,
+      brightness: result[1]! as double,
+      contrast: result[2]! as double,
+      saturation: result[3]! as double,
+      hue: result[4]! as double,
+      sharpen: result[5]! as double,
+      blurRadius: result[6]! as double,
+      redChannel: result[7]! as double,
+      greenChannel: result[8]! as double,
+      blueChannel: result[9]! as double,
+      skinSmoothness: result[10]! as double,
+      lookupTablePath: result[11] as String?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! FilterParameters || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(encode(), other.encode());
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => Object.hashAll(_toList())
+;
+}
+
+/// Thông tin về khuôn mặt được phát hiện
+class FaceData {
+  FaceData({
+    required this.x,
+    required this.y,
+    required this.size,
+    required this.id,
+    this.landmarks,
+    this.smileScore,
+    this.eyeOpenScore,
+  });
+
+  /// Tọa độ X của trung tâm khuôn mặt (đã chuẩn hóa)
+  double x;
+
+  /// Tọa độ Y của trung tâm khuôn mặt (đã chuẩn hóa)
+  double y;
+
+  /// Kích thước tương đối của khuôn mặt
+  double size;
+
+  /// ID để theo dõi khuôn mặt này qua các frame
+  int id;
+
+  /// Các điểm mốc trên khuôn mặt
+  List<FaceLandmark>? landmarks;
+
+  /// Điểm số nụ cười (0.0 - 1.0)
+  double? smileScore;
+
+  /// Điểm số mắt mở (0.0 - 1.0)
+  double? eyeOpenScore;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      x,
+      y,
+      size,
+      id,
+      landmarks,
+      smileScore,
+      eyeOpenScore,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static FaceData decode(Object result) {
+    result as List<Object?>;
+    return FaceData(
+      x: result[0]! as double,
+      y: result[1]! as double,
+      size: result[2]! as double,
+      id: result[3]! as int,
+      landmarks: (result[4] as List<Object?>?)?.cast<FaceLandmark>(),
+      smileScore: result[5] as double?,
+      eyeOpenScore: result[6] as double?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! FaceData || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(encode(), other.encode());
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => Object.hashAll(_toList())
+;
+}
+
+/// Điểm mốc trên khuôn mặt
+class FaceLandmark {
+  FaceLandmark({
+    required this.type,
+    required this.x,
+    required this.y,
+  });
+
+  /// Loại điểm mốc (mắt, mũi, miệng, v.v.)
+  int type;
+
+  /// Tọa độ X (đã chuẩn hóa)
+  double x;
+
+  /// Tọa độ Y (đã chuẩn hóa)
+  double y;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      type,
+      x,
+      y,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static FaceLandmark decode(Object result) {
+    result as List<Object?>;
+    return FaceLandmark(
+      type: result[0]! as int,
+      x: result[1]! as double,
+      y: result[2]! as double,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! FaceLandmark || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(encode(), other.encode());
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => Object.hashAll(_toList())
+;
+}
+
+/// Thông tin về camera trên thiết bị
+class CameraInfo {
+  CameraInfo({
+    required this.id,
+    required this.facing,
+    required this.hasFlash,
+    required this.supportedResolutions,
+  });
+
+  /// ID độc nhất của camera
+  String id;
+
+  /// Hướng camera (trước/sau)
+  CameraFacing facing;
+
+  /// Có hỗ trợ đèn flash không
+  bool hasFlash;
+
+  /// Độ phân giải hỗ trợ
+  List<ResolutionInfo> supportedResolutions;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      id,
+      facing,
+      hasFlash,
+      supportedResolutions,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static CameraInfo decode(Object result) {
+    result as List<Object?>;
+    return CameraInfo(
+      id: result[0]! as String,
+      facing: result[1]! as CameraFacing,
+      hasFlash: result[2]! as bool,
+      supportedResolutions: (result[3] as List<Object?>?)!.cast<ResolutionInfo>(),
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! CameraInfo || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(encode(), other.encode());
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => Object.hashAll(_toList())
+;
+}
+
+/// Thông tin về độ phân giải
+class ResolutionInfo {
+  ResolutionInfo({
+    required this.width,
+    required this.height,
+  });
+
+  /// Chiều rộng (pixels)
+  int width;
+
+  /// Chiều cao (pixels)
+  int height;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      width,
+      height,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static ResolutionInfo decode(Object result) {
+    result as List<Object?>;
+    return ResolutionInfo(
+      width: result[0]! as int,
+      height: result[1]! as int,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! ResolutionInfo || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(encode(), other.encode());
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => Object.hashAll(_toList())
+;
+}
+
+/// Cài đặt cơ bản cho camera
 class CameraSettings {
   CameraSettings({
     this.cameraLensFacing,
@@ -168,18 +662,25 @@ class CameraSettings {
     this.previewHeight,
   });
 
+  /// Hướng camera (trước/sau)
   CameraFacing? cameraLensFacing;
 
+  /// Chế độ đèn flash
   FlashMode? flashMode;
 
+  /// Mức zoom
   double? zoom;
 
+  /// Hướng hiển thị
   int? displayOrientation;
 
+  /// Bật/tắt nhận diện khuôn mặt
   bool? enableFaceDetection;
 
+  /// Chiều rộng preview mong muốn
   int? previewWidth;
 
+  /// Chiều cao preview mong muốn
   int? previewHeight;
 
   List<Object?> _toList() {
@@ -228,70 +729,17 @@ class CameraSettings {
 ;
 }
 
-class FaceData {
-  FaceData({
-    required this.x,
-    required this.y,
-    required this.size,
-    required this.id,
-  });
-
-  double x;
-
-  double y;
-
-  double size;
-
-  int id;
-
-  List<Object?> _toList() {
-    return <Object?>[
-      x,
-      y,
-      size,
-      id,
-    ];
-  }
-
-  Object encode() {
-    return _toList();  }
-
-  static FaceData decode(Object result) {
-    result as List<Object?>;
-    return FaceData(
-      x: result[0]! as double,
-      y: result[1]! as double,
-      size: result[2]! as double,
-      id: result[3]! as int,
-    );
-  }
-
-  @override
-  // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  bool operator ==(Object other) {
-    if (other is! FaceData || other.runtimeType != runtimeType) {
-      return false;
-    }
-    if (identical(this, other)) {
-      return true;
-    }
-    return _deepEquals(encode(), other.encode());
-  }
-
-  @override
-  // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
-}
-
+/// Kích thước preview
 class PreviewSize {
   PreviewSize({
     required this.width,
     required this.height,
   });
 
+  /// Chiều rộng (pixels)
   int width;
 
+  /// Chiều cao (pixels)
   int height;
 
   List<Object?> _toList() {
@@ -353,17 +801,32 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is ScaleType) {
       buffer.putUint8(133);
       writeValue(buffer, value.index);
-    }    else if (value is AdvancedCameraSettings) {
+    }    else if (value is FilterInfo) {
       buffer.putUint8(134);
       writeValue(buffer, value.encode());
-    }    else if (value is CameraSettings) {
+    }    else if (value is AdvancedCameraSettings) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
-    }    else if (value is FaceData) {
+    }    else if (value is FilterParameters) {
       buffer.putUint8(136);
       writeValue(buffer, value.encode());
-    }    else if (value is PreviewSize) {
+    }    else if (value is FaceData) {
       buffer.putUint8(137);
+      writeValue(buffer, value.encode());
+    }    else if (value is FaceLandmark) {
+      buffer.putUint8(138);
+      writeValue(buffer, value.encode());
+    }    else if (value is CameraInfo) {
+      buffer.putUint8(139);
+      writeValue(buffer, value.encode());
+    }    else if (value is ResolutionInfo) {
+      buffer.putUint8(140);
+      writeValue(buffer, value.encode());
+    }    else if (value is CameraSettings) {
+      buffer.putUint8(141);
+      writeValue(buffer, value.encode());
+    }    else if (value is PreviewSize) {
+      buffer.putUint8(142);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -389,12 +852,22 @@ class _PigeonCodec extends StandardMessageCodec {
         final int? value = readValue(buffer) as int?;
         return value == null ? null : ScaleType.values[value];
       case 134: 
-        return AdvancedCameraSettings.decode(readValue(buffer)!);
+        return FilterInfo.decode(readValue(buffer)!);
       case 135: 
-        return CameraSettings.decode(readValue(buffer)!);
+        return AdvancedCameraSettings.decode(readValue(buffer)!);
       case 136: 
-        return FaceData.decode(readValue(buffer)!);
+        return FilterParameters.decode(readValue(buffer)!);
       case 137: 
+        return FaceData.decode(readValue(buffer)!);
+      case 138: 
+        return FaceLandmark.decode(readValue(buffer)!);
+      case 139: 
+        return CameraInfo.decode(readValue(buffer)!);
+      case 140: 
+        return ResolutionInfo.decode(readValue(buffer)!);
+      case 141: 
+        return CameraSettings.decode(readValue(buffer)!);
+      case 142: 
         return PreviewSize.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -402,6 +875,8 @@ class _PigeonCodec extends StandardMessageCodec {
   }
 }
 
+/// API chính để giao tiếp từ Flutter đến native.
+/// Tuân theo các nguyên tắc Clean Architecture.
 class BeautyCameraHostApi {
   /// Constructor for [BeautyCameraHostApi].  The [binaryMessenger] named argument is
   /// available for dependency injection.  If it is left null, the default
@@ -415,6 +890,7 @@ class BeautyCameraHostApi {
 
   final String pigeonVar_messageChannelSuffix;
 
+  /// Khởi tạo camera với các cài đặt cụ thể
   Future<void> initialize(AdvancedCameraSettings settings) async {
     final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.initialize$pigeonVar_messageChannelSuffix';
     final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -438,6 +914,7 @@ class BeautyCameraHostApi {
     }
   }
 
+  /// Giải phóng tài nguyên
   Future<void> dispose() async {
     final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.dispose$pigeonVar_messageChannelSuffix';
     final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -461,6 +938,7 @@ class BeautyCameraHostApi {
     }
   }
 
+  /// Chuyển đổi giữa camera trước và sau
   Future<void> switchCamera() async {
     final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.switchCamera$pigeonVar_messageChannelSuffix';
     final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -484,6 +962,7 @@ class BeautyCameraHostApi {
     }
   }
 
+  /// Đặt mức zoom
   Future<void> setZoom(double zoomLevel) async {
     final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.setZoom$pigeonVar_messageChannelSuffix';
     final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -507,6 +986,7 @@ class BeautyCameraHostApi {
     }
   }
 
+  /// Tập trung vào một điểm cụ thể
   Future<void> focusOnPoint(int x, int y) async {
     final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.focusOnPoint$pigeonVar_messageChannelSuffix';
     final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -530,6 +1010,7 @@ class BeautyCameraHostApi {
     }
   }
 
+  /// Đặt chế độ đèn flash
   Future<void> setFlashMode(FlashMode mode) async {
     final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.setFlashMode$pigeonVar_messageChannelSuffix';
     final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -553,6 +1034,7 @@ class BeautyCameraHostApi {
     }
   }
 
+  /// Thiết lập hướng hiển thị
   Future<void> setDisplayOrientation(int degrees) async {
     final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.setDisplayOrientation$pigeonVar_messageChannelSuffix';
     final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -576,6 +1058,7 @@ class BeautyCameraHostApi {
     }
   }
 
+  /// Lấy ID texture để hiển thị preview
   Future<int> getPreviewTexture() async {
     final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.getPreviewTexture$pigeonVar_messageChannelSuffix';
     final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -604,6 +1087,7 @@ class BeautyCameraHostApi {
     }
   }
 
+  /// Lấy kích thước preview hiện tại
   Future<PreviewSize> getPreviewSize() async {
     final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.getPreviewSize$pigeonVar_messageChannelSuffix';
     final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -632,6 +1116,7 @@ class BeautyCameraHostApi {
     }
   }
 
+  /// Chụp ảnh và trả về đường dẫn
   Future<String> takePhoto() async {
     final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.takePhoto$pigeonVar_messageChannelSuffix';
     final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -660,6 +1145,7 @@ class BeautyCameraHostApi {
     }
   }
 
+  /// Bắt đầu quay video
   Future<void> startVideoRecording() async {
     final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.startVideoRecording$pigeonVar_messageChannelSuffix';
     final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -683,6 +1169,7 @@ class BeautyCameraHostApi {
     }
   }
 
+  /// Dừng quay video và trả về đường dẫn
   Future<String> stopVideoRecording() async {
     final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.stopVideoRecording$pigeonVar_messageChannelSuffix';
     final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -711,6 +1198,7 @@ class BeautyCameraHostApi {
     }
   }
 
+  /// Lấy tỷ lệ khung hình cảm biến
   Future<double> getCameraSensorAspectRatio() async {
     final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.getCameraSensorAspectRatio$pigeonVar_messageChannelSuffix';
     final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -739,14 +1227,15 @@ class BeautyCameraHostApi {
     }
   }
 
-  Future<void> setFilterMode(CameraFilterMode mode, {double level = 5}) async {
+  /// Đặt chế độ bộ lọc với các tham số
+  Future<void> setFilterMode(CameraFilterMode mode, FilterParameters parameters) async {
     final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.setFilterMode$pigeonVar_messageChannelSuffix';
     final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[mode, level]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[mode, parameters]);
     final List<Object?>? pigeonVar_replyList =
         await pigeonVar_sendFuture as List<Object?>?;
     if (pigeonVar_replyList == null) {
@@ -762,6 +1251,7 @@ class BeautyCameraHostApi {
     }
   }
 
+  /// Đặt kiểu scale cho preview
   Future<void> setScaleType(ScaleType scaleType) async {
     final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.setScaleType$pigeonVar_messageChannelSuffix';
     final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -784,8 +1274,91 @@ class BeautyCameraHostApi {
       return;
     }
   }
+
+  /// Lấy danh sách thông tin chi tiết về các bộ lọc có sẵn từ native
+  Future<List<FilterInfo>> getAvailableFilters() async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.getAvailableFilters$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_sendFuture as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else if (pigeonVar_replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (pigeonVar_replyList[0] as List<Object?>?)!.cast<FilterInfo>();
+    }
+  }
+
+  /// Điều chỉnh tham số của bộ lọc hiện tại
+  Future<void> adjustFilterParameters(FilterParameters parameters) async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.adjustFilterParameters$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[parameters]);
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_sendFuture as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else {
+      return;
+    }
+  }
+
+  /// Lấy thông tin về các camera có sẵn trên thiết bị
+  Future<List<CameraInfo>> getAvailableCameras() async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.getAvailableCameras$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_sendFuture as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else if (pigeonVar_replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (pigeonVar_replyList[0] as List<Object?>?)!.cast<CameraInfo>();
+    }
+  }
 }
 
+/// API camera cơ bản
 class CameraApi {
   /// Constructor for [CameraApi].  The [binaryMessenger] named argument is
   /// available for dependency injection.  If it is left null, the default
@@ -799,6 +1372,7 @@ class CameraApi {
 
   final String pigeonVar_messageChannelSuffix;
 
+  /// Khởi tạo camera với các cài đặt cơ bản
   Future<void> initialize(CameraSettings settings) async {
     final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.CameraApi.initialize$pigeonVar_messageChannelSuffix';
     final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -822,6 +1396,7 @@ class CameraApi {
     }
   }
 
+  /// Bắt đầu hiển thị preview với textureId đã cung cấp
   Future<void> startPreview(int textureId) async {
     final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.CameraApi.startPreview$pigeonVar_messageChannelSuffix';
     final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -845,6 +1420,7 @@ class CameraApi {
     }
   }
 
+  /// Dừng hiển thị preview
   Future<void> stopPreview() async {
     final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.CameraApi.stopPreview$pigeonVar_messageChannelSuffix';
     final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -868,6 +1444,7 @@ class CameraApi {
     }
   }
 
+  /// Chuyển đổi giữa camera trước và sau
   Future<void> switchCamera() async {
     final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.CameraApi.switchCamera$pigeonVar_messageChannelSuffix';
     final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -891,6 +1468,7 @@ class CameraApi {
     }
   }
 
+  /// Đặt chế độ đèn flash
   Future<void> setFlashMode(FlashMode mode) async {
     final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.CameraApi.setFlashMode$pigeonVar_messageChannelSuffix';
     final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -914,6 +1492,7 @@ class CameraApi {
     }
   }
 
+  /// Đặt mức zoom
   Future<void> setZoom(double zoom) async {
     final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.CameraApi.setZoom$pigeonVar_messageChannelSuffix';
     final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -937,6 +1516,7 @@ class CameraApi {
     }
   }
 
+  /// Đặt kiểu scale cho preview
   Future<void> setScaleType(ScaleType scaleType) async {
     final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.CameraApi.setScaleType$pigeonVar_messageChannelSuffix';
     final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -960,6 +1540,7 @@ class CameraApi {
     }
   }
 
+  /// Chụp ảnh và trả về đường dẫn
   Future<String> takePhoto() async {
     final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.CameraApi.takePhoto$pigeonVar_messageChannelSuffix';
     final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -988,14 +1569,15 @@ class CameraApi {
     }
   }
 
-  Future<void> startVideoRecording(String filePath) async {
+  /// Bắt đầu quay video với đường dẫn file đầu ra
+  Future<void> startVideoRecording() async {
     final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.CameraApi.startVideoRecording$pigeonVar_messageChannelSuffix';
     final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[filePath]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
     final List<Object?>? pigeonVar_replyList =
         await pigeonVar_sendFuture as List<Object?>?;
     if (pigeonVar_replyList == null) {
@@ -1011,6 +1593,7 @@ class CameraApi {
     }
   }
 
+  /// Dừng quay video và trả về đường dẫn
   Future<String> stopVideoRecording() async {
     final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.CameraApi.stopVideoRecording$pigeonVar_messageChannelSuffix';
     final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -1039,6 +1622,7 @@ class CameraApi {
     }
   }
 
+  /// Giải phóng tài nguyên
   Future<void> dispose() async {
     final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.CameraApi.dispose$pigeonVar_messageChannelSuffix';
     final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -1063,22 +1647,37 @@ class CameraApi {
   }
 }
 
+/// API cho phép native gọi ngược về Flutter.
+/// Sử dụng Observer Pattern để thông báo các sự kiện camera.
 abstract class BeautyCameraFlutterApi {
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
 
+  /// Thông báo khi zoom thay đổi
   Future<void> onZoomChanged(double zoomLevel);
 
+  /// Thông báo khi chế độ flash thay đổi
   Future<void> onFlashModeChanged(FlashMode mode);
 
+  /// Thông báo khi camera được chuyển đổi
   Future<void> onCameraSwitched(String cameraId);
 
+  /// Thông báo khi phát hiện khuôn mặt
   Future<void> onFaceDetected(List<FaceData> faces);
 
+  /// Thông báo khi bắt đầu quay video
   Future<void> onVideoRecordingStarted();
 
+  /// Thông báo khi dừng quay video
   Future<void> onVideoRecordingStopped(String path);
 
+  /// Thông báo khi chế độ bộ lọc thay đổi
   Future<void> onFilterModeChanged(CameraFilterMode mode);
+
+  /// Thông báo khi tham số bộ lọc thay đổi
+  Future<void> onFilterParametersChanged(FilterParameters parameters);
+
+  /// Thông báo khi xảy ra lỗi camera
+  Future<void> onCameraError(String errorCode, String errorMessage);
 
   static void setUp(BeautyCameraFlutterApi? api, {BinaryMessenger? binaryMessenger, String messageChannelSuffix = '',}) {
     messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
@@ -1242,6 +1841,59 @@ abstract class BeautyCameraFlutterApi {
               'Argument for dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onFilterModeChanged was null, expected non-null CameraFilterMode.');
           try {
             await api.onFilterModeChanged(arg_mode!);
+            return wrapResponse(empty: true);
+          } on PlatformException catch (e) {
+            return wrapResponse(error: e);
+          }          catch (e) {
+            return wrapResponse(error: PlatformException(code: 'error', message: e.toString()));
+          }
+        });
+      }
+    }
+    {
+      final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onFilterParametersChanged$messageChannelSuffix', pigeonChannelCodec,
+          binaryMessenger: binaryMessenger);
+      if (api == null) {
+        pigeonVar_channel.setMessageHandler(null);
+      } else {
+        pigeonVar_channel.setMessageHandler((Object? message) async {
+          assert(message != null,
+          'Argument for dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onFilterParametersChanged was null.');
+          final List<Object?> args = (message as List<Object?>?)!;
+          final FilterParameters? arg_parameters = (args[0] as FilterParameters?);
+          assert(arg_parameters != null,
+              'Argument for dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onFilterParametersChanged was null, expected non-null FilterParameters.');
+          try {
+            await api.onFilterParametersChanged(arg_parameters!);
+            return wrapResponse(empty: true);
+          } on PlatformException catch (e) {
+            return wrapResponse(error: e);
+          }          catch (e) {
+            return wrapResponse(error: PlatformException(code: 'error', message: e.toString()));
+          }
+        });
+      }
+    }
+    {
+      final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onCameraError$messageChannelSuffix', pigeonChannelCodec,
+          binaryMessenger: binaryMessenger);
+      if (api == null) {
+        pigeonVar_channel.setMessageHandler(null);
+      } else {
+        pigeonVar_channel.setMessageHandler((Object? message) async {
+          assert(message != null,
+          'Argument for dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onCameraError was null.');
+          final List<Object?> args = (message as List<Object?>?)!;
+          final String? arg_errorCode = (args[0] as String?);
+          assert(arg_errorCode != null,
+              'Argument for dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onCameraError was null, expected non-null String.');
+          final String? arg_errorMessage = (args[1] as String?);
+          assert(arg_errorMessage != null,
+              'Argument for dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onCameraError was null, expected non-null String.');
+          try {
+            await api.onCameraError(arg_errorCode!, arg_errorMessage!);
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);

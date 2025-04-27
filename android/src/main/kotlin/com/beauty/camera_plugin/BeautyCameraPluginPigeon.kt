@@ -84,32 +84,62 @@ class FlutterError (
   val details: Any? = null
 ) : Throwable()
 
+/**
+ * Định nghĩa các loại bộ lọc camera có thể áp dụng.
+ * Sử dụng theo mẫu Strategy Pattern, cho phép dễ dàng thêm filter mới.
+ */
 enum class CameraFilterMode(val raw: Int) {
+  /** Không áp dụng bộ lọc */
   NONE(0),
+  /** Làm mịn và tăng cường vẻ đẹp cho khuôn mặt */
   BEAUTY(1),
+  /** Chuyển đổi sang chế độ đen trắng */
   MONO(2),
+  /** Đảo ngược màu sắc */
   NEGATIVE(3),
+  /** Tông màu nâu đỏ hoài cổ */
   SEPIA(4),
+  /** Hiệu ứng sáng cực đại tại một số vùng */
   SOLARIZE(5),
+  /** Giảm số lượng màu sắc, tạo hiệu ứng poster */
   POSTERIZE(6),
+  /** Hiệu ứng bảng trắng, tăng cường viền và độ tương phản */
   WHITEBOARD(7),
+  /** Hiệu ứng bảng đen, tăng cường viền trên nền tối */
   BLACKBOARD(8),
+  /** Tông màu xanh nước biển */
   AQUA(9),
+  /** Hiệu ứng chạm nổi */
   EMBOSS(10),
+  /** Hiệu ứng phác họa */
   SKETCH(11),
+  /** Hiệu ứng màu sắc rực rỡ, phong cách neon */
   NEON(12),
+  /** Hiệu ứng hoài cổ, tạo cảm giác hình ảnh cũ */
   VINTAGE(13),
+  /** Điều chỉnh độ sáng */
   BRIGHTNESS(14),
+  /** Điều chỉnh độ tương phản */
   CONTRAST(15),
+  /** Điều chỉnh độ bão hòa màu sắc */
   SATURATION(16),
+  /** Tăng cường chi tiết, làm sắc nét hình ảnh */
   SHARPEN(17),
+  /** Làm mờ hình ảnh theo thuật toán Gaussian */
   GAUSSIAN_BLUR(18),
+  /** Tạo hiệu ứng viền tối ở góc hình ảnh */
   VIGNETTE(19),
+  /** Điều chỉnh tông màu */
   HUE(20),
+  /** Điều chỉnh độ phơi sáng */
   EXPOSURE(21),
+  /** Điều chỉnh vùng tối và vùng sáng */
   HIGHLIGHT_SHADOW(22),
+  /** Điều chỉnh các mức độ màu sắc */
   LEVELS(23),
+  /** Cân bằng màu RGB */
   COLOR_BALANCE(24),
+  /** Áp dụng bảng màu tra cứu (Lookup Table - LUT) */
   LOOKUP(25);
 
   companion object {
@@ -119,11 +149,20 @@ enum class CameraFilterMode(val raw: Int) {
   }
 }
 
+/**
+ * Chất lượng video khi quay.
+ * Định nghĩa theo mức độ tăng dần.
+ */
 enum class VideoQuality(val raw: Int) {
+  /** Chất lượng thấp (480p) */
   LOW(0),
+  /** Chất lượng trung bình (720p) */
   MEDIUM(1),
+  /** Chất lượng cao (1080p) */
   HIGH(2),
+  /** Chất lượng rất cao (1440p) */
   VERY_HIGH(3),
+  /** Chất lượng cực cao (2160p/4K) */
   ULTRA(4);
 
   companion object {
@@ -133,10 +172,15 @@ enum class VideoQuality(val raw: Int) {
   }
 }
 
+/** Chế độ đèn flash */
 enum class FlashMode(val raw: Int) {
+  /** Tắt đèn flash */
   OFF(0),
+  /** Bật đèn flash */
   ON(1),
+  /** Tự động điều chỉnh flash */
   AUTO(2),
+  /** Bật đèn flash liên tục (đèn pin) */
   TORCH(3);
 
   companion object {
@@ -146,8 +190,11 @@ enum class FlashMode(val raw: Int) {
   }
 }
 
+/** Hướng camera (trước/sau) */
 enum class CameraFacing(val raw: Int) {
+  /** Camera trước (selfie) */
   FRONT(0),
+  /** Camera sau */
   BACK(1);
 
   companion object {
@@ -157,8 +204,11 @@ enum class CameraFacing(val raw: Int) {
   }
 }
 
+/** Kiểu scale cho preview */
 enum class ScaleType(val raw: Int) {
+  /** Cắt để lấp đầy, có thể cắt bớt hình ảnh */
   CENTER_CROP(0),
+  /** Thu nhỏ để vừa khung, có thể có đường viền đen */
   CENTER_INSIDE(1);
 
   companion object {
@@ -168,13 +218,81 @@ enum class ScaleType(val raw: Int) {
   }
 }
 
-/** Generated class from Pigeon that represents data sent in messages. */
+/**
+ * Thông tin chi tiết về bộ lọc được hỗ trợ.
+ * Cung cấp metadata về filter từ native lên Flutter.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class FilterInfo (
+  /** Định danh độc nhất của filter */
+  val id: String,
+  /** Loại bộ lọc */
+  val mode: CameraFilterMode,
+  /** Tên hiển thị cho người dùng */
+  val displayName: String,
+  /** Đường dẫn đến hình thu nhỏ nếu có */
+  val thumbnailPath: String? = null,
+  /** Mô tả ngắn về bộ lọc */
+  val description: String? = null,
+  /** Danh sách các tham số có thể điều chỉnh */
+  val adjustableParameters: List<String>? = null
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): FilterInfo {
+      val id = pigeonVar_list[0] as String
+      val mode = pigeonVar_list[1] as CameraFilterMode
+      val displayName = pigeonVar_list[2] as String
+      val thumbnailPath = pigeonVar_list[3] as String?
+      val description = pigeonVar_list[4] as String?
+      val adjustableParameters = pigeonVar_list[5] as List<String>?
+      return FilterInfo(id, mode, displayName, thumbnailPath, description, adjustableParameters)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      id,
+      mode,
+      displayName,
+      thumbnailPath,
+      description,
+      adjustableParameters,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other !is FilterInfo) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    return BeautyCameraPluginPigeonPigeonUtils.deepEquals(toList(), other.toList())  }
+
+  override fun hashCode(): Int = toList().hashCode()
+}
+
+/**
+ * Cài đặt nâng cao cho camera.
+ * Sử dụng để cấu hình chi tiết cho CameraX.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
 data class AdvancedCameraSettings (
+  /** Chất lượng video khi quay */
   val videoQuality: VideoQuality? = null,
+  /** Tốc độ khung hình tối đa */
   val maxFrameRate: Long? = null,
+  /** Bật/tắt ổn định video */
   val videoStabilization: Boolean? = null,
+  /** Bật/tắt tự động phơi sáng */
   val autoExposure: Boolean? = null,
-  val enableFaceDetection: Boolean? = null
+  /** Bật/tắt nhận diện khuôn mặt */
+  val enableFaceDetection: Boolean? = null,
+  /** Chiều rộng của preview mong muốn */
+  val previewWidth: Long? = null,
+  /** Chiều cao của preview mong muốn */
+  val previewHeight: Long? = null
 )
  {
   companion object {
@@ -184,7 +302,9 @@ data class AdvancedCameraSettings (
       val videoStabilization = pigeonVar_list[2] as Boolean?
       val autoExposure = pigeonVar_list[3] as Boolean?
       val enableFaceDetection = pigeonVar_list[4] as Boolean?
-      return AdvancedCameraSettings(videoQuality, maxFrameRate, videoStabilization, autoExposure, enableFaceDetection)
+      val previewWidth = pigeonVar_list[5] as Long?
+      val previewHeight = pigeonVar_list[6] as Long?
+      return AdvancedCameraSettings(videoQuality, maxFrameRate, videoStabilization, autoExposure, enableFaceDetection, previewWidth, previewHeight)
     }
   }
   fun toList(): List<Any?> {
@@ -194,6 +314,8 @@ data class AdvancedCameraSettings (
       videoStabilization,
       autoExposure,
       enableFaceDetection,
+      previewWidth,
+      previewHeight,
     )
   }
   override fun equals(other: Any?): Boolean {
@@ -208,14 +330,283 @@ data class AdvancedCameraSettings (
   override fun hashCode(): Int = toList().hashCode()
 }
 
-/** Generated class from Pigeon that represents data sent in messages. */
+/**
+ * Cài đặt tham số cho filter camera.
+ * Sử dụng Builder Pattern để dễ dàng xây dựng và tùy chỉnh.
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class FilterParameters (
+  /** Cường độ áp dụng bộ lọc (0.0 - 1.0) */
+  val intensity: Double,
+  /** Độ sáng (-1.0 đến 1.0, 0.0 là nguyên bản) */
+  val brightness: Double,
+  /** Độ tương phản (0.0 - 2.0, 1.0 là nguyên bản) */
+  val contrast: Double,
+  /** Độ bão hòa màu (0.0 - 2.0, 1.0 là nguyên bản) */
+  val saturation: Double,
+  /** Điều chỉnh tông màu (-1.0 đến 1.0) */
+  val hue: Double,
+  /** Độ sắc nét (0.0 - 2.0) */
+  val sharpen: Double,
+  /** Bán kính làm mờ (0.0 - 10.0) */
+  val blurRadius: Double,
+  /** Hệ số kênh đỏ (0.0 - 2.0, 1.0 là nguyên bản) */
+  val redChannel: Double,
+  /** Hệ số kênh xanh lá (0.0 - 2.0, 1.0 là nguyên bản) */
+  val greenChannel: Double,
+  /** Hệ số kênh xanh dương (0.0 - 2.0, 1.0 là nguyên bản) */
+  val blueChannel: Double,
+  /** Độ làm mịn da (0.0 - 1.0) */
+  val skinSmoothness: Double,
+  /** Đường dẫn đến file LUT (Lookup Table) */
+  val lookupTablePath: String? = null
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): FilterParameters {
+      val intensity = pigeonVar_list[0] as Double
+      val brightness = pigeonVar_list[1] as Double
+      val contrast = pigeonVar_list[2] as Double
+      val saturation = pigeonVar_list[3] as Double
+      val hue = pigeonVar_list[4] as Double
+      val sharpen = pigeonVar_list[5] as Double
+      val blurRadius = pigeonVar_list[6] as Double
+      val redChannel = pigeonVar_list[7] as Double
+      val greenChannel = pigeonVar_list[8] as Double
+      val blueChannel = pigeonVar_list[9] as Double
+      val skinSmoothness = pigeonVar_list[10] as Double
+      val lookupTablePath = pigeonVar_list[11] as String?
+      return FilterParameters(intensity, brightness, contrast, saturation, hue, sharpen, blurRadius, redChannel, greenChannel, blueChannel, skinSmoothness, lookupTablePath)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      intensity,
+      brightness,
+      contrast,
+      saturation,
+      hue,
+      sharpen,
+      blurRadius,
+      redChannel,
+      greenChannel,
+      blueChannel,
+      skinSmoothness,
+      lookupTablePath,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other !is FilterParameters) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    return BeautyCameraPluginPigeonPigeonUtils.deepEquals(toList(), other.toList())  }
+
+  override fun hashCode(): Int = toList().hashCode()
+}
+
+/**
+ * Thông tin về khuôn mặt được phát hiện
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class FaceData (
+  /** Tọa độ X của trung tâm khuôn mặt (đã chuẩn hóa) */
+  val x: Double,
+  /** Tọa độ Y của trung tâm khuôn mặt (đã chuẩn hóa) */
+  val y: Double,
+  /** Kích thước tương đối của khuôn mặt */
+  val size: Double,
+  /** ID để theo dõi khuôn mặt này qua các frame */
+  val id: Long,
+  /** Các điểm mốc trên khuôn mặt */
+  val landmarks: List<FaceLandmark>? = null,
+  /** Điểm số nụ cười (0.0 - 1.0) */
+  val smileScore: Double? = null,
+  /** Điểm số mắt mở (0.0 - 1.0) */
+  val eyeOpenScore: Double? = null
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): FaceData {
+      val x = pigeonVar_list[0] as Double
+      val y = pigeonVar_list[1] as Double
+      val size = pigeonVar_list[2] as Double
+      val id = pigeonVar_list[3] as Long
+      val landmarks = pigeonVar_list[4] as List<FaceLandmark>?
+      val smileScore = pigeonVar_list[5] as Double?
+      val eyeOpenScore = pigeonVar_list[6] as Double?
+      return FaceData(x, y, size, id, landmarks, smileScore, eyeOpenScore)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      x,
+      y,
+      size,
+      id,
+      landmarks,
+      smileScore,
+      eyeOpenScore,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other !is FaceData) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    return BeautyCameraPluginPigeonPigeonUtils.deepEquals(toList(), other.toList())  }
+
+  override fun hashCode(): Int = toList().hashCode()
+}
+
+/**
+ * Điểm mốc trên khuôn mặt
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class FaceLandmark (
+  /** Loại điểm mốc (mắt, mũi, miệng, v.v.) */
+  val type: Long,
+  /** Tọa độ X (đã chuẩn hóa) */
+  val x: Double,
+  /** Tọa độ Y (đã chuẩn hóa) */
+  val y: Double
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): FaceLandmark {
+      val type = pigeonVar_list[0] as Long
+      val x = pigeonVar_list[1] as Double
+      val y = pigeonVar_list[2] as Double
+      return FaceLandmark(type, x, y)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      type,
+      x,
+      y,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other !is FaceLandmark) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    return BeautyCameraPluginPigeonPigeonUtils.deepEquals(toList(), other.toList())  }
+
+  override fun hashCode(): Int = toList().hashCode()
+}
+
+/**
+ * Thông tin về camera trên thiết bị
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class CameraInfo (
+  /** ID độc nhất của camera */
+  val id: String,
+  /** Hướng camera (trước/sau) */
+  val facing: CameraFacing,
+  /** Có hỗ trợ đèn flash không */
+  val hasFlash: Boolean,
+  /** Độ phân giải hỗ trợ */
+  val supportedResolutions: List<ResolutionInfo>
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): CameraInfo {
+      val id = pigeonVar_list[0] as String
+      val facing = pigeonVar_list[1] as CameraFacing
+      val hasFlash = pigeonVar_list[2] as Boolean
+      val supportedResolutions = pigeonVar_list[3] as List<ResolutionInfo>
+      return CameraInfo(id, facing, hasFlash, supportedResolutions)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      id,
+      facing,
+      hasFlash,
+      supportedResolutions,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other !is CameraInfo) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    return BeautyCameraPluginPigeonPigeonUtils.deepEquals(toList(), other.toList())  }
+
+  override fun hashCode(): Int = toList().hashCode()
+}
+
+/**
+ * Thông tin về độ phân giải
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
+data class ResolutionInfo (
+  /** Chiều rộng (pixels) */
+  val width: Long,
+  /** Chiều cao (pixels) */
+  val height: Long
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): ResolutionInfo {
+      val width = pigeonVar_list[0] as Long
+      val height = pigeonVar_list[1] as Long
+      return ResolutionInfo(width, height)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      width,
+      height,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other !is ResolutionInfo) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    return BeautyCameraPluginPigeonPigeonUtils.deepEquals(toList(), other.toList())  }
+
+  override fun hashCode(): Int = toList().hashCode()
+}
+
+/**
+ * Cài đặt cơ bản cho camera
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
 data class CameraSettings (
+  /** Hướng camera (trước/sau) */
   val cameraLensFacing: CameraFacing? = null,
+  /** Chế độ đèn flash */
   val flashMode: FlashMode? = null,
+  /** Mức zoom */
   val zoom: Double? = null,
+  /** Hướng hiển thị */
   val displayOrientation: Long? = null,
+  /** Bật/tắt nhận diện khuôn mặt */
   val enableFaceDetection: Boolean? = null,
+  /** Chiều rộng preview mong muốn */
   val previewWidth: Long? = null,
+  /** Chiều cao preview mong muốn */
   val previewHeight: Long? = null
 )
  {
@@ -254,46 +645,15 @@ data class CameraSettings (
   override fun hashCode(): Int = toList().hashCode()
 }
 
-/** Generated class from Pigeon that represents data sent in messages. */
-data class FaceData (
-  val x: Double,
-  val y: Double,
-  val size: Double,
-  val id: Long
-)
- {
-  companion object {
-    fun fromList(pigeonVar_list: List<Any?>): FaceData {
-      val x = pigeonVar_list[0] as Double
-      val y = pigeonVar_list[1] as Double
-      val size = pigeonVar_list[2] as Double
-      val id = pigeonVar_list[3] as Long
-      return FaceData(x, y, size, id)
-    }
-  }
-  fun toList(): List<Any?> {
-    return listOf(
-      x,
-      y,
-      size,
-      id,
-    )
-  }
-  override fun equals(other: Any?): Boolean {
-    if (other !is FaceData) {
-      return false
-    }
-    if (this === other) {
-      return true
-    }
-    return BeautyCameraPluginPigeonPigeonUtils.deepEquals(toList(), other.toList())  }
-
-  override fun hashCode(): Int = toList().hashCode()
-}
-
-/** Generated class from Pigeon that represents data sent in messages. */
+/**
+ * Kích thước preview
+ *
+ * Generated class from Pigeon that represents data sent in messages.
+ */
 data class PreviewSize (
+  /** Chiều rộng (pixels) */
   val width: Long,
+  /** Chiều cao (pixels) */
   val height: Long
 )
  {
@@ -351,20 +711,45 @@ private open class BeautyCameraPluginPigeonPigeonCodec : StandardMessageCodec() 
       }
       134.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          AdvancedCameraSettings.fromList(it)
+          FilterInfo.fromList(it)
         }
       }
       135.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          CameraSettings.fromList(it)
+          AdvancedCameraSettings.fromList(it)
         }
       }
       136.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
-          FaceData.fromList(it)
+          FilterParameters.fromList(it)
         }
       }
       137.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          FaceData.fromList(it)
+        }
+      }
+      138.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          FaceLandmark.fromList(it)
+        }
+      }
+      139.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          CameraInfo.fromList(it)
+        }
+      }
+      140.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          ResolutionInfo.fromList(it)
+        }
+      }
+      141.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          CameraSettings.fromList(it)
+        }
+      }
+      142.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           PreviewSize.fromList(it)
         }
@@ -394,20 +779,40 @@ private open class BeautyCameraPluginPigeonPigeonCodec : StandardMessageCodec() 
         stream.write(133)
         writeValue(stream, value.raw)
       }
-      is AdvancedCameraSettings -> {
+      is FilterInfo -> {
         stream.write(134)
         writeValue(stream, value.toList())
       }
-      is CameraSettings -> {
+      is AdvancedCameraSettings -> {
         stream.write(135)
         writeValue(stream, value.toList())
       }
-      is FaceData -> {
+      is FilterParameters -> {
         stream.write(136)
         writeValue(stream, value.toList())
       }
-      is PreviewSize -> {
+      is FaceData -> {
         stream.write(137)
+        writeValue(stream, value.toList())
+      }
+      is FaceLandmark -> {
+        stream.write(138)
+        writeValue(stream, value.toList())
+      }
+      is CameraInfo -> {
+        stream.write(139)
+        writeValue(stream, value.toList())
+      }
+      is ResolutionInfo -> {
+        stream.write(140)
+        writeValue(stream, value.toList())
+      }
+      is CameraSettings -> {
+        stream.write(141)
+        writeValue(stream, value.toList())
+      }
+      is PreviewSize -> {
+        stream.write(142)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -416,23 +821,49 @@ private open class BeautyCameraPluginPigeonPigeonCodec : StandardMessageCodec() 
 }
 
 
-/** Generated interface from Pigeon that represents a handler of messages from Flutter. */
+/**
+ * API chính để giao tiếp từ Flutter đến native.
+ * Tuân theo các nguyên tắc Clean Architecture.
+ *
+ * Generated interface from Pigeon that represents a handler of messages from Flutter.
+ */
 interface BeautyCameraHostApi {
+  /** Khởi tạo camera với các cài đặt cụ thể */
   fun initialize(settings: AdvancedCameraSettings, callback: (Result<Unit>) -> Unit)
+  /** Giải phóng tài nguyên */
   fun dispose(callback: (Result<Unit>) -> Unit)
+  /** Chuyển đổi giữa camera trước và sau */
   fun switchCamera(callback: (Result<Unit>) -> Unit)
+  /** Đặt mức zoom */
   fun setZoom(zoomLevel: Double, callback: (Result<Unit>) -> Unit)
+  /** Tập trung vào một điểm cụ thể */
   fun focusOnPoint(x: Long, y: Long, callback: (Result<Unit>) -> Unit)
+  /** Đặt chế độ đèn flash */
   fun setFlashMode(mode: FlashMode, callback: (Result<Unit>) -> Unit)
+  /** Thiết lập hướng hiển thị */
   fun setDisplayOrientation(degrees: Long, callback: (Result<Unit>) -> Unit)
+  /** Lấy ID texture để hiển thị preview */
   fun getPreviewTexture(callback: (Result<Long>) -> Unit)
+  /** Lấy kích thước preview hiện tại */
   fun getPreviewSize(callback: (Result<PreviewSize>) -> Unit)
+  /** Chụp ảnh và trả về đường dẫn */
   fun takePhoto(callback: (Result<String>) -> Unit)
+  /** Bắt đầu quay video */
   fun startVideoRecording(callback: (Result<Unit>) -> Unit)
+  /** Dừng quay video và trả về đường dẫn */
   fun stopVideoRecording(callback: (Result<String>) -> Unit)
+  /** Lấy tỷ lệ khung hình cảm biến */
   fun getCameraSensorAspectRatio(callback: (Result<Double>) -> Unit)
-  fun setFilterMode(mode: CameraFilterMode, level: Double, callback: (Result<Unit>) -> Unit)
+  /** Đặt chế độ bộ lọc với các tham số */
+  fun setFilterMode(mode: CameraFilterMode, parameters: FilterParameters, callback: (Result<Unit>) -> Unit)
+  /** Đặt kiểu scale cho preview */
   fun setScaleType(scaleType: ScaleType, callback: (Result<Unit>) -> Unit)
+  /** Lấy danh sách thông tin chi tiết về các bộ lọc có sẵn từ native */
+  fun getAvailableFilters(callback: (Result<List<FilterInfo>>) -> Unit)
+  /** Điều chỉnh tham số của bộ lọc hiện tại */
+  fun adjustFilterParameters(parameters: FilterParameters, callback: (Result<Unit>) -> Unit)
+  /** Lấy thông tin về các camera có sẵn trên thiết bị */
+  fun getAvailableCameras(callback: (Result<List<CameraInfo>>) -> Unit)
 
   companion object {
     /** The codec used by BeautyCameraHostApi. */
@@ -686,8 +1117,8 @@ interface BeautyCameraHostApi {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
             val modeArg = args[0] as CameraFilterMode
-            val levelArg = args[1] as Double
-            api.setFilterMode(modeArg, levelArg) { result: Result<Unit> ->
+            val parametersArg = args[1] as FilterParameters
+            api.setFilterMode(modeArg, parametersArg) { result: Result<Unit> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(BeautyCameraPluginPigeonPigeonUtils.wrapError(error))
@@ -719,21 +1150,91 @@ interface BeautyCameraHostApi {
           channel.setMessageHandler(null)
         }
       }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.getAvailableFilters$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.getAvailableFilters{ result: Result<List<FilterInfo>> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(BeautyCameraPluginPigeonPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(BeautyCameraPluginPigeonPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.adjustFilterParameters$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val parametersArg = args[0] as FilterParameters
+            api.adjustFilterParameters(parametersArg) { result: Result<Unit> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(BeautyCameraPluginPigeonPigeonUtils.wrapError(error))
+              } else {
+                reply.reply(BeautyCameraPluginPigeonPigeonUtils.wrapResult(null))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.getAvailableCameras$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.getAvailableCameras{ result: Result<List<CameraInfo>> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(BeautyCameraPluginPigeonPigeonUtils.wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(BeautyCameraPluginPigeonPigeonUtils.wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
     }
   }
 }
-/** Generated interface from Pigeon that represents a handler of messages from Flutter. */
+/**
+ * API camera cơ bản
+ *
+ * Generated interface from Pigeon that represents a handler of messages from Flutter.
+ */
 interface CameraApi {
+  /** Khởi tạo camera với các cài đặt cơ bản */
   fun initialize(settings: CameraSettings, callback: (Result<Unit>) -> Unit)
+  /** Bắt đầu hiển thị preview với textureId đã cung cấp */
   fun startPreview(textureId: Long, callback: (Result<Unit>) -> Unit)
+  /** Dừng hiển thị preview */
   fun stopPreview(callback: (Result<Unit>) -> Unit)
+  /** Chuyển đổi giữa camera trước và sau */
   fun switchCamera(callback: (Result<Unit>) -> Unit)
+  /** Đặt chế độ đèn flash */
   fun setFlashMode(mode: FlashMode, callback: (Result<Unit>) -> Unit)
+  /** Đặt mức zoom */
   fun setZoom(zoom: Double, callback: (Result<Unit>) -> Unit)
+  /** Đặt kiểu scale cho preview */
   fun setScaleType(scaleType: ScaleType, callback: (Result<Unit>) -> Unit)
+  /** Chụp ảnh và trả về đường dẫn */
   fun takePhoto(callback: (Result<String>) -> Unit)
-  fun startVideoRecording(filePath: String, callback: (Result<Unit>) -> Unit)
+  /** Bắt đầu quay video với đường dẫn file đầu ra */
+  fun startVideoRecording(callback: (Result<Unit>) -> Unit)
+  /** Dừng quay video và trả về đường dẫn */
   fun stopVideoRecording(callback: (Result<String>) -> Unit)
+  /** Giải phóng tài nguyên */
   fun dispose(callback: (Result<Unit>) -> Unit)
 
   companion object {
@@ -895,10 +1396,8 @@ interface CameraApi {
       run {
         val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.com.beauty.camera_plugin.CameraApi.startVideoRecording$separatedMessageChannelSuffix", codec)
         if (api != null) {
-          channel.setMessageHandler { message, reply ->
-            val args = message as List<Any?>
-            val filePathArg = args[0] as String
-            api.startVideoRecording(filePathArg) { result: Result<Unit> ->
+          channel.setMessageHandler { _, reply ->
+            api.startVideoRecording{ result: Result<Unit> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(BeautyCameraPluginPigeonPigeonUtils.wrapError(error))
@@ -949,7 +1448,12 @@ interface CameraApi {
     }
   }
 }
-/** Generated class from Pigeon that represents Flutter messages that can be called from Kotlin. */
+/**
+ * API cho phép native gọi ngược về Flutter.
+ * Sử dụng Observer Pattern để thông báo các sự kiện camera.
+ *
+ * Generated class from Pigeon that represents Flutter messages that can be called from Kotlin.
+ */
 class BeautyCameraFlutterApi(private val binaryMessenger: BinaryMessenger, private val messageChannelSuffix: String = "") {
   companion object {
     /** The codec used by BeautyCameraFlutterApi. */
@@ -957,6 +1461,7 @@ class BeautyCameraFlutterApi(private val binaryMessenger: BinaryMessenger, priva
       BeautyCameraPluginPigeonPigeonCodec()
     }
   }
+  /** Thông báo khi zoom thay đổi */
   fun onZoomChanged(zoomLevelArg: Double, callback: (Result<Unit>) -> Unit)
 {
     val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
@@ -974,6 +1479,7 @@ class BeautyCameraFlutterApi(private val binaryMessenger: BinaryMessenger, priva
       } 
     }
   }
+  /** Thông báo khi chế độ flash thay đổi */
   fun onFlashModeChanged(modeArg: FlashMode, callback: (Result<Unit>) -> Unit)
 {
     val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
@@ -991,6 +1497,7 @@ class BeautyCameraFlutterApi(private val binaryMessenger: BinaryMessenger, priva
       } 
     }
   }
+  /** Thông báo khi camera được chuyển đổi */
   fun onCameraSwitched(cameraIdArg: String, callback: (Result<Unit>) -> Unit)
 {
     val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
@@ -1008,6 +1515,7 @@ class BeautyCameraFlutterApi(private val binaryMessenger: BinaryMessenger, priva
       } 
     }
   }
+  /** Thông báo khi phát hiện khuôn mặt */
   fun onFaceDetected(facesArg: List<FaceData>, callback: (Result<Unit>) -> Unit)
 {
     val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
@@ -1025,6 +1533,7 @@ class BeautyCameraFlutterApi(private val binaryMessenger: BinaryMessenger, priva
       } 
     }
   }
+  /** Thông báo khi bắt đầu quay video */
   fun onVideoRecordingStarted(callback: (Result<Unit>) -> Unit)
 {
     val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
@@ -1042,6 +1551,7 @@ class BeautyCameraFlutterApi(private val binaryMessenger: BinaryMessenger, priva
       } 
     }
   }
+  /** Thông báo khi dừng quay video */
   fun onVideoRecordingStopped(pathArg: String, callback: (Result<Unit>) -> Unit)
 {
     val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
@@ -1059,12 +1569,49 @@ class BeautyCameraFlutterApi(private val binaryMessenger: BinaryMessenger, priva
       } 
     }
   }
+  /** Thông báo khi chế độ bộ lọc thay đổi */
   fun onFilterModeChanged(modeArg: CameraFilterMode, callback: (Result<Unit>) -> Unit)
 {
     val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
     val channelName = "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onFilterModeChanged$separatedMessageChannelSuffix"
     val channel = BasicMessageChannel<Any?>(binaryMessenger, channelName, codec)
     channel.send(listOf(modeArg)) {
+      if (it is List<*>) {
+        if (it.size > 1) {
+          callback(Result.failure(FlutterError(it[0] as String, it[1] as String, it[2] as String?)))
+        } else {
+          callback(Result.success(Unit))
+        }
+      } else {
+        callback(Result.failure(BeautyCameraPluginPigeonPigeonUtils.createConnectionError(channelName)))
+      } 
+    }
+  }
+  /** Thông báo khi tham số bộ lọc thay đổi */
+  fun onFilterParametersChanged(parametersArg: FilterParameters, callback: (Result<Unit>) -> Unit)
+{
+    val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
+    val channelName = "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onFilterParametersChanged$separatedMessageChannelSuffix"
+    val channel = BasicMessageChannel<Any?>(binaryMessenger, channelName, codec)
+    channel.send(listOf(parametersArg)) {
+      if (it is List<*>) {
+        if (it.size > 1) {
+          callback(Result.failure(FlutterError(it[0] as String, it[1] as String, it[2] as String?)))
+        } else {
+          callback(Result.success(Unit))
+        }
+      } else {
+        callback(Result.failure(BeautyCameraPluginPigeonPigeonUtils.createConnectionError(channelName)))
+      } 
+    }
+  }
+  /** Thông báo khi xảy ra lỗi camera */
+  fun onCameraError(errorCodeArg: String, errorMessageArg: String, callback: (Result<Unit>) -> Unit)
+{
+    val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
+    val channelName = "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onCameraError$separatedMessageChannelSuffix"
+    val channel = BasicMessageChannel<Any?>(binaryMessenger, channelName, codec)
+    channel.send(listOf(errorCodeArg, errorMessageArg)) {
       if (it is List<*>) {
         if (it.size > 1) {
           callback(Result.failure(FlutterError(it[0] as String, it[1] as String, it[2] as String?)))

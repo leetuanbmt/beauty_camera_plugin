@@ -1,360 +1,139 @@
 package com.beauty.camera_plugin
-import android.content.Context
-import androidx.lifecycle.LifecycleOwner
+
+import android.util.Log
+import androidx.annotation.NonNull
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
+import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.view.TextureRegistry
-import com.beauty.camera_plugin.repository.CameraRepository
-import com.beauty.camera_plugin.view.FlutterTextureHandler
-import com.beauty.camera_plugin.viewmodel.CameraViewModel
-import com.beauty.camera_plugin.models.CameraSettings
-import com.beauty.camera_plugin.models.CameraFilterMode
-import kotlinx.coroutines.*
 
-class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
-    private lateinit var cameraViewModel: CameraViewModel
-    private var flutterApi: BeautyCameraFlutterApi? = null
+/**
+ * Plugin chính để quản lý beauty camera và tương tác với Flutter.
+ * Class này đăng ký các API Pigeon và quản lý vòng đời của plugin.
+ */
+class BeautyCameraPlugin : FlutterPlugin, ActivityAware {
+    companion object {
+        private const val TAG = "BeautyCameraPlugin"
+    }
     
-    // Coroutine scope
-    private val coroutineScope = CoroutineScope(Dispatchers.Main + Job())
-    
-    // Texture handling
+    private var flutterPluginBinding: FlutterPlugin.FlutterPluginBinding? = null
+    private var activityBinding: ActivityPluginBinding? = null
+    private var binaryMessenger: BinaryMessenger? = null
     private var textureRegistry: TextureRegistry? = null
-    private var textureHandler: FlutterTextureHandler? = null
-    private var repository: CameraRepository? = null
-
-    // Activity reference
-    private var lifecycleOwner: LifecycleOwner? = null
     
-    // Track texture ID
-    private var textureId: Long = -1
+    // Implementations của các API Pigeon
+    private var beautyCameraHostApiImpl: BeautyCameraHostApiImpl? = null
+    private var cameraApiImpl: CameraApiImpl? = null
     
-    // Preview size
-    private var previewWidth: Int = 1280
-    private var previewHeight: Int = 720
+    // Flutter API handler để gửi thông báo từ native về Flutter
+    private var beautyCameraFlutterApi: BeautyCameraFlutterApi? = null
 
-
-    private var context: Context? = null
-
-    override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
-        // Set up Pigeon communication
-        BeautyCameraHostApi.setUp(flutterPluginBinding.binaryMessenger, this)
-        flutterApi = BeautyCameraFlutterApi(flutterPluginBinding.binaryMessenger)
+    override fun onAttachedToEngine(@NonNull flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
+        Log.d(TAG, "onAttachedToEngine")
+        this.flutterPluginBinding = flutterPluginBinding
+        this.binaryMessenger = flutterPluginBinding.binaryMessenger
+        this.textureRegistry = flutterPluginBinding.textureRegistry
         
-        // Store texture registry for later
-        textureRegistry = flutterPluginBinding.textureRegistry
-        
-        // Create the camera repository
-        repository = CameraRepository(flutterPluginBinding.applicationContext)
-        
-        // Create the view model
-        cameraViewModel = CameraViewModel(flutterPluginBinding.applicationContext)
-        cameraViewModel.setFlutterApi(flutterApi)
-
-        // Store context
-        context = flutterPluginBinding.applicationContext
+        setupApis()
     }
 
-    override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
-        BeautyCameraHostApi.setUp(binding.binaryMessenger, null)
-        flutterApi = null
+    override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
+        Log.d(TAG, "onDetachedFromEngine")
+        tearDownApis()
         
-        // Clean up resources
-        textureHandler?.cleanup()
-        textureHandler = null
-        textureId = -1L
-        
-
-        repository?.cleanup()
-        repository = null
-        
+        binaryMessenger = null
         textureRegistry = null
-        cameraViewModel.cleanup()
-        
-        // Cancel all coroutines
-        coroutineScope.cancel()
-        context = null
-    }
-    
-    override fun onAttachedToActivity(binding: ActivityPluginBinding) {
-        lifecycleOwner = binding.activity as? LifecycleOwner
-        cameraViewModel.setActivity(binding.activity)
-        
-        // Initialize texture handler with activity as lifecycle owner
-        repository?.let { repo ->
-            textureRegistry?.let { registry ->
-                textureHandler = FlutterTextureHandler(
-                    context!!,
-                    registry,
-                    repo,
-                    binding.activity as LifecycleOwner
-                )
-            }
-        }
+        flutterPluginBinding = null
     }
 
-    override fun onDetachedFromActivity() {
-        cameraViewModel.releaseActivity()
-        textureHandler?.cleanup()
-        textureHandler = null
-        textureId = -1L
-        lifecycleOwner = null
-        context = null
+    override fun onAttachedToActivity(binding: ActivityPluginBinding) {
+        Log.d(TAG, "onAttachedToActivity")
+        activityBinding = binding
+        
+        // Đảm bảo rằng các implementers có context và activity
+        beautyCameraHostApiImpl?.setActivityBinding(binding)
+        cameraApiImpl?.setActivityBinding(binding)
+        
+        // Log để debug
+        Log.d(TAG, "Activity attached: ${binding.activity.javaClass.simpleName}")
     }
 
     override fun onDetachedFromActivityForConfigChanges() {
-        cameraViewModel.releaseActivity()
-        textureHandler?.cleanup()
-        textureHandler = null
-        textureId = -1L
-        lifecycleOwner = null
-        context = null
+        Log.d(TAG, "onDetachedFromActivityForConfigChanges")
+        activityBinding = null
+        beautyCameraHostApiImpl?.setActivityBinding(null)
+        cameraApiImpl?.setActivityBinding(null)
     }
 
     override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
-        lifecycleOwner = binding.activity as? LifecycleOwner
-        cameraViewModel.setActivity(binding.activity)
+        Log.d(TAG, "onReattachedToActivityForConfigChanges")
+        activityBinding = binding
+        beautyCameraHostApiImpl?.setActivityBinding(binding)
+        cameraApiImpl?.setActivityBinding(binding)
+        Log.d(TAG, "Activity reattached: ${binding.activity.javaClass.simpleName}")
+    }
+
+    override fun onDetachedFromActivity() {
+        Log.d(TAG, "onDetachedFromActivity")
+        activityBinding = null
+        beautyCameraHostApiImpl?.setActivityBinding(null)
+        cameraApiImpl?.setActivityBinding(null)
+    }
+    
+    private fun setupApis() {
+        Log.d(TAG, "Setting up APIs")
         
-        // Reset texture state for recreation
-        textureId = -1L
-        textureHandler = null
-    }
-
-    override fun initialize(settings: AdvancedCameraSettings, callback: (Result<Unit>) -> Unit) {
-        coroutineScope.launch {
-            try {
-                // Reset texture state
-                textureId = -1L
-                textureHandler?.cleanup()
-                textureHandler = null
-                
-                // Convert settings to CameraSettings
-                val cameraSettings = CameraSettings.fromAdvancedSettings(settings)
-                
-                // Initialize repository with settings
-                repository?.let { repo ->
-                    lifecycleOwner?.let { owner ->
-                        withContext(Dispatchers.IO) {
-                            // Initialize with camera settings
-                            repo.initialize(owner, cameraSettings)
-                            
-                            // Update preview dimensions based on settings
-                            previewWidth = cameraSettings.resolution.width
-                            previewHeight = cameraSettings.resolution.height
-                        }
-                        
-                        // Create new texture handler
-                        textureRegistry?.let { registry ->
-                            textureHandler = FlutterTextureHandler(
-                                context = context!!,
-                                textureRegistry = registry,
-                                repository = repo,
-                                lifecycleOwner = owner
-                            )
-
-                        }
-                        
-                        callback(Result.success(Unit))
-                    } ?: callback(Result.failure(Exception("LifecycleOwner not available")))
-                } ?: callback(Result.failure(Exception("Camera repository not initialized")))
-            } catch (e: Exception) {
-                callback(Result.failure(e))
-            }
-        }
-    }
-
-    override fun dispose(callback: (Result<Unit>) -> Unit) {
-        try {
-            repository?.cleanup()
-            textureHandler?.cleanup()
-            textureHandler = null
-            textureId = -1L
-            callback(Result.success(Unit))
-        } catch (e: Exception) {
-            callback(Result.failure(e))
-        }
-    }
-
-    override fun switchCamera(callback: (Result<Unit>) -> Unit) {
-        try {
-            repository?.let { repo ->
-                // Switch camera
-                repo.switchCamera()
-                
-                // Update texture if needed
-                textureHandler?.let { handler ->
-                    // Get current preview size
-                    val resolution = repo.getPreviewResolution()
-
-                    handler.updateTexture(resolution.first, resolution.second)
-                }
-                
-                callback(Result.success(Unit))
-            } ?: callback(Result.failure(Exception("Camera repository not initialized")))
-        } catch (e: Exception) {
-            callback(Result.failure(e))
-        }
-    }
-
-    override fun setZoom(zoomLevel: Double, callback: (Result<Unit>) -> Unit) {
-        try {
-            repository?.setZoom()
-            // Notify Flutter about zoom change
-            flutterApi?.onZoomChanged(zoomLevel) {}
-            callback(Result.success(Unit))
-        } catch (e: Exception) {
-            callback(Result.failure(e))
-        }
-    }
-
-    override fun focusOnPoint(x: Long, y: Long, callback: (Result<Unit>) -> Unit) {
-        try {
-            repository?.focusOnPoint(x.toInt(), y.toInt())
-            callback(Result.success(Unit))
-        } catch (e: Exception) {
-            callback(Result.failure(e))
-        }
-    }
-
-    override fun setFlashMode(mode: FlashMode, callback: (Result<Unit>) -> Unit) {
-        try {
-            repository?.setFlashMode(mode)
-            // Notify Flutter about flash mode change
-            flutterApi?.onFlashModeChanged(mode) {}
-            callback(Result.success(Unit))
-        } catch (e: Exception) {
-            callback(Result.failure(e))
-        }
-    }
-
-    override fun setDisplayOrientation(degrees: Long, callback: (Result<Unit>) -> Unit) {
-        try {
-            repository?.setDisplayOrientation()
-            callback(Result.success(Unit))
-        } catch (e: Exception) {
-            callback(Result.failure(e))
-        }
-    }
-
-    override fun getPreviewTexture(callback: (Result<Long>) -> Unit) {
-        try {
-            // Ensure we have all required components
-            if (repository == null || textureRegistry == null || lifecycleOwner == null) {
-                throw Exception("Required components not initialized")
-            }
-            
-            // Create new texture handler if needed
-            if (textureHandler == null) {
-                textureHandler = FlutterTextureHandler(
-                    context!!,
-                    textureRegistry = textureRegistry!!,
-                    repository = repository!!,
-                    lifecycleOwner = lifecycleOwner!!
-                )
-            }
-            
-            // Always create new texture if none exists
-            if (textureId == -1L) {
-                textureId = textureHandler?.initialize() ?: -1L
-                if (textureId == -1L) {
-                    throw Exception("Failed to initialize texture")
-                }
-                
-                // Update texture with preview size
-                textureHandler?.updateTexture(previewWidth, previewHeight)
-            }
-            
-            callback(Result.success(textureId))
-        } catch (e: Exception) {
-            textureId = -1L // Reset on error
-            callback(Result.failure(e))
+        // Khởi tạo Flutter API để gửi events ngược về Flutter
+        beautyCameraFlutterApi = BeautyCameraFlutterApi(binaryMessenger!!)
+        
+        // Khởi tạo camera manager
+        val cameraManager = BeautyCameraManager(
+            textureRegistry = textureRegistry!!,
+            flutterApi = beautyCameraFlutterApi!!
+        )
+        Log.d(TAG, "Created camera manager")
+        
+        // Khởi tạo filter processor
+        val filterProcessor = FilterProcessor()
+        Log.d(TAG, "Created filter processor")
+        
+        // Setup các API implementers
+        beautyCameraHostApiImpl = BeautyCameraHostApiImpl(
+            cameraManager = cameraManager,
+            filterProcessor = filterProcessor
+        )
+        
+        cameraApiImpl = CameraApiImpl(
+            cameraManager = cameraManager
+        )
+        Log.d(TAG, "Created API implementers")
+        
+        // Đăng ký các API với Pigeon
+        binaryMessenger?.let { messenger ->
+            BeautyCameraHostApi.setUp(messenger, beautyCameraHostApiImpl)
+            CameraApi.setUp(messenger, cameraApiImpl)
+            Log.d(TAG, "Registered APIs with Pigeon")
         }
     }
     
-    override fun getPreviewSize(callback: (Result<PreviewSize>) -> Unit) {
-        try {
-            // Get preview size from repository
-            val resolution = repository?.getPreviewResolution() ?: Pair(previewWidth, previewHeight)
-            previewWidth = resolution.first
-            previewHeight = resolution.second
-            
-            val previewSize = PreviewSize(width = previewWidth.toLong(), height = previewHeight.toLong())
-            callback(Result.success(previewSize))
-        } catch (e: Exception) {
-            callback(Result.failure(e))
+    private fun tearDownApis() {
+        Log.d(TAG, "Tearing down APIs")
+        
+        // Hủy đăng ký các API
+        binaryMessenger?.let { messenger ->
+            BeautyCameraHostApi.setUp(messenger, null)
+            CameraApi.setUp(messenger, null)
+            Log.d(TAG, "Unregistered APIs from Pigeon")
         }
+        
+        // Giải phóng tài nguyên
+        beautyCameraHostApiImpl?.dispose()
+        cameraApiImpl?.dispose()
+        Log.d(TAG, "Disposed API implementations")
+        
+        beautyCameraHostApiImpl = null
+        cameraApiImpl = null
+        beautyCameraFlutterApi = null
     }
-
-    override fun takePhoto(callback: (Result<String>) -> Unit) {
-        try {
-            repository?.takePhoto(object : CameraRepository.PhotoCaptureCallback {
-                override fun onSuccess(path: String) {
-                    callback(Result.success(path))
-                }
-                
-                override fun onFailure(exception: Exception) {
-                    callback(Result.failure(exception))
-                }
-            })
-        } catch (e: Exception) {
-            callback(Result.failure(e))
-        }
-    }
-
-    override fun startVideoRecording(callback: (Result<Unit>) -> Unit) {
-        try {
-            val outputPath = "${repository?.getCacheDirectory()}/video_${System.currentTimeMillis()}.mp4"
-            repository?.startRecording(outputPath)
-            flutterApi?.onVideoRecordingStarted {}
-            callback(Result.success(Unit))
-        } catch (e: Exception) {
-            callback(Result.failure(e))
-        }
-    }
-
-    override fun stopVideoRecording(callback: (Result<String>) -> Unit) {
-        try {
-            val videoPath = repository?.stopRecording() ?: throw Exception("No video recording in progress")
-            flutterApi?.onVideoRecordingStopped(videoPath) {}
-            callback(Result.success(videoPath))
-        } catch (e: Exception) {
-            callback(Result.failure(e))
-        }
-    }
-
-    override fun getCameraSensorAspectRatio(callback: (Result<Double>) -> Unit) {
-        try {
-            val ratio = repository?.getCameraSensorAspectRatio() ?: (4.0 / 3.0)
-            callback(Result.success(ratio))
-        } catch (e: Exception) {
-            callback(Result.failure(e))
-        }
-    }
-
-    override fun setFilterMode(mode: com.beauty.camera_plugin.CameraFilterMode, level: Double, callback: (Result<Unit>) -> Unit) {
-        try {
-            val internalMode = CameraFilterMode.fromPigeon(mode)
-            repository?.setFilter(internalMode, level)
-            flutterApi?.onFilterModeChanged(mode) {}
-            callback(Result.success(Unit))
-        } catch (e: Exception) {
-            callback(Result.failure(e))
-        }
-    }
-
-    override fun setScaleType(scaleType: ScaleType, callback: (Result<Unit>) -> Unit) {
-        try {
-            val scaleTypeString = when (scaleType) {
-                ScaleType.CENTER_CROP -> FlutterTextureHandler.SCALE_TYPE_CENTER_CROP
-                ScaleType.CENTER_INSIDE -> FlutterTextureHandler.SCALE_TYPE_CENTER_INSIDE
-            }
-            textureHandler?.setScaleType(scaleTypeString)
-            callback(Result.success(Unit))
-        } catch (e: Exception) {
-            callback(Result.failure(e))
-        }
-    }
-
-
 } 

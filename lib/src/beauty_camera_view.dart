@@ -124,8 +124,8 @@ class _BeautyCameraViewState extends State<BeautyCameraView>
       try {
         final textureId = await widget.controller.getPreviewTexture();
         final previewSize = await widget.controller.getPreviewSize();
-        Logger.log('Preview texture ID: $textureId');
-        Logger.log('Preview size: $previewSize');
+        // Logger.log('Preview texture ID: $textureId');
+        // Logger.log('Preview size: $previewSize');
 
         if (mounted) {
           setState(() {
@@ -175,12 +175,14 @@ class _BeautyCameraViewState extends State<BeautyCameraView>
 
   Widget _buildCameraPreview() {
     if (!widget.controller.isInitialized) {
+      Logger.log('Camera not initialized');
       return const Center(
         child: CircularProgressIndicator(),
       );
     }
 
     if (_textureId == null) {
+      Logger.log('Texture ID is null');
       return const Center(
         child: Text(
           'Initializing camera...',
@@ -189,11 +191,24 @@ class _BeautyCameraViewState extends State<BeautyCameraView>
       );
     }
 
+    Logger.log('Building preview with texture ID: $_textureId');
+    Logger.log('Preview size: ${_previewSize.width}x${_previewSize.height}');
+
     // Use OrientationBuilder to rebuild when device orientation changes
     return Center(
       child: AspectRatio(
         aspectRatio: _previewSize.width / _previewSize.height,
-        child: Texture(textureId: _textureId!),
+        child: Stack(
+          children: [
+            Texture(textureId: _textureId!),
+            Positioned.fill(
+              child: Container(
+                color: Colors.transparent,
+                child: const SizedBox(),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

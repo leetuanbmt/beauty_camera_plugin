@@ -1,0 +1,28 @@
+{
+    "servers": {
+        "filesystem": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "@modelcontextprotocol/server-filesystem",
+                "/Users/tuanvm/Desktop/beauty_camera_plugin"
+            ]
+        },
+        "Sequential Thinking": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "@modelcontextprotocol/server-sequential-thinking"
+            ]
+        },
+        "Framelink Figma MCP": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "figma-developer-mcp",
+                "--figma-api-key=figd_CW1saeGc0kxA8Ow1wN7sKUMf84mKtuyckVjzqoYj",
+                "--stdio"
+            ]
+        }
+    }
+}
