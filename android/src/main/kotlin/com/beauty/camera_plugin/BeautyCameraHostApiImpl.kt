@@ -1,13 +1,11 @@
 package com.beauty.camera_plugin
 
-import android.content.Context
 import android.util.Log
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 /**
  * Triển khai các phương thức API Pigeon BeautyCameraHostApi.
@@ -53,14 +51,15 @@ class BeautyCameraHostApiImpl(
                 }
                 
                 // Pass the lifecycleOwner and context to the cameraManager
-                val textureId = cameraManager.initialize(
+               cameraManager.initialize(
                     settings = settings,
                     lifecycleOwner = activity as androidx.lifecycle.LifecycleOwner,
                     context = activity
                 )
                 
-                // Initialize filter processor with context
-                filterProcessor.initialize(activity)
+                // FilterProcessor already initialized in cameraManager.initialize
+                // No need to call filterProcessor.initialize again
+                
                 callback(Result.success(Unit))
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to initialize camera", e)
@@ -158,14 +157,51 @@ class BeautyCameraHostApiImpl(
         Log.d(TAG, "Get preview texture")
         
         // Texture ID được tạo lúc khởi tạo camera, và được cameraManager lưu trữ
-        // Ở đây chúng ta chỉ gọi lại để lấy ID
-        // Không cần bất đồng bộ
         try {
+            // Kiểm tra xem camera đã được khởi tạo chưa
+            if (activityBinding == null) {
+                Log.e(TAG, "Activity binding is null, camera may not be initialized properly")
+                callback(Result.failure(IllegalStateException("Camera not initialized, activity binding is null")))
+                return
+            }
+            
             val flutterTexture = cameraManager.getFlutterTextureId()
+            Log.d(TAG, "Flutter texture ID: $flutterTexture")
             callback(Result.success(flutterTexture))
         } catch (e: Exception) {
             Log.e(TAG, "Failed to get preview texture", e)
-            callback(Result.failure(e))
+            // Retry initialize camera if texture is not created
+            val activity = activityBinding?.activity
+            if (activity != null) {
+                Log.d(TAG, "Attempting to reinitialize camera...")
+                coroutineScope.launch {
+                    try {
+                        // Tạo camera settings mặc định
+                        val settings = AdvancedCameraSettings(
+                            videoQuality = VideoQuality.LOW,
+                            videoStabilization = true,
+                            autoExposure = true,
+                            enableFaceDetection = true
+                        )
+                        
+                        // Khởi tạo lại camera
+                        cameraManager.initialize(
+                            settings = settings,
+                            lifecycleOwner = activity as androidx.lifecycle.LifecycleOwner,
+                            context = activity
+                        )
+                        
+                        // Thử lấy lại texture ID
+                        val textureId = cameraManager.getFlutterTextureId()
+                        callback(Result.success(textureId))
+                    } catch (e2: Exception) {
+                        Log.e(TAG, "Failed to reinitialize camera", e2)
+                        callback(Result.failure(e2))
+                    }
+                }
+            } else {
+                callback(Result.failure(e))
+            }
         }
     }
 
@@ -244,8 +280,8 @@ class BeautyCameraHostApiImpl(
         
         coroutineScope.launch {
             try {
-                // Áp dụng filter mới
-                filterProcessor.setFilter(mode, parameters)
+                // Sử dụng cameraManager để áp dụng filter
+                cameraManager.setFilterMode(mode, parameters)
                 callback(Result.success(Unit))
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to set filter mode", e)
@@ -315,9 +351,9 @@ class BeautyCameraHostApiImpl(
     }
     
     // Thêm phương thức helper
-    private suspend fun Context.createTempFile(prefix: String, suffix: String): java.io.File = withContext(Dispatchers.IO) {
-        java.io.File.createTempFile(prefix, suffix, cacheDir).apply {
-            deleteOnExit()
-        }
-    }
+//    private suspend fun Context.createTempFile(prefix: String, suffix: String): java.io.File = withContext(Dispatchers.IO) {
+//        java.io.File.createTempFile(prefix, suffix, cacheDir).apply {
+//            deleteOnExit()
+//        }
+//    }
 } 

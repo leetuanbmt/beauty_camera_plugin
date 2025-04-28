@@ -1,7 +1,6 @@
 package com.beauty.camera_plugin
 
 import android.util.Log
-import androidx.annotation.NonNull
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
@@ -29,7 +28,7 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware {
     // Flutter API handler để gửi thông báo từ native về Flutter
     private var beautyCameraFlutterApi: BeautyCameraFlutterApi? = null
 
-    override fun onAttachedToEngine(@NonNull flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
+    override fun onAttachedToEngine( flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         Log.d(TAG, "onAttachedToEngine")
         this.flutterPluginBinding = flutterPluginBinding
         this.binaryMessenger = flutterPluginBinding.binaryMessenger
@@ -38,7 +37,7 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware {
         setupApis()
     }
 
-    override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
+    override fun onDetachedFromEngine( binding: FlutterPlugin.FlutterPluginBinding) {
         Log.d(TAG, "onDetachedFromEngine")
         tearDownApis()
         
@@ -87,16 +86,17 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware {
         // Khởi tạo Flutter API để gửi events ngược về Flutter
         beautyCameraFlutterApi = BeautyCameraFlutterApi(binaryMessenger!!)
         
-        // Khởi tạo camera manager
-        val cameraManager = BeautyCameraManager(
-            textureRegistry = textureRegistry!!,
-            flutterApi = beautyCameraFlutterApi!!
-        )
-        Log.d(TAG, "Created camera manager")
-        
-        // Khởi tạo filter processor
+        // Khởi tạo filter processor - một instance duy nhất
         val filterProcessor = FilterProcessor()
         Log.d(TAG, "Created filter processor")
+        
+        // Khởi tạo camera manager với filter processor
+        val cameraManager = BeautyCameraManager(
+            textureRegistry = textureRegistry!!,
+            flutterApi = beautyCameraFlutterApi!!,
+            filterProcessor = filterProcessor
+        )
+        Log.d(TAG, "Created camera manager")
         
         // Setup các API implementers
         beautyCameraHostApiImpl = BeautyCameraHostApiImpl(

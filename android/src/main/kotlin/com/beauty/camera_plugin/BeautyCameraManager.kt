@@ -2,6 +2,8 @@ package com.beauty.camera_plugin
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.graphics.SurfaceTexture
+import android.opengl.GLES20
 import android.util.Log
 import android.util.Size
 import android.view.Surface
@@ -35,7 +37,6 @@ import java.util.Locale
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
-import kotlin.math.abs
 
 /**
  * Quản lý camera sử dụng CameraX API
@@ -43,7 +44,8 @@ import kotlin.math.abs
  */
 class BeautyCameraManager(
     private val textureRegistry: TextureRegistry,
-    private val flutterApi: BeautyCameraFlutterApi
+    private val flutterApi: BeautyCameraFlutterApi,
+    private val filterProcessor: FilterProcessor
 ) {
     companion object {
         private const val TAG = "BeautyCameraManager"
@@ -128,6 +130,15 @@ class BeautyCameraManager(
             this.activityContext = context
             this.lifecycleOwner = lifecycleOwner
             
+            // Tạo texture trước
+            flutterTexture = textureRegistry.createSurfaceTexture()
+            val textureId = flutterTexture?.id() ?: throw IllegalStateException("Failed to create texture")
+            Log.d(TAG, "Created Flutter texture with ID: $textureId")
+            
+            // Khởi tạo FilterProcessor với context
+            // (Đã được inject thông qua constructor, chỉ cần initialize)
+            filterProcessor.initialize(context)
+            
             // Khởi tạo CameraX
             val processCameraProvider = withContext(Dispatchers.IO) {
                 ProcessCameraProvider.getInstance(context).get()
@@ -154,10 +165,9 @@ class BeautyCameraManager(
             }
             
             // Đánh dấu là đã khởi tạo thành công
-            
             Log.d(TAG, "Camera initialized successfully")
             
-            return flutterTexture?.id() ?: throw IllegalStateException("Failed to create texture")
+            return textureId
         } catch (e: Exception) {
             Log.e(TAG, "Error initializing camera: ${e.message}", e)
             throw e
@@ -190,6 +200,9 @@ class BeautyCameraManager(
                 // Giải phóng camera
                 cameraProvider?.unbindAll()
                 camera = null
+                
+                // Giải phóng FilterProcessor
+                filterProcessor.release()
                 
                 // Giải phóng texture
                 flutterTexture?.release()
@@ -278,8 +291,7 @@ class BeautyCameraManager(
         try {
             // Kiểm tra camera
             val cam = camera ?: throw IllegalStateException("Camera not initialized")
-            val executor = mainExecutor ?: throw IllegalStateException("Main executor is null")
-            
+
             // Lấy range của camera
             val zoomState = cam.cameraInfo.zoomState.value
             val minZoom = zoomState?.minZoomRatio ?: 1.0f
@@ -411,7 +423,6 @@ class BeautyCameraManager(
     }
     
     suspend fun takePhoto(): String = withContext(Dispatchers.IO) {
-        val context = activityContext ?: throw IllegalStateException("Context is null")
         val capture = imageCapture ?: throw IllegalStateException("Image capture not initialized")
         val executor = mainExecutor ?: throw IllegalStateException("Main executor is null")
         
@@ -528,16 +539,14 @@ class BeautyCameraManager(
         
         try {
             val currentRecording = recording
-            if (currentRecording == null) {
-                throw IllegalStateException("Cannot stop recording, recording is null")
-            }
-            
+                ?: throw IllegalStateException("Cannot stop recording, recording is null")
+
             // Dừng recording hiện tại
             currentRecording.stop()
             recording = null
             
             // Chờ kết quả từ callback VideoRecordEvent.Finalize
-            suspendCoroutine<String> { continuation ->
+            suspendCoroutine { continuation ->
                 // Sau khi dừng ghi video, kết quả sẽ được xử lý trong 
                 // callback VideoRecordEvent.Finalize ở phương thức startVideoRecording
                 // Ở đây chúng ta sẽ tìm file video mới nhất để trả về
@@ -565,15 +574,8 @@ class BeautyCameraManager(
     
     suspend fun setScaleType(scaleType: ScaleType): Unit = withContext(Dispatchers.Main) {
         try {
-            this@BeautyCameraManager.scaleType = scaleType
-            
-            // Tái cấu hình preview với scale type mới
-            val texture = flutterTexture ?: return@withContext
-            val surfaceTexture = texture.surfaceTexture() ?: return@withContext
-            
-            // Lưu ý: trong CameraX hiện tại, việc điều chỉnh scale type 
-            // phải thực hiện thông qua cấu hình Preview
-            
+
+
             // TODO: Cần implement thêm logic điều chỉnh scaling
             
         } catch (e: Exception) {
@@ -662,7 +664,6 @@ class BeautyCameraManager(
                             VideoQuality.HIGH -> QualitySelector.from(Quality.FHD)
                             VideoQuality.VERY_HIGH -> QualitySelector.from(Quality.UHD)
                             VideoQuality.ULTRA -> QualitySelector.from(Quality.HIGHEST)
-                            else -> QualitySelector.from(Quality.SD) // Default case
                         }
                         setQualitySelector(qualitySelector)
                     }
@@ -685,21 +686,80 @@ class BeautyCameraManager(
      * Khởi tạo Flutter texture để hiển thị preview
      */
     private fun setupFlutterTexture() {
+        // Tạo SurfaceTexture mới cho Flutter
         flutterTexture = textureRegistry.createSurfaceTexture()
-        val surfaceTexture = flutterTexture?.surfaceTexture()
+        val flutterSurfaceTexture = flutterTexture?.surfaceTexture()
             ?: throw IllegalStateException("Failed to create surface texture")
         
-        // Kết nối preview với texture
+        // Chỉ định kích thước mặc định cho surfaceTexture - sẽ được điều chỉnh khi camera connect
+        flutterSurfaceTexture.setDefaultBufferSize(1920, 1080)
+        
+        // Tạo một SurfaceTexture trung gian để nhận frames từ camera
+        // Điều này sẽ ngăn không cho CameraX và FilterProcessor cùng sử dụng một surface
+        val cameraSurfaceTexture = SurfaceTexture(0)
+        cameraSurfaceTexture.setDefaultBufferSize(1920, 1080)
+        
+        // Kết nối preview với camera texture
         preview?.setSurfaceProvider { request ->
-            surfaceTexture.setDefaultBufferSize(
+            // Log thông tin request
+            Log.d(TAG, "Preview request received: resolution=${request.resolution}")
+            
+            // Cập nhật kích thước buffer tương ứng với độ phân giải của camera
+            cameraSurfaceTexture.setDefaultBufferSize(
+                request.resolution.width,
+                request.resolution.height
+            )
+            flutterSurfaceTexture.setDefaultBufferSize(
                 request.resolution.width,
                 request.resolution.height
             )
             previewSize = request.resolution
             
-            val surface = Surface(surfaceTexture)
-            request.provideSurface(surface, ContextCompat.getMainExecutor(activityContext!!)) { _ ->
-                surface.release()
+            // Tạo surface từ camera surface texture
+            val cameraSurface = Surface(cameraSurfaceTexture as SurfaceTexture)
+            
+            // Kết nối với Flutter surface
+            val flutterSurface = Surface(flutterSurfaceTexture as SurfaceTexture)
+            
+            // Thiết lập frame listener cho camera surface
+            cameraSurfaceTexture.setOnFrameAvailableListener { _: SurfaceTexture ->
+                try {
+                    // Cập nhật texture image
+                    cameraSurfaceTexture.updateTexImage()
+                    
+                    // Lấy ma trận chuyển đổi
+                    val transformMatrix = FloatArray(16)
+                    cameraSurfaceTexture.getTransformMatrix(transformMatrix)
+                    
+                    // Chuyển frame từ camera đến flutter surface thông qua FilterProcessor
+                    filterProcessor.onFrameAvailable(cameraSurfaceTexture)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error updating frame", e)
+                }
+            }
+            
+            try {
+                // Thử setup renderer với flutter surface
+                val setupSuccess = filterProcessor.setupRenderer(flutterSurface)
+                if (!setupSuccess) {
+                    Log.e(TAG, "Failed to setup renderer with surface! Camera preview may not apply filters correctly")
+                } else {
+                    Log.d(TAG, "Renderer setup successfully")
+                }
+                
+                // Cung cấp surface cho CameraX
+                request.provideSurface(cameraSurface, ContextCompat.getMainExecutor(activityContext!!)) { _ ->
+                    // Surface sẽ được giải phóng khi nó không còn được sử dụng nữa
+                    Log.d(TAG, "CameraX has released the surface")
+                    cameraSurface.release()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error providing surface to CameraX", e)
+                
+                // Nếu có lỗi, vẫn phải giải phóng surface để tránh rò rỉ bộ nhớ
+                cameraSurface.release()
+                flutterSurface.release()
+                throw e
             }
         }
     }
@@ -752,5 +812,24 @@ class BeautyCameraManager(
         
         // Thiết lập flash mode
         setFlashModeInternal(flashMode)
+    }
+
+    /**
+     * Áp dụng bộ lọc mới cho camera preview
+     */
+    suspend fun setFilterMode(filterMode: CameraFilterMode, parameters: FilterParameters): Unit = withContext(Dispatchers.Main) {
+        try {
+            // Cập nhật filter trong FilterProcessor
+            filterProcessor.setFilter(filterMode, parameters)
+            
+            // Log để debugging
+            Log.d(TAG, "Set filter mode: $filterMode, parameters: $parameters")
+            
+            // Thông báo cho Flutter
+            flutterApi.onFilterModeChanged(filterMode) { /* ignore result */ }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to set filter mode", e)
+            throw e
+        }
     }
 } 
