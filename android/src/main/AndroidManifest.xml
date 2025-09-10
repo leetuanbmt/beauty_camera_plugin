@@ -11,9 +11,4 @@
   <uses-feature android:name="android.hardware.camera" android:required="true" />
   <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
 
-  <application>
-    <meta-data
-        android:name="flutterEmbedding"
-        android:value="2" />
-  </application>
 </manifest>

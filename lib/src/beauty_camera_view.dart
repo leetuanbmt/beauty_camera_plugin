@@ -5,27 +5,14 @@ import 'beauty_camera_controller.dart';
 import 'camera_api.g.dart';
 import 'utils/logger.dart';
 
-/// Widget that displays a beauty camera preview with various effects and controls
 class BeautyCameraView extends StatefulWidget {
-  /// The controller for this camera
   final BeautyCameraController controller;
-
-  /// Callback when an image is captured
   final Function(String imagePath)? onImageCaptured;
-
-  /// Callback when a video recording is completed
   final Function(String videoPath)? onVideoRecorded;
-
-  /// Callback when a face is detected
   final Function(List<FaceData> faces)? onFaceDetected;
-
-  /// Whether to overlay face detection indicators
   final bool showFaceDetection;
-
-  /// Whether to show camera controls
   final bool showControls;
 
-  /// Creates a new BeautyCameraView
   const BeautyCameraView({
     super.key,
     required this.controller,
@@ -45,14 +32,43 @@ class _BeautyCameraViewState extends State<BeautyCameraView>
   StreamSubscription<CameraEvent>? _eventsSubscription;
   List<FaceData> _detectedFaces = [];
   int? _textureId;
-  Size _previewSize = Size(1, 1);
+  Size _previewSize = const Size(1, 1);
+  bool _isInitializing = true;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _subscribeToEvents();
-    _initPreview();
+    _initializeCamera();
+  }
+
+  Future<void> _initializeCamera() async {
+    try {
+      // 1. Gọi initialize từ controller
+      if (!widget.controller.isInitialized) return;
+
+      // 2. Nếu thành công, lấy textureId và preview size
+      final textureId = await widget.controller.getPreviewTexture();
+      final previewSize = await widget.controller.getPreviewSize();
+
+      if (mounted) {
+        setState(() {
+          _textureId = textureId;
+          _previewSize = previewSize;
+          _isInitializing = false;
+        });
+      }
+    } catch (e) {
+      Logger.error('Error initializing camera: $e');
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _isInitializing = false;
+        });
+      }
+    }
   }
 
   @override
@@ -61,6 +77,8 @@ class _BeautyCameraViewState extends State<BeautyCameraView>
     if (oldWidget.controller != widget.controller) {
       _unsubscribeFromEvents();
       _subscribeToEvents();
+      // Re-initialize if the controller changes
+      _initializeCamera();
     }
   }
 
@@ -68,23 +86,25 @@ class _BeautyCameraViewState extends State<BeautyCameraView>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _unsubscribeFromEvents();
+    // Không cần gọi dispose controller ở đây, nó nên được quản lý ở nơi tạo ra nó
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Handle app lifecycle changes for camera
-    if (widget.controller.isInitialized) {
-      if (state == AppLifecycleState.inactive) {
-        // App is inactive, pause camera preview
-      } else if (state == AppLifecycleState.resumed) {
-        // App is resumed, resume camera preview
-      }
+    if (!widget.controller.isInitialized) return;
+
+    if (state == AppLifecycleState.inactive) {
+      // Tạm dừng camera khi app không active
+    } else if (state == AppLifecycleState.resumed) {
+      // Khởi động lại camera khi app được resume
+      _initializeCamera();
     }
   }
 
   void _subscribeToEvents() {
     _eventsSubscription = widget.controller.events.listen((event) {
+      if (!mounted) return;
       switch (event.type) {
         case CameraEventType.faceDetected:
           if (event.data is List<FaceData>) {
@@ -92,23 +112,21 @@ class _BeautyCameraViewState extends State<BeautyCameraView>
             setState(() {
               _detectedFaces = faces;
             });
-
-            if (widget.onFaceDetected != null) {
-              widget.onFaceDetected!(faces);
-            }
+            widget.onFaceDetected?.call(faces);
           }
           break;
         case CameraEventType.photoTaken:
-          if (event.data is String && widget.onImageCaptured != null) {
-            widget.onImageCaptured!(event.data as String);
+          if (event.data is String) {
+            widget.onImageCaptured?.call(event.data as String);
           }
           break;
         case CameraEventType.recordingStopped:
-          if (event.data is String && widget.onVideoRecorded != null) {
-            widget.onVideoRecorded!(event.data as String);
+          if (event.data is String) {
+            widget.onVideoRecorded?.call(event.data as String);
           }
           break;
         default:
+          setState(() {}); // Rebuild for other events like flash, zoom etc.
           break;
       }
     });
@@ -117,26 +135,6 @@ class _BeautyCameraViewState extends State<BeautyCameraView>
   void _unsubscribeFromEvents() {
     _eventsSubscription?.cancel();
     _eventsSubscription = null;
-  }
-
-  Future<void> _initPreview() async {
-    if (widget.controller.isInitialized) {
-      try {
-        final textureId = await widget.controller.getPreviewTexture();
-        final previewSize = await widget.controller.getPreviewSize();
-        // Logger.log('Preview texture ID: $textureId');
-        // Logger.log('Preview size: $previewSize');
-
-        if (mounted) {
-          setState(() {
-            _textureId = textureId;
-            _previewSize = previewSize;
-          });
-        }
-      } catch (e) {
-        Logger.error('Error initializing camera preview: $e');
-      }
-    }
   }
 
   void _handleTap(TapDownDetails details) {
@@ -158,15 +156,8 @@ class _BeautyCameraViewState extends State<BeautyCameraView>
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // Camera preview
-          ClipRect(
-            child: _buildCameraPreview(),
-          ),
-
-          // Face detection overlays
+          ClipRect(child: _buildCameraPreview()),
           if (widget.showFaceDetection) _buildFaceDetectionOverlay(),
-
-          // Camera controls
           if (widget.showControls) _buildCameraControls(),
         ],
       ),
@@ -174,48 +165,32 @@ class _BeautyCameraViewState extends State<BeautyCameraView>
   }
 
   Widget _buildCameraPreview() {
-    if (!widget.controller.isInitialized) {
-      Logger.log('Camera not initialized');
+    if (_error != null) {
+      return Center(
+        child: Text(
+          'Error: $_error',
+          style: const TextStyle(color: Colors.red),
+        ),
+      );
+    }
+
+    if (_isInitializing || _textureId == null) {
       return const Center(
         child: CircularProgressIndicator(),
       );
     }
 
-    if (_textureId == null) {
-      Logger.log('Texture ID is null');
-      return const Center(
-        child: Text(
-          'Initializing camera...',
-          style: TextStyle(color: Colors.white),
-        ),
-      );
-    }
-
-    Logger.log('Building preview with texture ID: $_textureId');
-    Logger.log('Preview size: ${_previewSize.width}x${_previewSize.height}');
-
-    // Use OrientationBuilder to rebuild when device orientation changes
     return Center(
       child: AspectRatio(
         aspectRatio: _previewSize.width / _previewSize.height,
-        child: Stack(
-          children: [
-            Texture(textureId: _textureId!),
-            Positioned.fill(
-              child: Container(
-                color: Colors.transparent,
-                child: const SizedBox(),
-              ),
-            ),
-          ],
-        ),
+        child: Texture(textureId: _textureId!),
       ),
     );
   }
 
   Widget _buildFaceDetectionOverlay() {
     if (_detectedFaces.isEmpty) {
-      return Container(); // Return empty container if no faces detected
+      return Container();
     }
 
     return CustomPaint(
@@ -234,17 +209,11 @@ class _BeautyCameraViewState extends State<BeautyCameraView>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          // Flash toggle
           IconButton(
-            icon: Icon(
-              _getFlashIcon(widget.controller.flashMode),
-              color: Colors.white,
-              size: 28,
-            ),
+            icon: Icon(_getFlashIcon(widget.controller.flashMode),
+                color: Colors.white, size: 28),
             onPressed: _cycleFlashMode,
           ),
-
-          // Capture button
           GestureDetector(
             onTap: _capturePhoto,
             onLongPress: _startVideoRecording,
@@ -262,14 +231,9 @@ class _BeautyCameraViewState extends State<BeautyCameraView>
                   : const Icon(Icons.camera_alt, color: Colors.white, size: 30),
             ),
           ),
-
-          // Switch camera
           IconButton(
-            icon: const Icon(
-              Icons.flip_camera_ios,
-              color: Colors.white,
-              size: 28,
-            ),
+            icon: const Icon(Icons.flip_camera_ios,
+                color: Colors.white, size: 28),
             onPressed: () => widget.controller.switchCamera(),
           ),
         ],
@@ -291,35 +255,19 @@ class _BeautyCameraViewState extends State<BeautyCameraView>
   }
 
   void _cycleFlashMode() {
-    FlashMode newMode;
-
-    switch (widget.controller.flashMode) {
-      case FlashMode.off:
-        newMode = FlashMode.on;
-        break;
-      case FlashMode.on:
-        newMode = FlashMode.auto;
-        break;
-      case FlashMode.auto:
-        newMode = FlashMode.torch;
-        break;
-      case FlashMode.torch:
-        newMode = FlashMode.off;
-        break;
-    }
-
-    widget.controller.setFlashMode(newMode);
+    final currentMode = widget.controller.flashMode;
+    final nextMode =
+        FlashMode.values[(currentMode.index + 1) % FlashMode.values.length];
+    widget.controller.setFlashMode(nextMode);
   }
 
   void _capturePhoto() async {
     if (!widget.controller.isInitialized || widget.controller.isRecording) {
       return;
     }
-
     try {
       await widget.controller.takePhoto();
     } catch (e) {
-      // Handle capture error
       Logger.log('Failed to capture photo: $e');
     }
   }
@@ -328,75 +276,51 @@ class _BeautyCameraViewState extends State<BeautyCameraView>
     if (!widget.controller.isInitialized || widget.controller.isRecording) {
       return;
     }
-
     try {
       await widget.controller.startVideoRecording();
     } catch (e) {
-      // Handle recording error
       Logger.log('Failed to start recording: $e');
     }
   }
 
   void _stopVideoRecording() async {
-    if (!widget.controller.isRecording) {
-      return;
-    }
-
+    if (!widget.controller.isRecording) return;
     try {
       await widget.controller.stopVideoRecording();
     } catch (e) {
-      // Handle stop recording error
       Logger.log('Failed to stop recording: $e');
     }
   }
 }
 
-/// Custom painter for face detection overlays
 class FaceDetectionPainter extends CustomPainter {
   final List<FaceData> faces;
   final Size previewSize;
 
-  FaceDetectionPainter({
-    required this.faces,
-    required this.previewSize,
-  });
+  FaceDetectionPainter({required this.faces, required this.previewSize});
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (faces.isEmpty) return;
+    if (faces.isEmpty || previewSize.isEmpty) return;
 
     final Paint paint = Paint()
       ..color = Colors.green
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3.0;
 
-    // Calculate scale factors
     final double scaleX = size.width / previewSize.width;
     final double scaleY = size.height / previewSize.height;
 
     for (final face in faces) {
-      // Scale the face coordinates to match the screen size
       final double left = face.x * scaleX;
       final double top = face.y * scaleY;
       final double faceSize = face.size * math.min(scaleX, scaleY);
-
-      // Draw face rectangle
-      canvas.drawRect(
-        Rect.fromLTWH(left, top, faceSize, faceSize),
-        paint,
-      );
+      canvas.drawRect(Rect.fromLTWH(left, top, faceSize, faceSize), paint);
     }
   }
 
   @override
   bool shouldRepaint(FaceDetectionPainter oldDelegate) {
-    return oldDelegate.faces != faces;
-  }
-}
-
-/// Math utility class
-class Math {
-  static double min(double a, double b) {
-    return a < b ? a : b;
+    return oldDelegate.faces != faces || oldDelegate.previewSize != previewSize;
   }
 }

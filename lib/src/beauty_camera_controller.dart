@@ -24,7 +24,7 @@ class BeautyCameraController {
   double _currentZoomLevel = 1.0;
 
   /// Current parameters for the filter
-  FilterParameters _currentParameters = FilterParameters(
+  final FilterParameters _currentParameters = FilterParameters(
     intensity: 0.5,
     brightness: 0.0,
     contrast: 1.0,

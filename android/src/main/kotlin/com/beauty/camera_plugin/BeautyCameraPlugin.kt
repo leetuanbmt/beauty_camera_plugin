@@ -1,139 +1,251 @@
 package com.beauty.camera_plugin
 
 import android.util.Log
+import android.view.Surface
+import androidx.lifecycle.LifecycleOwner
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
-import io.flutter.plugin.common.BinaryMessenger
-import io.flutter.view.TextureRegistry
 
 /**
  * Plugin chính để quản lý beauty camera và tương tác với Flutter.
- * Class này đăng ký các API Pigeon và quản lý vòng đời của plugin.
+ * Class này implement BeautyCameraHostApi và quản lý vòng đời của plugin.
  */
-class BeautyCameraPlugin : FlutterPlugin, ActivityAware {
+class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
     companion object {
         private const val TAG = "BeautyCameraPlugin"
     }
     
     private var flutterPluginBinding: FlutterPlugin.FlutterPluginBinding? = null
     private var activityBinding: ActivityPluginBinding? = null
-    private var binaryMessenger: BinaryMessenger? = null
-    private var textureRegistry: TextureRegistry? = null
-    
-    // Implementations của các API Pigeon
-    private var beautyCameraHostApiImpl: BeautyCameraHostApiImpl? = null
-    private var cameraApiImpl: CameraApiImpl? = null
-    
-    // Flutter API handler để gửi thông báo từ native về Flutter
-    private var beautyCameraFlutterApi: BeautyCameraFlutterApi? = null
+    private lateinit var flutterApi: BeautyCameraFlutterApi
 
-    override fun onAttachedToEngine( flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
+    private var cameraHandler: CameraHandler? = null
+    private var openGlRenderer: OpenGLRenderer? = null
+    private var flutterTextureEntry: io.flutter.view.TextureRegistry.SurfaceTextureEntry? = null
+    
+    // Cache cho lệnh initialize khi activity chưa sẵn sàng
+    private var pendingInitializeSettings: AdvancedCameraSettings? = null
+    private var pendingInitializeCallback: ((Result<Unit>) -> Unit)? = null
+
+    override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         Log.d(TAG, "onAttachedToEngine")
-        this.flutterPluginBinding = flutterPluginBinding
-        this.binaryMessenger = flutterPluginBinding.binaryMessenger
-        this.textureRegistry = flutterPluginBinding.textureRegistry
-        
-        setupApis()
+        this.flutterPluginBinding = binding
+        BeautyCameraHostApi.setUp(binding.binaryMessenger, this)
+        flutterApi = BeautyCameraFlutterApi(binding.binaryMessenger)
     }
 
-    override fun onDetachedFromEngine( binding: FlutterPlugin.FlutterPluginBinding) {
+    override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         Log.d(TAG, "onDetachedFromEngine")
-        tearDownApis()
-        
-        binaryMessenger = null
-        textureRegistry = null
-        flutterPluginBinding = null
+        BeautyCameraHostApi.setUp(binding.binaryMessenger, null)
+        disposeNow()
     }
 
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
-        Log.d(TAG, "onAttachedToActivity")
-        activityBinding = binding
+        Log.d(TAG, "onAttachedToActivity - Activity: ${binding.activity}")
+        Log.d(TAG, "onAttachedToActivity - Activity class: ${binding.activity?.javaClass?.simpleName}")
+        this.activityBinding = binding
         
-        // Đảm bảo rằng các implementers có context và activity
-        beautyCameraHostApiImpl?.setActivityBinding(binding)
-        cameraApiImpl?.setActivityBinding(binding)
-        
-        // Log để debug
-        Log.d(TAG, "Activity attached: ${binding.activity.javaClass.simpleName}")
+        // Thực thi lệnh initialize đã cache nếu có
+        if (pendingInitializeSettings != null && pendingInitializeCallback != null) {
+            Log.d(TAG, "Executing cached initialize command")
+            val settings = pendingInitializeSettings!!
+            val callback = pendingInitializeCallback!!
+            
+            // Clear cache trước khi thực thi
+            pendingInitializeSettings = null
+            pendingInitializeCallback = null
+            
+            // Thực thi initialize
+            executeInitialize(settings, callback)
+        }
     }
 
-    override fun onDetachedFromActivityForConfigChanges() {
-        Log.d(TAG, "onDetachedFromActivityForConfigChanges")
-        activityBinding = null
-        beautyCameraHostApiImpl?.setActivityBinding(null)
-        cameraApiImpl?.setActivityBinding(null)
-    }
-
-    override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
-        Log.d(TAG, "onReattachedToActivityForConfigChanges")
-        activityBinding = binding
-        beautyCameraHostApiImpl?.setActivityBinding(binding)
-        cameraApiImpl?.setActivityBinding(binding)
-        Log.d(TAG, "Activity reattached: ${binding.activity.javaClass.simpleName}")
-    }
-
-    override fun onDetachedFromActivity() {
+    override fun onDetachedFromActivity() { 
         Log.d(TAG, "onDetachedFromActivity")
+        disposeNow() 
+    }
+    
+    override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) { 
+        onAttachedToActivity(binding) 
+    }
+    
+    override fun onDetachedFromActivityForConfigChanges() { 
+        onDetachedFromActivity() 
+    }
+
+    private fun disposeNow() {
+        cameraHandler?.dispose()
+        openGlRenderer?.release()
+        flutterTextureEntry?.release()
         activityBinding = null
-        beautyCameraHostApiImpl?.setActivityBinding(null)
-        cameraApiImpl?.setActivityBinding(null)
+        cameraHandler = null
+        openGlRenderer = null
+        flutterTextureEntry = null
+        
+        // Clear cache
+        pendingInitializeSettings = null
+        pendingInitializeCallback = null
     }
-    
-    private fun setupApis() {
-        Log.d(TAG, "Setting up APIs")
+
+    // --- BeautyCameraHostApi Implementation ---
+
+    override fun initialize(settings: AdvancedCameraSettings, callback: (Result<Unit>) -> Unit) {
+        Log.d(TAG, "Initialize with settings: $settings")
+        Log.d(TAG, "Activity binding: $activityBinding")
+        Log.d(TAG, "Activity from binding: ${activityBinding?.activity}")
         
-        // Khởi tạo Flutter API để gửi events ngược về Flutter
-        beautyCameraFlutterApi = BeautyCameraFlutterApi(binaryMessenger!!)
-        
-        // Khởi tạo filter processor - một instance duy nhất
-        val filterProcessor = FilterProcessor()
-        Log.d(TAG, "Created filter processor")
-        
-        // Khởi tạo camera manager với filter processor
-        val cameraManager = BeautyCameraManager(
-            textureRegistry = textureRegistry!!,
-            flutterApi = beautyCameraFlutterApi!!,
-            filterProcessor = filterProcessor
-        )
-        Log.d(TAG, "Created camera manager")
-        
-        // Setup các API implementers
-        beautyCameraHostApiImpl = BeautyCameraHostApiImpl(
-            cameraManager = cameraManager,
-            filterProcessor = filterProcessor
-        )
-        
-        cameraApiImpl = CameraApiImpl(
-            cameraManager = cameraManager
-        )
-        Log.d(TAG, "Created API implementers")
-        
-        // Đăng ký các API với Pigeon
-        binaryMessenger?.let { messenger ->
-            BeautyCameraHostApi.setUp(messenger, beautyCameraHostApiImpl)
-            CameraApi.setUp(messenger, cameraApiImpl)
-            Log.d(TAG, "Registered APIs with Pigeon")
-        }
-    }
-    
-    private fun tearDownApis() {
-        Log.d(TAG, "Tearing down APIs")
-        
-        // Hủy đăng ký các API
-        binaryMessenger?.let { messenger ->
-            BeautyCameraHostApi.setUp(messenger, null)
-            CameraApi.setUp(messenger, null)
-            Log.d(TAG, "Unregistered APIs from Pigeon")
+        // Kiểm tra xem activity đã sẵn sàng chưa
+        val activity = activityBinding?.activity
+        if (activity == null) {
+            Log.w(TAG, "Activity not attached - caching initialize command")
+            // Cache lệnh initialize để thực thi sau khi activity sẵn sàng
+            pendingInitializeSettings = settings
+            pendingInitializeCallback = callback
+            return
         }
         
-        // Giải phóng tài nguyên
-        beautyCameraHostApiImpl?.dispose()
-        cameraApiImpl?.dispose()
-        Log.d(TAG, "Disposed API implementations")
-        
-        beautyCameraHostApiImpl = null
-        cameraApiImpl = null
-        beautyCameraFlutterApi = null
+        // Activity đã sẵn sàng, thực thi ngay
+        executeInitialize(settings, callback)
     }
-} 
+    
+    private fun executeInitialize(settings: AdvancedCameraSettings, callback: (Result<Unit>) -> Unit) {
+        val activity = activityBinding?.activity ?: run {
+            Log.e(TAG, "Activity is null during executeInitialize")
+            callback(Result.failure(Exception("Activity is null")))
+            return
+        }
+        
+        try {
+            Log.d(TAG, "Executing initialize with activity: ${activity.javaClass.simpleName}")
+            
+            // 1. Khởi tạo OpenGL Renderer trên một thread riêng
+            openGlRenderer = OpenGLRenderer(activity.applicationContext)
+            openGlRenderer?.start()
+            openGlRenderer?.waitUntilReady()
+            Log.d(TAG, "OpenGL Renderer initialized")
+
+            // 2. Khởi tạo CameraHandler
+            cameraHandler = CameraHandler(activity.applicationContext, activity as LifecycleOwner)
+            cameraHandler?.initialize {
+                // If dispose was called while camera was initializing, handlers will be null.
+                if (activityBinding == null || cameraHandler == null || openGlRenderer == null) {
+                    Log.w(TAG, "Initialization callback fired after plugin was disposed. Ignoring.")
+                    callback(Result.failure(Exception("Plugin disposed during initialization.")))
+                    return@initialize
+                }
+
+                Log.d(TAG, "CameraHandler initialized")
+
+                // 3. Nối CameraX output với OpenGL input
+                val rendererInputSurface = openGlRenderer?.cameraInputSurface
+                if (rendererInputSurface != null) {
+                    cameraHandler?.startCamera(rendererInputSurface)
+                    Log.d(TAG, "Camera started with OpenGL input surface")
+                    callback(Result.success(Unit))
+                } else {
+                    Log.e(TAG, "OpenGL renderer input surface is null")
+                    callback(Result.failure(Exception("OpenGL renderer input surface is null")))
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error initializing camera", e)
+            callback(Result.failure(e))
+        }
+    }
+
+    override fun getPreviewTexture(callback: (Result<Long>) -> Unit) {
+        val renderer = openGlRenderer ?: run {
+            Log.e(TAG, "Renderer not initialized")
+            callback(Result.failure(Exception("Renderer not initialized")))
+            return
+        }
+        val textureRegistry = flutterPluginBinding?.textureRegistry ?: run {
+            Log.e(TAG, "TextureRegistry not available")
+            callback(Result.failure(Exception("TextureRegistry not available")))
+            return
+        }
+
+        try {
+            // 4. Tạo Flutter Texture và nối OpenGL output với nó
+            val entry = textureRegistry.createSurfaceTexture()
+            val flutterSurface = Surface(entry.surfaceTexture())
+            renderer.setOutputSurface(flutterSurface)
+
+            this.flutterTextureEntry = entry
+            Log.d(TAG, "Preview texture created with ID: ${entry.id()}")
+            callback(Result.success(entry.id()))
+        } catch (e: Exception) {
+            Log.e(TAG, "Error creating preview texture", e)
+            callback(Result.failure(e))
+        }
+    }
+
+    override fun dispose(callback: (Result<Unit>) -> Unit) {
+        Log.d(TAG, "Disposing camera plugin")
+        disposeNow()
+        callback(Result.success(Unit))
+    }
+
+    // --- Các hàm còn lại chưa implement ---
+     override fun switchCamera(callback: (Result<Unit>) -> Unit) { 
+         Log.d(TAG, "switchCamera not implemented yet")
+         callback(Result.success(Unit)) 
+     }
+     override fun setZoom(zoomLevel: Double, callback: (Result<Unit>) -> Unit) { 
+         Log.d(TAG, "setZoom not implemented yet")
+         callback(Result.success(Unit)) 
+     }
+     override fun focusOnPoint(x: Long, y: Long, callback: (Result<Unit>) -> Unit) { 
+         Log.d(TAG, "focusOnPoint not implemented yet")
+         callback(Result.success(Unit)) 
+     }
+     override fun setFlashMode(mode: FlashMode, callback: (Result<Unit>) -> Unit) { 
+         Log.d(TAG, "setFlashMode not implemented yet")
+         callback(Result.success(Unit)) 
+     }
+     override fun setDisplayOrientation(degrees: Long, callback: (Result<Unit>) -> Unit) { 
+         Log.d(TAG, "setDisplayOrientation not implemented yet")
+         callback(Result.success(Unit)) 
+     }
+     override fun getPreviewSize(callback: (Result<PreviewSize>) -> Unit) { 
+         Log.d(TAG, "getPreviewSize not implemented yet")
+         callback(Result.success(PreviewSize(width = 1920, height = 1080))) 
+     }
+     override fun takePhoto(callback: (Result<String>) -> Unit) { 
+         Log.d(TAG, "takePhoto not implemented yet")
+         callback(Result.success("/tmp/photo.jpg")) 
+     }
+     override fun startVideoRecording(callback: (Result<Unit>) -> Unit) { 
+         Log.d(TAG, "startVideoRecording not implemented yet")
+         callback(Result.success(Unit)) 
+     }
+     override fun stopVideoRecording(callback: (Result<String>) -> Unit) { 
+         Log.d(TAG, "stopVideoRecording not implemented yet")
+         callback(Result.success("/tmp/video.mp4")) 
+     }
+     override fun getCameraSensorAspectRatio(callback: (Result<Double>) -> Unit) { 
+         Log.d(TAG, "getCameraSensorAspectRatio not implemented yet")
+         callback(Result.success(16.0/9.0)) 
+     }
+     override fun setFilterMode(mode: CameraFilterMode, parameters: FilterParameters, callback: (Result<Unit>) -> Unit) { 
+         Log.d(TAG, "setFilterMode not implemented yet")
+         callback(Result.success(Unit)) 
+     }
+     override fun setScaleType(scaleType: ScaleType, callback: (Result<Unit>) -> Unit) { 
+         Log.d(TAG, "setScaleType not implemented yet")
+         callback(Result.success(Unit)) 
+     }
+     override fun getAvailableFilters(callback: (Result<List<FilterInfo>>) -> Unit) { 
+         Log.d(TAG, "getAvailableFilters not implemented yet")
+         callback(Result.success(emptyList())) 
+     }
+     override fun adjustFilterParameters(parameters: FilterParameters, callback: (Result<Unit>) -> Unit) { 
+         Log.d(TAG, "adjustFilterParameters not implemented yet")
+         callback(Result.success(Unit)) 
+     }
+     override fun getAvailableCameras(callback: (Result<List<CameraInfo>>) -> Unit) { 
+         Log.d(TAG, "getAvailableCameras not implemented yet")
+         callback(Result.success(emptyList())) 
+     }
+}

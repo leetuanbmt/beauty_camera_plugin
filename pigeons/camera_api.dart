@@ -3,7 +3,7 @@ import 'package:pigeon/pigeon.dart';
 @ConfigurePigeon(
   PigeonOptions(
     swiftOptions: SwiftOptions(),
-    swiftOut: 'ios/Classes/BeautyCameraPlugin.swift',
+    swiftOut: 'ios/Classes/BeautyCameraPluginPigeon.swift',
     kotlinOptions: KotlinOptions(package: 'com.beauty.camera_plugin'),
     kotlinOut:
         'android/src/main/kotlin/com/beauty/camera_plugin/BeautyCameraPluginPigeon.kt',

@@ -32,5 +32,24 @@ migrate_working_dir/
 .flutter-plugins-dependencies
 build/
 
+# Go specific
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.work
+/vendor/
+/bin/
+/dist/
+
+# Mobile specific
+*.apk
+*.aab
+*.ipa
+*.xcarchive
+*.xcframework
 
 .cursor/
