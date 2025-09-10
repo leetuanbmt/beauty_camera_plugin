@@ -5,7 +5,7 @@ import 'dart:developer' as developer;
 /// A simple logger class to replace print statements in production code
 class Logger {
   /// Log a message with optional tag
-  static void log(String message, {String tag = 'BeautyCamera'}) {
+  static void log(Object? message, {String tag = 'BeautyCamera'}) {
     if (kDebugMode) {
       developer.log('[$tag] $message');
     }

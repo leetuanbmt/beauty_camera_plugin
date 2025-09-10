@@ -75,6 +75,7 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
     }
 
     private fun disposeNow() {
+        Log.d(TAG, "disposeNow")
         cameraHandler?.dispose()
         openGlRenderer?.release()
         flutterTextureEntry?.release()
@@ -115,10 +116,15 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
             callback(Result.failure(Exception("Activity is null")))
             return
         }
-        
+
         try {
+            // Release previous resources if they exist, to prevent leaks on re-initialization.
+            cameraHandler?.dispose()
+            openGlRenderer?.release()
+            flutterTextureEntry?.release()
+
             Log.d(TAG, "Executing initialize with activity: ${activity.javaClass.simpleName}")
-            
+
             // 1. Khởi tạo OpenGL Renderer trên một thread riêng
             openGlRenderer = OpenGLRenderer(activity.applicationContext)
             openGlRenderer?.start()
@@ -129,7 +135,7 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
             cameraHandler = CameraHandler(activity.applicationContext, activity as LifecycleOwner)
             cameraHandler?.initialize {
                 // If dispose was called while camera was initializing, handlers will be null.
-                if (activityBinding == null || cameraHandler == null || openGlRenderer == null) {
+                if (activityBinding == null) {
                     Log.w(TAG, "Initialization callback fired after plugin was disposed. Ignoring.")
                     callback(Result.failure(Exception("Plugin disposed during initialization.")))
                     return@initialize
@@ -208,9 +214,16 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
          Log.d(TAG, "setDisplayOrientation not implemented yet")
          callback(Result.success(Unit)) 
      }
-     override fun getPreviewSize(callback: (Result<PreviewSize>) -> Unit) { 
-         Log.d(TAG, "getPreviewSize not implemented yet")
-         callback(Result.success(PreviewSize(width = 1920, height = 1080))) 
+     override fun getPreviewSize(callback: (Result<PreviewSize>) -> Unit) {
+         val size = cameraHandler?.getPreviewSize()
+         if (size != null) {
+             Log.d(TAG, "getPreviewSize: Success (width=${size.width}, height=${size.height})")
+             callback(Result.success(size))
+         } else {
+             val errorMsg = "Preview size not available. Camera may not be initialized or running."
+             Log.e(TAG, "getPreviewSize: Failed. $errorMsg")
+             callback(Result.failure(Exception(errorMsg)))
+         }
      }
      override fun takePhoto(callback: (Result<String>) -> Unit) { 
          Log.d(TAG, "takePhoto not implemented yet")

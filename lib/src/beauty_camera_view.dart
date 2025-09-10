@@ -52,7 +52,8 @@ class _BeautyCameraViewState extends State<BeautyCameraView>
       // 2. Nếu thành công, lấy textureId và preview size
       final textureId = await widget.controller.getPreviewTexture();
       final previewSize = await widget.controller.getPreviewSize();
-
+      Logger.log('textureId:$textureId');
+      Logger.log('previewSize:$previewSize');
       if (mounted) {
         setState(() {
           _textureId = textureId;

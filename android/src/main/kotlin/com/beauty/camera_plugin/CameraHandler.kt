@@ -18,6 +18,7 @@ class CameraHandler(
     private lateinit var cameraProviderFuture: ListenableFuture<ProcessCameraProvider>
     private var cameraProvider: ProcessCameraProvider? = null
     private var cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+    private var preview: Preview? = null
 
     fun initialize(callback: () -> Unit) {
         cameraProviderFuture = ProcessCameraProvider.getInstance(context)
@@ -31,17 +32,25 @@ class CameraHandler(
     fun startCamera(surface: Surface) {
         val provider = cameraProvider ?: return
 
-        val preview = Preview.Builder().build()
+        val previewUseCase = Preview.Builder().build()
         // Hướng camera output vào Surface của OpenGL renderer
-        preview.setSurfaceProvider { request ->
+        previewUseCase.setSurfaceProvider { request ->
             request.provideSurface(surface, ContextCompat.getMainExecutor(context), {})
         }
 
         provider.unbindAll()
-        provider.bindToLifecycle(lifecycleOwner, cameraSelector, preview)
+        provider.bindToLifecycle(lifecycleOwner, cameraSelector, previewUseCase)
+        this.preview = previewUseCase
+    }
+
+    @SuppressLint("RestrictedApi")
+    fun getPreviewSize(): PreviewSize? {
+        val resolution = preview?.resolutionInfo?.resolution ?: return null
+        return PreviewSize(width = resolution.width.toLong(), height = resolution.height.toLong())
     }
 
     fun dispose() {
         cameraProvider?.unbindAll()
+        preview = null
     }
 }

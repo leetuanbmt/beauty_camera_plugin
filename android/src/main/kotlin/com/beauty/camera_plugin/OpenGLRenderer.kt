@@ -136,8 +136,21 @@ class OpenGLRenderer(private val context: Context) : SurfaceTexture.OnFrameAvail
             textureMatrixHandle = GLES20.glGetUniformLocation(program, "uTextureMatrix")
         }
 
+        // Lấy kích thước surface động để set viewport
+        val widthArray = IntArray(1)
+        val heightArray = IntArray(1)
+        eglCore.querySurface(output, EGL14.EGL_WIDTH, widthArray, 0)
+        eglCore.querySurface(output, EGL14.EGL_HEIGHT, heightArray, 0)
+        val width = widthArray[0]
+        val height = heightArray[0]
+
+        // Bỏ qua frame nếu surface chưa có kích thước
+        if (width <= 0 || height <= 0) {
+            return
+        }
+
         GLES20.glUseProgram(program)
-        GLES20.glViewport(0, 0, 1080, 1920) // Tạm thời hardcode, sẽ cần lấy size động
+        GLES20.glViewport(0, 0, width, height)
         GLES20.glClearColor(0f, 0f, 0f, 1f)
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT)
 

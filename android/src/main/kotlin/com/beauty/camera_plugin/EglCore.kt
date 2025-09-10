@@ -82,6 +82,10 @@ class EglCore {
         return EGL14.eglSwapBuffers(mEGLDisplay, eglSurface)
     }
 
+    fun querySurface(eglSurface: EGLSurface, what: Int, value: IntArray, offset: Int) {
+        EGL14.eglQuerySurface(mEGLDisplay, eglSurface, what, value, offset)
+    }
+
     private fun checkEglError(msg: String) {
         val error = EGL14.eglGetError()
         if (error != EGL14.EGL_SUCCESS) {
