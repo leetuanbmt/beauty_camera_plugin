@@ -189,7 +189,19 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
 
     override fun dispose(callback: (Result<Unit>) -> Unit) {
         Log.d(TAG, "Disposing camera plugin")
-        disposeNow()
+        // This is called from Flutter. We only release the camera resources,
+        // but keep the activity binding, as the plugin is still attached.
+        cameraHandler?.dispose()
+        openGlRenderer?.release()
+        flutterTextureEntry?.release()
+        cameraHandler = null
+        openGlRenderer = null
+        flutterTextureEntry = null
+
+        // We also clear any pending initialize commands that might have been cached.
+        pendingInitializeSettings = null
+        pendingInitializeCallback = null
+
         callback(Result.success(Unit))
     }
 
