@@ -109,7 +109,7 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
         }
         
         // Activity đã sẵn sàng, thực thi ngay
-        executeInitialize(settings, callback)
+        executeInitializeForTest(settings, callback)
     }
 
     override fun initializeForTest(settings: AdvancedCameraSettings, callback: (Result<Unit>) -> Unit) {

@@ -158,6 +158,7 @@ class BeautyCameraController {
       );
     }
   }
+
   Future<void> switchCamera() async {
     try {
       await _api.switchCamera();

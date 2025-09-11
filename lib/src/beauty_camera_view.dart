@@ -159,7 +159,7 @@ class _BeautyCameraViewState extends State<BeautyCameraView>
         children: [
           _buildCameraPreview(),
           if (widget.showFaceDetection) _buildFaceDetectionOverlay(),
-          if (widget.showControls) _buildCameraControls(),
+          // if (widget.showControls) _buildCameraControls(),
         ],
       ),
     );

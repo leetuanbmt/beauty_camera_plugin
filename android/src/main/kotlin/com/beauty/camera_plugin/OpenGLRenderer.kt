@@ -61,12 +61,12 @@ class OpenGLRenderer(private val context: Context) : SurfaceTexture.OnFrameAvail
             .order(ByteOrder.nativeOrder()).asFloatBuffer()
         vertexBuffer.put(vertexData).position(0)
 
-        // Dữ liệu texture coordinates
+        // Dữ liệu texture coordinates (Y swapped to fix camera bị che)
         val texCoordData = floatArrayOf(
-            0.0f, 0.0f, // bottom left
-            1.0f, 0.0f, // bottom right
-            0.0f, 1.0f, // top left
-            1.0f, 1.0f  // top right
+            0.0f, 1.0f, // bottom left
+            1.0f, 1.0f, // bottom right
+            0.0f, 0.0f, // top left
+            1.0f, 0.0f  // top right
         )
         texCoordBuffer = ByteBuffer.allocateDirect(texCoordData.size * 4)
             .order(ByteOrder.nativeOrder()).asFloatBuffer()
@@ -176,6 +176,7 @@ class OpenGLRenderer(private val context: Context) : SurfaceTexture.OnFrameAvail
             return
         }
 
+        Log.d(TAG, "Drawing frame with textureId: $textureId, program: $program")
 
         if (program == 0) {
             Log.d(TAG, "Creating GL program")
@@ -230,7 +231,10 @@ class OpenGLRenderer(private val context: Context) : SurfaceTexture.OnFrameAvail
         GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, 0)
         GLES20.glUseProgram(0)
 
+        Log.d(TAG, "Viewport = ${width}x${height}, textureMatrix=${textureMatrix.contentToString()}")
+
         eglCore.swapBuffers(output)
+        Log.d(TAG, "Frame drawn and buffers swapped.")
     }
 
     fun release() {

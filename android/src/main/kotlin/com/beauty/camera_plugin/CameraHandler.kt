@@ -3,8 +3,7 @@ package com.beauty.camera_plugin
 import android.annotation.SuppressLint
 import android.content.Context
 import android.view.Surface
-import androidx.camera.core.Camera
-import androidx.camera.core.TorchState
+import androidx.camera.core.*
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.Preview
 import androidx.camera.core.ImageCapture
@@ -16,8 +15,10 @@ import androidx.lifecycle.LifecycleOwner
 import android.util.Log
 import android.util.Size
 import com.beauty.camera_plugin.models.CameraSettings
-
-
+import androidx.camera.video.Quality
+import androidx.camera.video.QualitySelector
+import androidx.camera.video.Recorder
+import androidx.camera.video.VideoCapture as VideoCaptureX
 
 @SuppressLint("RestrictedApi")
 class CameraHandler(
@@ -31,180 +32,168 @@ class CameraHandler(
     private var cameraProvider: ProcessCameraProvider? = null
     private var lensFacing = CameraSelector.LENS_FACING_BACK
     private var preview: Preview? = null
-    private var previewSize: Size? = null
     private var camera: Camera? = null
     private var imageCapture: ImageCapture? = null
+    private var videoCapture: VideoCaptureX<Recorder>? = null
 
-    @SuppressLint("SuspiciousIndentation")
     fun initialize(callback: () -> Unit) {
-      val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
+        Log.d(TAG, "Initializing camera")
+        val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
         cameraProviderFuture.addListener({
-            // Used to bind the lifecycle of cameras to the lifecycle owner
+            Log.d(TAG, "CameraProvider obtained")
             cameraProvider = cameraProviderFuture.get()
-            
-            // Bind use cases to camera
-            setupUseCases()
             callback()
         }, ContextCompat.getMainExecutor(context))
     }
 
     @SuppressLint("RestrictedApi")
     fun startCamera(surface: Surface) {
-
-        preview?.setSurfaceProvider { request ->
-            request.provideSurface(surface, ContextCompat.getMainExecutor(context), {})
-        }
-
+        setupUseCases(surface)
         bindToLifecycle(lifecycleOwner)
     }
 
     @SuppressLint("RestrictedApi")
     fun getPreviewSize(): PreviewSize? {
-        val resolution = preview?.resolutionInfo?.resolution ?: return null
+        val resolution = preview?.resolutionInfo?.resolution ?: run {
+            Log.d(TAG, "getPreviewSize: Resolution info is null")
+            return null
+        }
+        Log.d(TAG, "getPreviewSize: $resolution")
         return PreviewSize(width = resolution.width.toLong(), height = resolution.height.toLong())
     }
 
     fun dispose() {
+        Log.d(TAG, "Disposing camera handler")
         cameraProvider?.unbindAll()
         preview = null
         camera = null
         imageCapture = null
+        videoCapture = null
     }
 
-     /**
-     * Bind camera uses cases vào lifecycle
-     */
-
-      private fun bindToLifecycle(lifecycleOwner: LifecycleOwner) {
-          // Unbind tất cả use case hiện tại
-         cameraProvider?.unbindAll()
-         // Cấu hình CameraSelector
+    private fun bindToLifecycle(lifecycleOwner: LifecycleOwner) {
+        Log.d(TAG, "Binding camera to lifecycle")
+        cameraProvider?.unbindAll()
         val cameraSelector = CameraSelector.Builder()
             .requireLensFacing(lensFacing)
             .build()
 
-         // Chuẩn bị danh sách use cases
-        val useCases = mutableListOf<androidx.camera.core.UseCase>()
+        val useCases = mutableListOf<UseCase>()
+        preview?.let { useCases.add(it) }
+        imageCapture?.let { useCases.add(it) }
+        videoCapture?.let { useCases.add(it) }
 
-        // Thêm preview
-        if (preview != null) {
-            useCases.add(preview!!)
-        }
-
-
-        // Bind tất cả use cases
         camera = cameraProvider?.bindToLifecycle(
             lifecycleOwner,
             cameraSelector,
             *useCases.toTypedArray()
         )
-      }
+        camera?.cameraControl?.setZoomRatio(settings.zoom.toFloat())
+        Log.d(TAG, "Camera bound to lifecycle")
+    }
 
+    private fun setupUseCases(surface: Surface) {
+        Log.d(TAG, "Setting up use cases")
 
-     /**
-     * Setup các trường hợp sử dụng camera (preview, image capture, video recording)
-     */
-    private fun setupUseCases() {
+        // Ánh xạ videoQuality từ settings
+        val targetResolution = settings.resolution
+        val videoQuality = when (settings.videoQuality) { // Giả định videoQuality là enum
+            VideoQuality.LOW -> Quality.SD
+            VideoQuality.MEDIUM -> Quality.HD
+            VideoQuality.HIGH -> Quality.FHD
+            else -> Quality.HIGHEST
+        }
+
         // Cấu hình Preview
-        val builder = Preview.Builder()
+        preview = Preview.Builder()
+            .setTargetRotation(settings.displayOrientation)
+            .setResolutionSelector(
+                ResolutionSelector.Builder()
+                    .setResolutionStrategy(
+                        ResolutionStrategy(
+                            settings.resolution,
+                            ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER
+                        )
+                    )
+                    .build()
+            ).build()
+            .also { preview ->
+                preview.setSurfaceProvider { request ->
+                    request.provideSurface(
+                        surface,
+                        ContextCompat.getMainExecutor(context)
+                    ) { result ->
+                        when (result.resultCode) {
+                            SurfaceRequest.Result.RESULT_SURFACE_USED_SUCCESSFULLY -> {
+                                Log.d(TAG, "Surface provided successfully")
+                                preview.resolutionInfo?.let { info ->
+                                    Log.d(TAG, """
+                                        Preview configured:
+                                        - Resolution: ${info.resolution.width}x${info.resolution.height}
+                                        - Crop rect: ${info.cropRect}
+                                        - Rotation: ${info.rotationDegrees}°
+                                        - Target resolution: ${targetResolution.width}x${targetResolution.height}
+                                        - Front camera: ${isFrontCamera()}
+                                    """.trimIndent())
+                                }
+                            }
+                            else -> Log.w(TAG, "Surface request failed: ${result.resultCode}")
+                        }
+                    }
+                }
+            }
 
-        // Cấu hình CameraSelector
-        val cameraSelector = CameraSelector.Builder()
-            .requireLensFacing(lensFacing)
-            .build()
-
-        builder.setResolutionSelector(
-            ResolutionSelector.Builder()
-                .setResolutionStrategy(ResolutionStrategy.HIGHEST_AVAILABLE_STRATEGY)
-                .build()
-        )
-
-        preview = builder.build()
-
-         // Cấu hình ImageCapture
+        // Cấu hình ImageCapture
         imageCapture = ImageCapture.Builder()
             .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
             .setResolutionSelector(
                 ResolutionSelector.Builder()
-                    .setResolutionStrategy(ResolutionStrategy.HIGHEST_AVAILABLE_STRATEGY)
+                    .setResolutionStrategy(
+                        ResolutionStrategy(
+                            Size(targetResolution.width, targetResolution.height),
+                            ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER
+                        )
+                    )
                     .build()
             )
             .build()
-        
+
+        // Cấu hình VideoCapture
+        val recorder = Recorder.Builder()
+            .setQualitySelector(QualitySelector.from(videoQuality))
+            .build()
+        videoCapture = VideoCaptureX.withOutput(recorder)
+
+        Log.d(TAG, "Use cases setup complete")
     }
+//
+//    fun startVideoRecording(outputFile: String, onComplete: (Boolean) -> Unit) {
+//        videoCapture?.let { capture ->
+//            val fileOptions = androidx.camera.video.FileOutputOptions.Builder(File(outputFile)).build()
+//            capture.output.prepareRecording(context, fileOptions)
+//                .start(ContextCompat.getMainExecutor(context)) { recordEvent ->
+//                    when (recordEvent) {
+//                        is VideoRecordEvent.Finalize -> {
+//                            if (recordEvent.hasError()) {
+//                                Log.e(TAG, "Video recording failed: ${recordEvent.error}")
+//                                onComplete(false)
+//                            } else {
+//                                Log.d(TAG, "Video recording completed: $outputFile")
+//                                onComplete(true)
+//                            }
+//                        }
+//                    }
+//                }
+//        } ?: Log.e(TAG, "VideoCapture not initialized")
+//    }
+//
+//    fun stopVideoRecording() {
+//        videoCapture?.output?.stopRecording()
+//        Log.d(TAG, "Video recording stopped")
+//    }
 
-
-    private fun selectOptimalPreviewSize(
-        supportedResolutions: Array<Size>?,
-        targetResolution: Size,
-        targetAspectRatio: Double
-    ): Size? {
-        if (supportedResolutions.isNullOrEmpty()) {
-            return null
-        }
-
-        var optimalSize: Size? = null
-        var minDiff = Double.MAX_VALUE
-
-        for (size in supportedResolutions) {
-            val aspectRatio = size.width.toDouble() / size.height.toDouble()
-            if (Math.abs(aspectRatio - targetAspectRatio) > 0.01) { // Allow small tolerance for aspect ratio
-                continue
-            }
-
-            val diff = Math.abs(size.width - targetResolution.width).toDouble()
-            if (diff < minDiff) {
-                minDiff = diff
-                optimalSize = size
-            } else if (diff == minDiff && size.width > (optimalSize?.width ?: 0)) {
-                // If difference is same, prefer larger resolution
-                optimalSize = size
-            }
-        }
-
-        if (optimalSize == null) {
-            // If no size with matching aspect ratio found, find the closest resolution
-            minDiff = Double.MAX_VALUE
-            for (size in supportedResolutions) {
-                val diff = Math.abs(size.width - targetResolution.width).toDouble()
-                if (diff < minDiff) {
-                    minDiff = diff
-                    optimalSize = size
-                }
-            }
-        }
-        return optimalSize
-    }
-
-    private fun setFlashModeInternal(mode: FlashMode) {
-        try {
-            // Kiểm tra ảnh chụp
-            val capture = imageCapture
-            if (capture != null) {
-                // ImageCapture flash mode
-                val imageCaptureMode = when (mode) {
-                    FlashMode.OFF -> ImageCapture.FLASH_MODE_OFF
-                    FlashMode.ON -> ImageCapture.FLASH_MODE_ON
-                    FlashMode.AUTO -> ImageCapture.FLASH_MODE_AUTO
-                    FlashMode.TORCH -> ImageCapture.FLASH_MODE_OFF // Torch được xử lý riêng
-                }
-                capture.flashMode = imageCaptureMode
-            }
-            
-            // Torch mode
-            val cam = camera
-            if (cam != null && cam.cameraInfo.hasFlashUnit()) {
-                if (mode == FlashMode.TORCH) {
-                    cam.cameraControl.enableTorch(true)
-                } else {
-                    // Nếu trước đó đã bật torch, tắt đi
-                    if (cam.cameraInfo.torchState.value == TorchState.ON) {
-                        cam.cameraControl.enableTorch(false)
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error setting flash mode: ${e.message}")
-        }
+    fun isFrontCamera(): Boolean {
+        return settings.cameraLensFacing == CameraSettings.CAMERA_FACING_FRONT
     }
 }
+

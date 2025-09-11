@@ -67,7 +67,7 @@ class CameraControllerNotifier extends StateNotifier<CameraState> {
     try {
       state = state.copyWith(isInitializing: true);
 
-      await _cameraController.initializeForTest(
+      await _cameraController.initialize(
         settings: AdvancedCameraSettings(
           videoQuality: VideoQuality.veryHigh,
           videoStabilization: true,
