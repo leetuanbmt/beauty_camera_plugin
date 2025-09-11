@@ -8,15 +8,13 @@ import androidx.camera.core.TorchState
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.Preview
 import androidx.camera.core.ImageCapture
+import androidx.camera.core.resolutionselector.ResolutionSelector
+import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
-import com.google.common.util.concurrent.ListenableFuture
-import androidx.camera.extensions.ExtensionsManager
-import androidx.camera.extensions.ExtensionMode
 import android.util.Log
 import android.util.Size
-import androidx.camera.core.AspectRatio
 import com.beauty.camera_plugin.models.CameraSettings
 
 
@@ -30,7 +28,6 @@ class CameraHandler(
     companion object {
         private const val TAG = "CameraHandler"
     }
-    private lateinit var cameraProviderFuture: ListenableFuture<ProcessCameraProvider>
     private var cameraProvider: ProcessCameraProvider? = null
     private var lensFacing = CameraSelector.LENS_FACING_BACK
     private var preview: Preview? = null
@@ -38,10 +35,14 @@ class CameraHandler(
     private var camera: Camera? = null
     private var imageCapture: ImageCapture? = null
 
+    @SuppressLint("SuspiciousIndentation")
     fun initialize(callback: () -> Unit) {
-        cameraProviderFuture = ProcessCameraProvider.getInstance(context)
+      val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
         cameraProviderFuture.addListener({
+            // Used to bind the lifecycle of cameras to the lifecycle owner
             cameraProvider = cameraProviderFuture.get()
+            
+            // Bind use cases to camera
             setupUseCases()
             callback()
         }, ContextCompat.getMainExecutor(context))
@@ -107,19 +108,73 @@ class CameraHandler(
         // Cấu hình Preview
         val builder = Preview.Builder()
 
-        // Luôn sử dụng resolution từ CameraSettings
-        builder.setTargetResolution(settings.resolution)
-        Log.d(TAG, "Set target resolution to: ${settings.resolution.width}x${settings.resolution.height}")
+        // Cấu hình CameraSelector
+        val cameraSelector = CameraSelector.Builder()
+            .requireLensFacing(lensFacing)
+            .build()
+
+        builder.setResolutionSelector(
+            ResolutionSelector.Builder()
+                .setResolutionStrategy(ResolutionStrategy.HIGHEST_AVAILABLE_STRATEGY)
+                .build()
+        )
 
         preview = builder.build()
 
          // Cấu hình ImageCapture
         imageCapture = ImageCapture.Builder()
             .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+            .setResolutionSelector(
+                ResolutionSelector.Builder()
+                    .setResolutionStrategy(ResolutionStrategy.HIGHEST_AVAILABLE_STRATEGY)
+                    .build()
+            )
             .build()
         
     }
 
+
+    private fun selectOptimalPreviewSize(
+        supportedResolutions: Array<Size>?,
+        targetResolution: Size,
+        targetAspectRatio: Double
+    ): Size? {
+        if (supportedResolutions.isNullOrEmpty()) {
+            return null
+        }
+
+        var optimalSize: Size? = null
+        var minDiff = Double.MAX_VALUE
+
+        for (size in supportedResolutions) {
+            val aspectRatio = size.width.toDouble() / size.height.toDouble()
+            if (Math.abs(aspectRatio - targetAspectRatio) > 0.01) { // Allow small tolerance for aspect ratio
+                continue
+            }
+
+            val diff = Math.abs(size.width - targetResolution.width).toDouble()
+            if (diff < minDiff) {
+                minDiff = diff
+                optimalSize = size
+            } else if (diff == minDiff && size.width > (optimalSize?.width ?: 0)) {
+                // If difference is same, prefer larger resolution
+                optimalSize = size
+            }
+        }
+
+        if (optimalSize == null) {
+            // If no size with matching aspect ratio found, find the closest resolution
+            minDiff = Double.MAX_VALUE
+            for (size in supportedResolutions) {
+                val diff = Math.abs(size.width - targetResolution.width).toDouble()
+                if (diff < minDiff) {
+                    minDiff = diff
+                    optimalSize = size
+                }
+            }
+        }
+        return optimalSize
+    }
 
     private fun setFlashModeInternal(mode: FlashMode) {
         try {

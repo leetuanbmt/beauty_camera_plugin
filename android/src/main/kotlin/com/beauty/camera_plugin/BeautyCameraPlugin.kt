@@ -22,7 +22,9 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
 
     private var cameraHandler: CameraHandler? = null
     private var openGlRenderer: OpenGLRenderer? = null
-    private var flutterTextureEntry: io.flutter.view.TextureRegistry.SurfaceTextureEntry? = null
+    // This entry acts as the "SurfaceProducer" for Flutter, providing a SurfaceTexture
+    // for the OpenGLRenderer to render camera frames onto.
+    private var previewSurfaceProducer: SurfaceProducer? = null
     
     // Cache cho lệnh initialize khi activity chưa sẵn sàng
     private var pendingInitializeSettings: AdvancedCameraSettings? = null
@@ -78,11 +80,11 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
         Log.d(TAG, "disposeNow")
         cameraHandler?.dispose()
         openGlRenderer?.release()
-        flutterTextureEntry?.release()
+        previewSurfaceProducer?.release()
         activityBinding = null
         cameraHandler = null
         openGlRenderer = null
-        flutterTextureEntry = null
+        previewSurfaceProducer = null
         
         // Clear cache
         pendingInitializeSettings = null
@@ -133,7 +135,7 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
             // Release previous resources if they exist, to prevent leaks on re-initialization.
             cameraHandler?.dispose()
             openGlRenderer?.release()
-            flutterTextureEntry?.release()
+            previewSurfaceProducer?.release()
 
             Log.d(TAG, "Executing initialize with activity: ${activity.javaClass.simpleName}")
 
@@ -183,19 +185,19 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
         try {
             cameraHandler?.dispose()
             openGlRenderer?.release()
-            flutterTextureEntry?.release()
+            previewSurfaceProducer?.release()
 
             Log.d(TAG, "Executing initializeForTest with activity: ${activity.javaClass.simpleName}")
 
-            // 1. Create a texture entry directly without OpenGLRenderer
+            // 1. Create a SurfaceProducer directly without OpenGLRenderer
             val textureRegistry = flutterPluginBinding?.textureRegistry ?: run {
                 Log.e(TAG, "TextureRegistry not available")
                 callback(Result.failure(Exception("TextureRegistry not available")))
                 return
             }
-            val entry = textureRegistry.createSurfaceTexture()
-            this.flutterTextureEntry = entry
-            val surface = Surface(entry.surfaceTexture())
+            val surfaceProducer = FlutterSurfaceProducer(textureRegistry)
+            this.previewSurfaceProducer = surfaceProducer
+            val surface = surfaceProducer.getSurface()
 
             // 2. Initialize CameraHandler
             val cameraSettings = com.beauty.camera_plugin.models.CameraSettings.fromAdvancedSettings(settings)
@@ -223,13 +225,13 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
     override fun getPreviewTexture(callback: (Result<Long>) -> Unit) {
         // In test mode, the texture entry is already created during initialization.
         if (openGlRenderer == null) {
-            val entry = flutterTextureEntry ?: run {
-                Log.e(TAG, "flutterTextureEntry not available in test mode")
-                callback(Result.failure(Exception("flutterTextureEntry not available in test mode")))
+            val producer = previewSurfaceProducer ?: run {
+                Log.e(TAG, "previewSurfaceProducer not available in test mode")
+                callback(Result.failure(Exception("previewSurfaceProducer not available in test mode")))
                 return
             }
-            Log.d(TAG, "Returning existing preview texture for test mode with ID: ${entry.id()}")
-            callback(Result.success(entry.id()))
+            Log.d(TAG, "Returning existing preview texture for test mode with ID: ${producer.getTextureId()}")
+            callback(Result.success(producer.getTextureId()))
             return
         }
 
@@ -246,13 +248,13 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
 
         try {
             // 4. Tạo Flutter Texture và nối OpenGL output với nó
-            val entry = textureRegistry.createSurfaceTexture()
-            val flutterSurface = Surface(entry.surfaceTexture())
+            val surfaceProducer = FlutterSurfaceProducer(textureRegistry)
+            val flutterSurface = surfaceProducer.getSurface()
             renderer.setOutputSurface(flutterSurface)
 
-            this.flutterTextureEntry = entry
-            Log.d(TAG, "Preview texture created with ID: ${entry.id()}")
-            callback(Result.success(entry.id()))
+            this.previewSurfaceProducer = surfaceProducer
+            Log.d(TAG, "Preview texture created with ID: ${surfaceProducer.getTextureId()}")
+            callback(Result.success(surfaceProducer.getTextureId()))
         } catch (e: Exception) {
             Log.e(TAG, "Error creating preview texture", e)
             callback(Result.failure(e))
@@ -265,10 +267,10 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
         // but keep the activity binding, as the plugin is still attached.
         cameraHandler?.dispose()
         openGlRenderer?.release()
-        flutterTextureEntry?.release()
+        previewSurfaceProducer?.release()
         cameraHandler = null
         openGlRenderer = null
-        flutterTextureEntry = null
+        previewSurfaceProducer = null
 
         // We also clear any pending initialize commands that might have been cached.
         pendingInitializeSettings = null

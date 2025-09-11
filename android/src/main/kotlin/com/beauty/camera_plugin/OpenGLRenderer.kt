@@ -6,6 +6,7 @@ import android.opengl.*
 import android.os.Handler
 import android.os.HandlerThread
 import android.util.Log
+import android.util.Size
 import android.view.Surface
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -29,6 +30,8 @@ class OpenGLRenderer(private val context: Context) : SurfaceTexture.OnFrameAvail
 
     private var outputSurface: Surface? = null
     private var outputEglSurface: EGLSurface? = null
+
+    private var cameraResolution: Size? = null
 
     // Buffer cho vertices và texture coordinates
     private val vertexBuffer: FloatBuffer
@@ -68,6 +71,15 @@ class OpenGLRenderer(private val context: Context) : SurfaceTexture.OnFrameAvail
         texCoordBuffer = ByteBuffer.allocateDirect(texCoordData.size * 4)
             .order(ByteOrder.nativeOrder()).asFloatBuffer()
         texCoordBuffer.put(texCoordData).position(0)
+    }
+
+    fun setCameraResolution(size: Size) {
+        Log.d(TAG, "Setting camera resolution hint to ${size.width}x${size.height}")
+        this.cameraResolution = size
+        // The surface texture might already be created, so we try to set it.
+        if (::cameraInputSurfaceTexture.isInitialized) {
+            cameraInputSurfaceTexture.setDefaultBufferSize(size.width, size.height)
+        }
     }
 
     fun waitUntilReady() {
@@ -116,6 +128,10 @@ class OpenGLRenderer(private val context: Context) : SurfaceTexture.OnFrameAvail
             GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, 0)
 
             cameraInputSurfaceTexture = SurfaceTexture(textureId)
+            cameraResolution?.let {
+                Log.d(TAG, "Applying initial camera resolution to SurfaceTexture: ${it.width}x${it.height}")
+                cameraInputSurfaceTexture.setDefaultBufferSize(it.width, it.height)
+            }
             cameraInputSurfaceTexture.setOnFrameAvailableListener(this)
             cameraInputSurface = Surface(cameraInputSurfaceTexture)
             Log.d(TAG, "Created input surface and texture.")
