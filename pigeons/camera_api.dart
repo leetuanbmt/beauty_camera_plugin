@@ -144,20 +144,12 @@ class AdvancedCameraSettings {
   /// Bật/tắt nhận diện khuôn mặt
   final bool? enableFaceDetection;
 
-  /// Chiều rộng của preview mong muốn
-  final int? previewWidth;
-
-  /// Chiều cao của preview mong muốn
-  final int? previewHeight;
-
   AdvancedCameraSettings({
     this.videoQuality,
     this.maxFrameRate,
     this.videoStabilization,
     this.autoExposure,
     this.enableFaceDetection,
-    this.previewWidth,
-    this.previewHeight,
   });
 }
 

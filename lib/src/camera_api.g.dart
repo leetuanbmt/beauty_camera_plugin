@@ -225,8 +225,6 @@ class AdvancedCameraSettings {
     this.videoStabilization,
     this.autoExposure,
     this.enableFaceDetection,
-    this.previewWidth,
-    this.previewHeight,
   });
 
   /// Chất lượng video khi quay
@@ -244,12 +242,6 @@ class AdvancedCameraSettings {
   /// Bật/tắt nhận diện khuôn mặt
   bool? enableFaceDetection;
 
-  /// Chiều rộng của preview mong muốn
-  int? previewWidth;
-
-  /// Chiều cao của preview mong muốn
-  int? previewHeight;
-
   List<Object?> _toList() {
     return <Object?>[
       videoQuality,
@@ -257,8 +249,6 @@ class AdvancedCameraSettings {
       videoStabilization,
       autoExposure,
       enableFaceDetection,
-      previewWidth,
-      previewHeight,
     ];
   }
 
@@ -273,8 +263,6 @@ class AdvancedCameraSettings {
       videoStabilization: result[2] as bool?,
       autoExposure: result[3] as bool?,
       enableFaceDetection: result[4] as bool?,
-      previewWidth: result[5] as int?,
-      previewHeight: result[6] as int?,
     );
   }
 

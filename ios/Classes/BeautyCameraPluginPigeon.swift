@@ -304,10 +304,6 @@ struct AdvancedCameraSettings: Hashable {
   var autoExposure: Bool? = nil
   /// Bật/tắt nhận diện khuôn mặt
   var enableFaceDetection: Bool? = nil
-  /// Chiều rộng của preview mong muốn
-  var previewWidth: Int64? = nil
-  /// Chiều cao của preview mong muốn
-  var previewHeight: Int64? = nil
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
@@ -317,17 +313,13 @@ struct AdvancedCameraSettings: Hashable {
     let videoStabilization: Bool? = nilOrValue(pigeonVar_list[2])
     let autoExposure: Bool? = nilOrValue(pigeonVar_list[3])
     let enableFaceDetection: Bool? = nilOrValue(pigeonVar_list[4])
-    let previewWidth: Int64? = nilOrValue(pigeonVar_list[5])
-    let previewHeight: Int64? = nilOrValue(pigeonVar_list[6])
 
     return AdvancedCameraSettings(
       videoQuality: videoQuality,
       maxFrameRate: maxFrameRate,
       videoStabilization: videoStabilization,
       autoExposure: autoExposure,
-      enableFaceDetection: enableFaceDetection,
-      previewWidth: previewWidth,
-      previewHeight: previewHeight
+      enableFaceDetection: enableFaceDetection
     )
   }
   func toList() -> [Any?] {
@@ -337,8 +329,6 @@ struct AdvancedCameraSettings: Hashable {
       videoStabilization,
       autoExposure,
       enableFaceDetection,
-      previewWidth,
-      previewHeight,
     ]
   }
   static func == (lhs: AdvancedCameraSettings, rhs: AdvancedCameraSettings) -> Bool {

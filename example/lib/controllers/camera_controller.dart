@@ -73,8 +73,6 @@ class CameraControllerNotifier extends StateNotifier<CameraState> {
           videoStabilization: true,
           autoExposure: true,
           enableFaceDetection: true,
-          previewWidth: 1280,
-          previewHeight: 720,
         ),
       );
 

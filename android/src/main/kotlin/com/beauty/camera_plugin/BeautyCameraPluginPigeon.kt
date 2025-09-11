@@ -288,11 +288,7 @@ data class AdvancedCameraSettings (
   /** Bật/tắt tự động phơi sáng */
   val autoExposure: Boolean? = null,
   /** Bật/tắt nhận diện khuôn mặt */
-  val enableFaceDetection: Boolean? = null,
-  /** Chiều rộng của preview mong muốn */
-  val previewWidth: Long? = null,
-  /** Chiều cao của preview mong muốn */
-  val previewHeight: Long? = null
+  val enableFaceDetection: Boolean? = null
 )
  {
   companion object {
@@ -302,9 +298,7 @@ data class AdvancedCameraSettings (
       val videoStabilization = pigeonVar_list[2] as Boolean?
       val autoExposure = pigeonVar_list[3] as Boolean?
       val enableFaceDetection = pigeonVar_list[4] as Boolean?
-      val previewWidth = pigeonVar_list[5] as Long?
-      val previewHeight = pigeonVar_list[6] as Long?
-      return AdvancedCameraSettings(videoQuality, maxFrameRate, videoStabilization, autoExposure, enableFaceDetection, previewWidth, previewHeight)
+      return AdvancedCameraSettings(videoQuality, maxFrameRate, videoStabilization, autoExposure, enableFaceDetection)
     }
   }
   fun toList(): List<Any?> {
@@ -314,8 +308,6 @@ data class AdvancedCameraSettings (
       videoStabilization,
       autoExposure,
       enableFaceDetection,
-      previewWidth,
-      previewHeight,
     )
   }
   override fun equals(other: Any?): Boolean {

@@ -17,6 +17,7 @@ import androidx.camera.extensions.ExtensionMode
 import android.util.Log
 import android.util.Size
 import androidx.camera.core.AspectRatio
+import com.beauty.camera_plugin.models.CameraSettings
 
 
 
@@ -24,7 +25,7 @@ import androidx.camera.core.AspectRatio
 class CameraHandler(
     private val context: Context,
     private val lifecycleOwner: LifecycleOwner,
-    private val settings: AdvancedCameraSettings
+    private val settings: CameraSettings
 ) {
     companion object {
         private const val TAG = "CameraHandler"
@@ -104,22 +105,17 @@ class CameraHandler(
      */
     private fun setupUseCases() {
         // Cấu hình Preview
-        preview = Preview.Builder().apply {
-            settings.previewWidth?.let { width ->
-                settings.previewHeight?.let { height ->
-                    previewSize = Size(width.toInt(), height.toInt())
-                    setTargetResolution(previewSize!!)
-                }
-            }
-        }.build()
+        val builder = Preview.Builder()
 
+        // Luôn sử dụng resolution từ CameraSettings
+        builder.setTargetResolution(settings.resolution)
+        Log.d(TAG, "Set target resolution to: ${settings.resolution.width}x${settings.resolution.height}")
+
+        preview = builder.build()
 
          // Cấu hình ImageCapture
         imageCapture = ImageCapture.Builder()
             .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
-            .apply {
-                // Video stabilization không còn được hỗ trợ trong ImageCapture API mới
-            }
             .build()
         
     }
