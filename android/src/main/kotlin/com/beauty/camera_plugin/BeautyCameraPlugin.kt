@@ -144,7 +144,7 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
             Log.d(TAG, "OpenGL Renderer initialized")
 
             // 2. Khởi tạo CameraHandler
-            cameraHandler = CameraHandler(activity.applicationContext, activity as LifecycleOwner)
+            cameraHandler = CameraHandler(activity.applicationContext, activity as LifecycleOwner, settings)
             cameraHandler?.initialize {
                 // If dispose was called while camera was initializing, handlers will be null.
                 if (activityBinding == null) {
@@ -197,7 +197,7 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
             val surface = Surface(entry.surfaceTexture())
 
             // 2. Initialize CameraHandler
-            cameraHandler = CameraHandler(activity.applicationContext, activity as LifecycleOwner)
+            cameraHandler = CameraHandler(activity.applicationContext, activity as LifecycleOwner, settings)
             cameraHandler?.initialize {
                 if (activityBinding == null) {
                     Log.w(TAG, "Initialization callback fired after plugin was disposed. Ignoring.")

@@ -181,10 +181,12 @@ class _BeautyCameraViewState extends State<BeautyCameraView>
       );
     }
 
-    return AspectRatio(
+    return Center(
+      child: AspectRatio(
         aspectRatio: _previewSize.width / _previewSize.height,
         child: Texture(textureId: _textureId!),
-      );
+      ),
+    );
   }
 
   Widget _buildFaceDetectionOverlay() {

@@ -69,10 +69,12 @@ class CameraControllerNotifier extends StateNotifier<CameraState> {
 
       await _cameraController.initializeForTest(
         settings: AdvancedCameraSettings(
-          videoQuality: VideoQuality.low,
+          videoQuality: VideoQuality.veryHigh,
           videoStabilization: true,
           autoExposure: true,
           enableFaceDetection: true,
+          previewWidth: 1280,
+          previewHeight: 720,
         ),
       );
 
