@@ -65,6 +65,12 @@ class EglCore {
         }
     }
 
+    fun makeNothingCurrent() {
+        if (!EGL14.eglMakeCurrent(mEGLDisplay, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_CONTEXT)) {
+            throw RuntimeException("eglMakeCurrent failed")
+        }
+    }
+
     fun createWindowSurface(surface: Any): EGLSurface {
         if (surface !is Surface && surface !is SurfaceTexture) {
             throw RuntimeException("Invalid surface: $surface")
@@ -76,6 +82,24 @@ class EglCore {
             throw RuntimeException("Surface was null")
         }
         return eglSurface
+    }
+
+    fun createPbufferSurface(width: Int, height: Int): EGLSurface {
+        val surfaceAttribs = intArrayOf(
+            EGL14.EGL_WIDTH, width,
+            EGL14.EGL_HEIGHT, height,
+            EGL14.EGL_NONE
+        )
+        val eglSurface = EGL14.eglCreatePbufferSurface(mEGLDisplay, mEGLConfig, surfaceAttribs, 0)
+        checkEglError("eglCreatePbufferSurface")
+        if (eglSurface == null) {
+            throw RuntimeException("Surface was null")
+        }
+        return eglSurface
+    }
+
+    fun releaseSurface(eglSurface: EGLSurface) {
+        EGL14.eglDestroySurface(mEGLDisplay, eglSurface)
     }
 
     fun swapBuffers(eglSurface: EGLSurface): Boolean {

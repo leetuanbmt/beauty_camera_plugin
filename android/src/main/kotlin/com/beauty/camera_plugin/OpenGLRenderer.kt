@@ -5,12 +5,17 @@ import android.graphics.SurfaceTexture
 import android.opengl.*
 import android.os.Handler
 import android.os.HandlerThread
+import android.util.Log
 import android.view.Surface
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
 
 class OpenGLRenderer(private val context: Context) : SurfaceTexture.OnFrameAvailableListener {
+
+    companion object {
+        private const val TAG = "OpenGLRenderer"
+    }
 
     private lateinit var handler: Handler
     private lateinit var handlerThread: HandlerThread
@@ -34,12 +39,14 @@ class OpenGLRenderer(private val context: Context) : SurfaceTexture.OnFrameAvail
     private var posAttribHandle: Int = 0
     private var texCoordAttribHandle: Int = 0
     private var textureMatrixHandle: Int = 0
+    private var sTextureHandle: Int = 0 // Handle for the sampler
 
     // Đồng bộ hóa thread
     private val startLock = Object()
     private var isReady = false
 
     init {
+        Log.d(TAG, "Initializing OpenGLRenderer")
         // Dữ liệu hình chữ nhật phủ kín màn hình
         val vertexData = floatArrayOf(
             -1.0f, -1.0f, // bottom left
@@ -67,26 +74,39 @@ class OpenGLRenderer(private val context: Context) : SurfaceTexture.OnFrameAvail
         synchronized(startLock) {
             while (!isReady) {
                 try {
+                    Log.d(TAG, "Waiting for renderer to be ready...")
                     startLock.wait()
-                } catch (e: InterruptedException) { /* ignore */ }
+                } catch (e: InterruptedException) {
+                    Log.w(TAG, "waitUntilReady was interrupted", e)
+                }
             }
         }
+        Log.d(TAG, "Renderer is ready.")
     }
 
     fun start() {
+        Log.d(TAG, "Starting OpenGLRenderer thread")
         handlerThread = HandlerThread("OpenGLRenderer")
         handlerThread.start()
         handler = Handler(handlerThread.looper)
         
         handler.post {
+            Log.d(TAG, "OpenGL thread started. Initializing EGL.")
             eglCore = EglCore()
             eglCore.init(null)
+
+            val pbufferSurface = eglCore.createPbufferSurface(1, 1)
+            eglCore.makeCurrent(pbufferSurface)
 
             // Tạo texture cho camera input
             val textures = IntArray(1)
             GLES20.glGenTextures(1, textures, 0)
             GlUtil.checkGlError("glGenTextures")
             textureId = textures[0]
+            Log.d(TAG, "Generated texture ID: $textureId")
+
+            eglCore.releaseSurface(pbufferSurface)
+            eglCore.makeNothingCurrent()
 
             GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, textureId)
             GLES20.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST)
@@ -98,42 +118,60 @@ class OpenGLRenderer(private val context: Context) : SurfaceTexture.OnFrameAvail
             cameraInputSurfaceTexture = SurfaceTexture(textureId)
             cameraInputSurfaceTexture.setOnFrameAvailableListener(this)
             cameraInputSurface = Surface(cameraInputSurfaceTexture)
+            Log.d(TAG, "Created input surface and texture.")
 
             synchronized(startLock) {
                 isReady = true
                 startLock.notify()
+                Log.d(TAG, "Renderer is now ready and notified.")
             }
         }
     }
 
     fun setOutputSurface(surface: Surface) {
         handler.post {
+            Log.d(TAG, "Setting output surface: $surface")
             outputSurface = surface
             outputEglSurface = eglCore.createWindowSurface(surface)
+            Log.d(TAG, "Created EGL window surface.")
         }
     }
 
     override fun onFrameAvailable(surfaceTexture: SurfaceTexture) {
+        // Log.v(TAG, "New frame available") // Verbose log, can be spammy
         handler.post {
             drawFrame()
         }
     }
 
     private fun drawFrame() {
-        val output = outputEglSurface ?: return
+        val output = outputEglSurface
+        if (output == null) {
+            Log.w(TAG, "drawFrame called but outputEglSurface is null")
+            return
+        }
         eglCore.makeCurrent(output)
 
-        cameraInputSurfaceTexture.updateTexImage()
-        cameraInputSurfaceTexture.getTransformMatrix(textureMatrix)
+        try {
+            cameraInputSurfaceTexture.updateTexImage()
+            cameraInputSurfaceTexture.getTransformMatrix(textureMatrix)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error updating texture image", e)
+            return
+        }
+
 
         if (program == 0) {
+            Log.d(TAG, "Creating GL program")
             val vertexShader = context.assets.open("vertex_shader.glsl").bufferedReader().use { it.readText() }
             val fragmentShader = context.assets.open("fragment_shader.glsl").bufferedReader().use { it.readText() }
             program = GlUtil.createProgram(vertexShader, fragmentShader)
+            Log.d(TAG, "GL program created, ID: $program")
 
             posAttribHandle = GLES20.glGetAttribLocation(program, "aPosition")
             texCoordAttribHandle = GLES20.glGetAttribLocation(program, "aTextureCoord")
             textureMatrixHandle = GLES20.glGetUniformLocation(program, "uTextureMatrix")
+            sTextureHandle = GLES20.glGetUniformLocation(program, "sTexture")
         }
 
         // Lấy kích thước surface động để set viewport
@@ -146,6 +184,7 @@ class OpenGLRenderer(private val context: Context) : SurfaceTexture.OnFrameAvail
 
         // Bỏ qua frame nếu surface chưa có kích thước
         if (width <= 0 || height <= 0) {
+            Log.w(TAG, "Skipping drawFrame, invalid surface dimensions: ${width}x${height}")
             return
         }
 
@@ -156,6 +195,9 @@ class OpenGLRenderer(private val context: Context) : SurfaceTexture.OnFrameAvail
 
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
         GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, textureId)
+
+        // Set the sampler to use texture unit 0
+        GLES20.glUniform1i(sTextureHandle, 0)
 
         GLES20.glUniformMatrix4fv(textureMatrixHandle, 1, false, textureMatrix, 0)
 
@@ -176,13 +218,16 @@ class OpenGLRenderer(private val context: Context) : SurfaceTexture.OnFrameAvail
     }
 
     fun release() {
+        Log.d(TAG, "Releasing OpenGLRenderer")
         if (::handler.isInitialized) {
             handler.post {
+                Log.d(TAG, "Releasing EGL core")
                 eglCore.release()
             }
         }
         if (::handlerThread.isInitialized) {
             handlerThread.quitSafely()
+            Log.d(TAG, "OpenGL thread quit")
         }
     }
 }

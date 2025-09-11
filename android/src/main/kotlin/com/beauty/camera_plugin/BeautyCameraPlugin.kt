@@ -109,6 +109,18 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
         // Activity đã sẵn sàng, thực thi ngay
         executeInitialize(settings, callback)
     }
+
+    override fun initializeForTest(settings: AdvancedCameraSettings, callback: (Result<Unit>) -> Unit) {
+        Log.d(TAG, "InitializeForTest with settings: $settings")
+        val activity = activityBinding?.activity
+        if (activity == null) {
+            Log.w(TAG, "Activity not attached - caching initializeForTest command")
+            pendingInitializeSettings = settings
+            pendingInitializeCallback = callback
+            return
+        }
+        executeInitializeForTest(settings, callback)
+    }
     
     private fun executeInitialize(settings: AdvancedCameraSettings, callback: (Result<Unit>) -> Unit) {
         val activity = activityBinding?.activity ?: run {
@@ -160,7 +172,65 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
         }
     }
 
+    private fun executeInitializeForTest(settings: AdvancedCameraSettings, callback: (Result<Unit>) -> Unit) {
+        val activity = activityBinding?.activity ?: run {
+            Log.e(TAG, "Activity is null during executeInitializeForTest")
+            callback(Result.failure(Exception("Activity is null")))
+            return
+        }
+
+        try {
+            cameraHandler?.dispose()
+            openGlRenderer?.release()
+            flutterTextureEntry?.release()
+
+            Log.d(TAG, "Executing initializeForTest with activity: ${activity.javaClass.simpleName}")
+
+            // 1. Create a texture entry directly without OpenGLRenderer
+            val textureRegistry = flutterPluginBinding?.textureRegistry ?: run {
+                Log.e(TAG, "TextureRegistry not available")
+                callback(Result.failure(Exception("TextureRegistry not available")))
+                return
+            }
+            val entry = textureRegistry.createSurfaceTexture()
+            this.flutterTextureEntry = entry
+            val surface = Surface(entry.surfaceTexture())
+
+            // 2. Initialize CameraHandler
+            cameraHandler = CameraHandler(activity.applicationContext, activity as LifecycleOwner)
+            cameraHandler?.initialize {
+                if (activityBinding == null) {
+                    Log.w(TAG, "Initialization callback fired after plugin was disposed. Ignoring.")
+                    callback(Result.failure(Exception("Plugin disposed during initialization.")))
+                    return@initialize
+                }
+
+                Log.d(TAG, "CameraHandler initialized for test")
+
+                // 3. Connect CameraX output directly to the Flutter texture surface
+                cameraHandler?.startCamera(surface)
+                Log.d(TAG, "Camera started with direct SurfaceTexture surface")
+                callback(Result.success(Unit))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error initializing camera for test", e)
+            callback(Result.failure(e))
+        }
+    }
+
     override fun getPreviewTexture(callback: (Result<Long>) -> Unit) {
+        // In test mode, the texture entry is already created during initialization.
+        if (openGlRenderer == null) {
+            val entry = flutterTextureEntry ?: run {
+                Log.e(TAG, "flutterTextureEntry not available in test mode")
+                callback(Result.failure(Exception("flutterTextureEntry not available in test mode")))
+                return
+            }
+            Log.d(TAG, "Returning existing preview texture for test mode with ID: ${entry.id()}")
+            callback(Result.success(entry.id()))
+            return
+        }
+
         val renderer = openGlRenderer ?: run {
             Log.e(TAG, "Renderer not initialized")
             callback(Result.failure(Exception("Renderer not initialized")))

@@ -295,6 +295,10 @@ abstract class BeautyCameraHostApi {
   @async
   void initialize(AdvancedCameraSettings settings);
 
+  /// Khởi tạo camera cho mục đích test (không có OpenGL)
+  @async
+  void initializeForTest(AdvancedCameraSettings settings);
+
   /// Giải phóng tài nguyên
   @async
   void dispose();

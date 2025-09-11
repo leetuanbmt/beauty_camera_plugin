@@ -1,1 +1,1 @@
- 
+flutter pub run pigeon --input pigeons/camera_api.dart

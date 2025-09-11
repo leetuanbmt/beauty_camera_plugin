@@ -830,6 +830,8 @@ private open class BeautyCameraPluginPigeonPigeonCodec : StandardMessageCodec() 
 interface BeautyCameraHostApi {
   /** Khởi tạo camera với các cài đặt cụ thể */
   fun initialize(settings: AdvancedCameraSettings, callback: (Result<Unit>) -> Unit)
+  /** Khởi tạo camera cho mục đích test (không có OpenGL) */
+  fun initializeForTest(settings: AdvancedCameraSettings, callback: (Result<Unit>) -> Unit)
   /** Giải phóng tài nguyên */
   fun dispose(callback: (Result<Unit>) -> Unit)
   /** Chuyển đổi giữa camera trước và sau */
@@ -881,6 +883,25 @@ interface BeautyCameraHostApi {
             val args = message as List<Any?>
             val settingsArg = args[0] as AdvancedCameraSettings
             api.initialize(settingsArg) { result: Result<Unit> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(BeautyCameraPluginPigeonPigeonUtils.wrapError(error))
+              } else {
+                reply.reply(BeautyCameraPluginPigeonPigeonUtils.wrapResult(null))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.initializeForTest$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val settingsArg = args[0] as AdvancedCameraSettings
+            api.initializeForTest(settingsArg) { result: Result<Unit> ->
               val error = result.exceptionOrNull()
               if (error != null) {
                 reply.reply(BeautyCameraPluginPigeonPigeonUtils.wrapError(error))

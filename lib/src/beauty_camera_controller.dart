@@ -137,7 +137,27 @@ class BeautyCameraController {
     }
   }
 
-  /// Switches between front and back camera
+  /// Initializes the camera for testing (without OpenGL)
+  Future<void> initializeForTest({
+    AdvancedCameraSettings? settings,
+  }) async {
+    try {
+      await _api.initializeForTest(settings ?? AdvancedCameraSettings());
+
+      _isInitialized = true;
+
+      _eventStreamController.add(CameraEvent(
+        type: CameraEventType.initialized,
+      ));
+
+      return;
+    } on PlatformException catch (e) {
+      throw CameraException(
+        e.code,
+        e.message ?? 'An unknown camera error occurred',
+      );
+    }
+  }
   Future<void> switchCamera() async {
     try {
       await _api.switchCamera();

@@ -157,7 +157,7 @@ class _BeautyCameraViewState extends State<BeautyCameraView>
       child: Stack(
         fit: StackFit.expand,
         children: [
-          ClipRect(child: _buildCameraPreview()),
+          _buildCameraPreview(),
           if (widget.showFaceDetection) _buildFaceDetectionOverlay(),
           if (widget.showControls) _buildCameraControls(),
         ],
@@ -181,12 +181,10 @@ class _BeautyCameraViewState extends State<BeautyCameraView>
       );
     }
 
-    return Center(
-      child: AspectRatio(
+    return AspectRatio(
         aspectRatio: _previewSize.width / _previewSize.height,
         child: Texture(textureId: _textureId!),
-      ),
-    );
+      );
   }
 
   Widget _buildFaceDetectionOverlay() {
