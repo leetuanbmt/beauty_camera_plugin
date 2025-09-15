@@ -2,6 +2,7 @@ package com.beauty.camera_plugin
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.os.Build
 import android.view.Surface
 import androidx.camera.core.*
 import androidx.camera.core.CameraSelector
@@ -14,6 +15,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
 import android.util.Log
 import android.util.Size
+import androidx.annotation.RequiresApi
 import com.beauty.camera_plugin.models.CameraSettings
 import androidx.camera.video.Quality
 import androidx.camera.video.QualitySelector
@@ -53,14 +55,29 @@ class CameraHandler(
     }
 
     @SuppressLint("RestrictedApi")
-    fun getPreviewSize(): PreviewSize? {
-        val resolution = preview?.resolutionInfo?.resolution ?: run {
+     fun getPreviewSize(): PreviewSize? {
+        val info = preview?.resolutionInfo ?: run {
             Log.d(TAG, "getPreviewSize: Resolution info is null")
             return null
         }
-        Log.d(TAG, "getPreviewSize: $resolution")
-        return PreviewSize(width = resolution.width.toLong(), height = resolution.height.toLong())
+        val resolution = info.resolution
+        val rotation = info.rotationDegrees // 0, 90, 180, 270
+
+        // Nếu xoay 90 hoặc 270 thì đổi width <-> height
+        val adjustedWidth: Long
+        val adjustedHeight: Long
+        if (rotation == 90 || rotation == 270) {
+            adjustedWidth = resolution.height.toLong()
+            adjustedHeight = resolution.width.toLong()
+        } else {
+            adjustedWidth = resolution.width.toLong()
+            adjustedHeight = resolution.height.toLong()
+        }
+
+        Log.d(TAG, "getPreviewSize: original=${resolution.width}x${resolution.height}, rotation=$rotation°, adjusted=${adjustedWidth}x${adjustedHeight}")
+        return PreviewSize(width = adjustedWidth, height = adjustedHeight)
     }
+
 
     fun dispose() {
         Log.d(TAG, "Disposing camera handler")
@@ -92,11 +109,13 @@ class CameraHandler(
         Log.d(TAG, "Camera bound to lifecycle")
     }
 
+    @SuppressLint("RestrictedApi")
     private fun setupUseCases(surface: Surface) {
         Log.d(TAG, "Setting up use cases")
 
         // Ánh xạ videoQuality từ settings
         val targetResolution = settings.resolution
+
         val videoQuality = when (settings.videoQuality) { // Giả định videoQuality là enum
             VideoQuality.LOW -> Quality.SD
             VideoQuality.MEDIUM -> Quality.HD
@@ -104,9 +123,21 @@ class CameraHandler(
             else -> Quality.HIGHEST
         }
 
+        // Lấy rotation thực tế của màn hình nếu có thể
+        val rotation = try {
+            val display = context.display
+            display?.rotation ?: settings.displayOrientation
+        } catch (e: Exception) {
+            settings.displayOrientation
+        }
+
+
+        Log.d(TAG, "Camera actual rotation: ${rotation}")
+        Log.d(TAG,"Camera actual resolution ${settings.resolution}")
+
         // Cấu hình Preview
         preview = Preview.Builder()
-            .setTargetRotation(settings.displayOrientation)
+            .setTargetRotation(rotation)
             .setResolutionSelector(
                 ResolutionSelector.Builder()
                     .setResolutionStrategy(
