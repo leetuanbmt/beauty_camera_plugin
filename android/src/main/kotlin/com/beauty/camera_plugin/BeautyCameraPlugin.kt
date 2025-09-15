@@ -1,6 +1,7 @@
 package com.beauty.camera_plugin
 
 import android.util.Log
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
@@ -131,41 +132,42 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
         }
 
         try {
-            // Dọn dẹp tài nguyên cũ
             cameraHandler?.dispose()
             openGlRenderer?.release()
             previewSurfaceProducer?.release()
 
-            Log.d(TAG, "Executing initialize with activity: ${activity.javaClass.simpleName}")
+            Log.d(TAG, "Executing initialize with OpenGL")
 
             // 1. Khởi tạo OpenGL Renderer
             openGlRenderer = OpenGLRenderer(activity.applicationContext).apply {
                 start()
                 waitUntilReady()
             }
-            Log.d(TAG, "OpenGL Renderer initialized")
 
-            // 2. Khởi tạo CameraHandler
-            val cameraSettings = com.beauty.camera_plugin.models.CameraSettings.fromAdvancedSettings(settings)
-            cameraHandler = CameraHandler(activity.applicationContext, activity as LifecycleOwner, cameraSettings)
-
-            // 3. Nối CameraX output với OpenGL input và bắt đầu preview
+            // 2. Tạo SurfaceProvider cho OpenGL
             val rendererInputSurface = openGlRenderer?.cameraInputSurface ?: run {
                 callback(Result.failure(Exception("OpenGL renderer input surface is null")))
                 return
             }
+            val surfaceProvider = androidx.camera.core.Preview.SurfaceProvider { request ->
+                Log.d(TAG, "CameraX selected resolution for OpenGL mode: ${request.resolution.width}x${request.resolution.height}")
+                // Chỉ cần cung cấp surface nội bộ của renderer cho CameraX
+                request.provideSurface(rendererInputSurface, ContextCompat.getMainExecutor(activity)) {}
+            }
 
-            cameraHandler?.startCameraPreview(rendererInputSurface) {
+            // 3. Khởi tạo CameraHandler với SurfaceProvider đó
+            val cameraSettings = com.beauty.camera_plugin.models.CameraSettings.fromAdvancedSettings(settings)
+            cameraHandler = CameraHandler(activity.applicationContext, activity as LifecycleOwner, cameraSettings)
+            cameraHandler?.startCameraPreview(surfaceProvider) {
                 if (activityBinding == null) {
-                    Log.w(TAG, "Initialization callback fired after plugin was disposed.")
                     callback(Result.failure(Exception("Plugin disposed during initialization.")))
                     return@startCameraPreview
                 }
-                Log.d(TAG, "Camera started with OpenGL input surface")
+                Log.d(TAG, "Camera handler initialized for OpenGL mode.")
                 callback(Result.success(Unit))
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error initializing camera", e)
+            Log.e(TAG, "Error initializing camera for OpenGL", e)
             callback(Result.failure(e))
         }
     }
@@ -182,30 +184,36 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
 
             Log.d(TAG, "Executing initializeForTest")
 
-            // 1. Lấy kích thước preview mong muốn từ settings
-            val quality = settings.videoQuality ?: VideoQuality.HIGH
-            val targetSize = com.beauty.camera_plugin.models.CameraSettings.getResolutionForQuality(quality)
-
-            // 2. Tạo SurfaceProducer với kích thước buffer chính xác
             val textureRegistry = flutterPluginBinding?.textureRegistry ?: run {
                 callback(Result.failure(Exception("TextureRegistry not available")))
                 return
             }
-            previewSurfaceProducer = FlutterSurfaceProducer(textureRegistry, targetSize.width, targetSize.height)
-            val surface = previewSurfaceProducer!!.getSurface()
 
-            // 3. Khởi tạo CameraHandler
+            // 1. Tạo producer, nhưng chưa set size
+            val producer = FlutterSurfaceProducer(textureRegistry)
+            this.previewSurfaceProducer = producer
+
+            // 2. Tạo một SurfaceProvider sẽ được CameraX gọi
+            val surfaceProvider = androidx.camera.core.Preview.SurfaceProvider { request ->
+                val resolution = request.resolution
+                Log.d(TAG, "CameraX selected resolution for test mode: ${resolution.width}x${resolution.height}")
+
+                // 3. Set buffer size DỰA TRÊN resolution thực tế từ CameraX
+                producer.setSize(resolution.width, resolution.height)
+
+                // 4. Cung cấp surface cho CameraX
+                request.provideSurface(producer.getSurface(), ContextCompat.getMainExecutor(activity)) {}
+            }
+
+            // 5. Khởi tạo CameraHandler với SurfaceProvider đó
             val cameraSettings = com.beauty.camera_plugin.models.CameraSettings.fromAdvancedSettings(settings)
             cameraHandler = CameraHandler(activity.applicationContext, activity as LifecycleOwner, cameraSettings)
-
-            // 4. Bắt đầu preview trực tiếp lên Surface của Flutter
-            cameraHandler?.startCameraPreview(surface) {
+            cameraHandler?.startCameraPreview(surfaceProvider) {
                 if (activityBinding == null) {
-                    Log.w(TAG, "Initialization callback fired after plugin was disposed.")
                     callback(Result.failure(Exception("Plugin disposed during initialization.")))
                     return@startCameraPreview
                 }
-                Log.d(TAG, "Camera started with direct SurfaceTexture surface for test")
+                Log.d(TAG, "Camera handler initialized for test mode.")
                 callback(Result.success(Unit))
             }
         } catch (e: Exception) {
@@ -242,12 +250,8 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
         }
 
         try {
-            // Get the target resolution from the current settings to size the texture buffer correctly.
-            val quality = currentSettings?.videoQuality ?: VideoQuality.HIGH
-            val targetSize = com.beauty.camera_plugin.models.CameraSettings.getResolutionForQuality(quality)
-
             // Create the producer that will provide a surface for the OpenGL renderer to draw on.
-            val surfaceProducer = FlutterSurfaceProducer(textureRegistry, targetSize.width, targetSize.height)
+            val surfaceProducer = FlutterSurfaceProducer(textureRegistry)
             val flutterSurface = surfaceProducer.getSurface()
             renderer.setOutputSurface(flutterSurface)
 
