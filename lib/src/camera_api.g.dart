@@ -220,12 +220,16 @@ class FilterInfo {
 /// Sử dụng để cấu hình chi tiết cho CameraX.
 class AdvancedCameraSettings {
   AdvancedCameraSettings({
+    this.cameraLensFacing,
     this.videoQuality,
     this.maxFrameRate,
     this.videoStabilization,
     this.autoExposure,
     this.enableFaceDetection,
   });
+
+  /// Hướng camera (trước/sau)
+  CameraFacing? cameraLensFacing;
 
   /// Chất lượng video khi quay
   VideoQuality? videoQuality;
@@ -244,6 +248,7 @@ class AdvancedCameraSettings {
 
   List<Object?> _toList() {
     return <Object?>[
+      cameraLensFacing,
       videoQuality,
       maxFrameRate,
       videoStabilization,
@@ -258,11 +263,12 @@ class AdvancedCameraSettings {
   static AdvancedCameraSettings decode(Object result) {
     result as List<Object?>;
     return AdvancedCameraSettings(
-      videoQuality: result[0] as VideoQuality?,
-      maxFrameRate: result[1] as int?,
-      videoStabilization: result[2] as bool?,
-      autoExposure: result[3] as bool?,
-      enableFaceDetection: result[4] as bool?,
+      cameraLensFacing: result[0] as CameraFacing?,
+      videoQuality: result[1] as VideoQuality?,
+      maxFrameRate: result[2] as int?,
+      videoStabilization: result[3] as bool?,
+      autoExposure: result[4] as bool?,
+      enableFaceDetection: result[5] as bool?,
     );
   }
 

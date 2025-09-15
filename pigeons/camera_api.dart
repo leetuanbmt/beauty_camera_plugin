@@ -129,6 +129,9 @@ class FilterInfo {
 /// Cài đặt nâng cao cho camera.
 /// Sử dụng để cấu hình chi tiết cho CameraX.
 class AdvancedCameraSettings {
+  /// Hướng camera (trước/sau)
+  final CameraFacing? cameraLensFacing;
+
   /// Chất lượng video khi quay
   final VideoQuality? videoQuality;
 
@@ -145,6 +148,7 @@ class AdvancedCameraSettings {
   final bool? enableFaceDetection;
 
   AdvancedCameraSettings({
+    this.cameraLensFacing,
     this.videoQuality,
     this.maxFrameRate,
     this.videoStabilization,

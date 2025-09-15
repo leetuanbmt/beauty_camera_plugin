@@ -279,6 +279,8 @@ data class FilterInfo (
  * Generated class from Pigeon that represents data sent in messages.
  */
 data class AdvancedCameraSettings (
+  /** Hướng camera (trước/sau) */
+  val cameraLensFacing: CameraFacing? = null,
   /** Chất lượng video khi quay */
   val videoQuality: VideoQuality? = null,
   /** Tốc độ khung hình tối đa */
@@ -293,16 +295,18 @@ data class AdvancedCameraSettings (
  {
   companion object {
     fun fromList(pigeonVar_list: List<Any?>): AdvancedCameraSettings {
-      val videoQuality = pigeonVar_list[0] as VideoQuality?
-      val maxFrameRate = pigeonVar_list[1] as Long?
-      val videoStabilization = pigeonVar_list[2] as Boolean?
-      val autoExposure = pigeonVar_list[3] as Boolean?
-      val enableFaceDetection = pigeonVar_list[4] as Boolean?
-      return AdvancedCameraSettings(videoQuality, maxFrameRate, videoStabilization, autoExposure, enableFaceDetection)
+      val cameraLensFacing = pigeonVar_list[0] as CameraFacing?
+      val videoQuality = pigeonVar_list[1] as VideoQuality?
+      val maxFrameRate = pigeonVar_list[2] as Long?
+      val videoStabilization = pigeonVar_list[3] as Boolean?
+      val autoExposure = pigeonVar_list[4] as Boolean?
+      val enableFaceDetection = pigeonVar_list[5] as Boolean?
+      return AdvancedCameraSettings(cameraLensFacing, videoQuality, maxFrameRate, videoStabilization, autoExposure, enableFaceDetection)
     }
   }
   fun toList(): List<Any?> {
     return listOf(
+      cameraLensFacing,
       videoQuality,
       maxFrameRate,
       videoStabilization,

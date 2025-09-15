@@ -294,6 +294,8 @@ struct FilterInfo: Hashable {
 ///
 /// Generated class from Pigeon that represents data sent in messages.
 struct AdvancedCameraSettings: Hashable {
+  /// Hướng camera (trước/sau)
+  var cameraLensFacing: CameraFacing? = nil
   /// Chất lượng video khi quay
   var videoQuality: VideoQuality? = nil
   /// Tốc độ khung hình tối đa
@@ -308,13 +310,15 @@ struct AdvancedCameraSettings: Hashable {
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
   static func fromList(_ pigeonVar_list: [Any?]) -> AdvancedCameraSettings? {
-    let videoQuality: VideoQuality? = nilOrValue(pigeonVar_list[0])
-    let maxFrameRate: Int64? = nilOrValue(pigeonVar_list[1])
-    let videoStabilization: Bool? = nilOrValue(pigeonVar_list[2])
-    let autoExposure: Bool? = nilOrValue(pigeonVar_list[3])
-    let enableFaceDetection: Bool? = nilOrValue(pigeonVar_list[4])
+    let cameraLensFacing: CameraFacing? = nilOrValue(pigeonVar_list[0])
+    let videoQuality: VideoQuality? = nilOrValue(pigeonVar_list[1])
+    let maxFrameRate: Int64? = nilOrValue(pigeonVar_list[2])
+    let videoStabilization: Bool? = nilOrValue(pigeonVar_list[3])
+    let autoExposure: Bool? = nilOrValue(pigeonVar_list[4])
+    let enableFaceDetection: Bool? = nilOrValue(pigeonVar_list[5])
 
     return AdvancedCameraSettings(
+      cameraLensFacing: cameraLensFacing,
       videoQuality: videoQuality,
       maxFrameRate: maxFrameRate,
       videoStabilization: videoStabilization,
@@ -324,6 +328,7 @@ struct AdvancedCameraSettings: Hashable {
   }
   func toList() -> [Any?] {
     return [
+      cameraLensFacing,
       videoQuality,
       maxFrameRate,
       videoStabilization,

@@ -30,16 +30,22 @@ data class CameraSettings(
     val enableAudio: Boolean = true
 ) {
     companion object {
-        const val CAMERA_FACING_BACK = 0
-        const val CAMERA_FACING_FRONT = 1
+        // These values should align with CameraSelector.LENS_FACING_*
+        const val CAMERA_FACING_FRONT = 0
+        const val CAMERA_FACING_BACK = 1
 
         fun fromAdvancedSettings(settings: AdvancedCameraSettings): CameraSettings {
+            // The enum from Pigeon is 0 for front, 1 for back.
+            // This aligns with our constants.
+            val lensFacing = settings.cameraLensFacing?.raw ?: CAMERA_FACING_BACK
+
             return CameraSettings(
                 videoQuality = settings.videoQuality ?: VideoQuality.HIGH,
                 maxFrameRate = settings.maxFrameRate?.toInt() ?: 30,
                 videoStabilization = settings.videoStabilization ?: false,
                 autoExposure = settings.autoExposure ?: true,
                 enableFaceDetection = settings.enableFaceDetection ?: false,
+                cameraLensFacing = lensFacing,
                 resolution = videoQualityToResolution(settings.videoQuality ?: VideoQuality.HIGH)
             )
         }

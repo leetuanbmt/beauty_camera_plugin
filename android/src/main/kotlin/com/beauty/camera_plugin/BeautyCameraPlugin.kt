@@ -1,11 +1,11 @@
 package com.beauty.camera_plugin
 
 import android.util.Log
-import android.view.Surface
 import androidx.lifecycle.LifecycleOwner
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
+import java.io.File
 
 /**
  * Plugin chính để quản lý beauty camera và tương tác với Flutter.
@@ -29,6 +29,10 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
     // Cache cho lệnh initialize khi activity chưa sẵn sàng
     private var pendingInitializeSettings: AdvancedCameraSettings? = null
     private var pendingInitializeCallback: ((Result<Unit>) -> Unit)? = null
+
+    // Lưu đường dẫn của video đang quay và cài đặt hiện tại
+    private var currentVideoPath: String? = null
+    private var currentSettings: AdvancedCameraSettings? = null
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         Log.d(TAG, "onAttachedToEngine")
@@ -85,6 +89,8 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
         cameraHandler = null
         openGlRenderer = null
         previewSurfaceProducer = null
+        currentVideoPath = null
+        currentSettings = null
         
         // Clear cache
         pendingInitializeSettings = null
@@ -95,20 +101,14 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
 
     override fun initialize(settings: AdvancedCameraSettings, callback: (Result<Unit>) -> Unit) {
         Log.d(TAG, "Initialize with settings: $settings")
-        Log.d(TAG, "Activity binding: $activityBinding")
-        Log.d(TAG, "Activity from binding: ${activityBinding?.activity}")
-        
-        // Kiểm tra xem activity đã sẵn sàng chưa
-        val activity = activityBinding?.activity
-        if (activity == null) {
+        this.currentSettings = settings // Cache settings for later use (e.g., switchCamera)
+
+        if (activityBinding?.activity == null) {
             Log.w(TAG, "Activity not attached - caching initialize command")
-            // Cache lệnh initialize để thực thi sau khi activity sẵn sàng
             pendingInitializeSettings = settings
             pendingInitializeCallback = callback
             return
         }
-        
-        // Activity đã sẵn sàng, thực thi ngay
         executeInitializeForTest(settings, callback)
     }
 
@@ -132,42 +132,38 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
         }
 
         try {
-            // Release previous resources if they exist, to prevent leaks on re-initialization.
+            // Dọn dẹp tài nguyên cũ
             cameraHandler?.dispose()
             openGlRenderer?.release()
             previewSurfaceProducer?.release()
 
             Log.d(TAG, "Executing initialize with activity: ${activity.javaClass.simpleName}")
 
-            // 1. Khởi tạo OpenGL Renderer trên một thread riêng
-            openGlRenderer = OpenGLRenderer(activity.applicationContext)
-            openGlRenderer?.start()
-            openGlRenderer?.waitUntilReady()
+            // 1. Khởi tạo OpenGL Renderer
+            openGlRenderer = OpenGLRenderer(activity.applicationContext).apply {
+                start()
+                waitUntilReady()
+            }
             Log.d(TAG, "OpenGL Renderer initialized")
 
             // 2. Khởi tạo CameraHandler
             val cameraSettings = com.beauty.camera_plugin.models.CameraSettings.fromAdvancedSettings(settings)
             cameraHandler = CameraHandler(activity.applicationContext, activity as LifecycleOwner, cameraSettings)
-            cameraHandler?.initialize {
-                // If dispose was called while camera was initializing, handlers will be null.
+
+            // 3. Nối CameraX output với OpenGL input và bắt đầu preview
+            val rendererInputSurface = openGlRenderer?.cameraInputSurface ?: run {
+                callback(Result.failure(Exception("OpenGL renderer input surface is null")))
+                return
+            }
+
+            cameraHandler?.startCameraPreview(rendererInputSurface) {
                 if (activityBinding == null) {
-                    Log.w(TAG, "Initialization callback fired after plugin was disposed. Ignoring.")
+                    Log.w(TAG, "Initialization callback fired after plugin was disposed.")
                     callback(Result.failure(Exception("Plugin disposed during initialization.")))
-                    return@initialize
+                    return@startCameraPreview
                 }
-
-                Log.d(TAG, "CameraHandler initialized")
-
-                // 3. Nối CameraX output với OpenGL input
-                val rendererInputSurface = openGlRenderer?.cameraInputSurface
-                if (rendererInputSurface != null) {
-                    cameraHandler?.startCamera(rendererInputSurface)
-                    Log.d(TAG, "Camera started with OpenGL input surface")
-                    callback(Result.success(Unit))
-                } else {
-                    Log.e(TAG, "OpenGL renderer input surface is null")
-                    callback(Result.failure(Exception("OpenGL renderer input surface is null")))
-                }
+                Log.d(TAG, "Camera started with OpenGL input surface")
+                callback(Result.success(Unit))
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error initializing camera", e)
@@ -177,43 +173,36 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
 
     private fun executeInitializeForTest(settings: AdvancedCameraSettings, callback: (Result<Unit>) -> Unit) {
         val activity = activityBinding?.activity ?: run {
-            Log.e(TAG, "Activity is null during executeInitializeForTest")
             callback(Result.failure(Exception("Activity is null")))
             return
         }
 
         try {
             cameraHandler?.dispose()
-            openGlRenderer?.release()
             previewSurfaceProducer?.release()
 
-            Log.d(TAG, "Executing initializeForTest with activity: ${activity.javaClass.simpleName}")
+            Log.d(TAG, "Executing initializeForTest")
 
-            // 1. Create a SurfaceProducer directly without OpenGLRenderer
+            // 1. Tạo SurfaceProducer trực tiếp từ TextureRegistry
             val textureRegistry = flutterPluginBinding?.textureRegistry ?: run {
-                Log.e(TAG, "TextureRegistry not available")
                 callback(Result.failure(Exception("TextureRegistry not available")))
                 return
             }
-            val surfaceProducer = FlutterSurfaceProducer(textureRegistry)
-            this.previewSurfaceProducer = surfaceProducer
-            val surface = surfaceProducer.getSurface()
+            previewSurfaceProducer = FlutterSurfaceProducer(textureRegistry)
+            val surface = previewSurfaceProducer!!.getSurface()
 
-            // 2. Initialize CameraHandler
+            // 2. Khởi tạo CameraHandler
             val cameraSettings = com.beauty.camera_plugin.models.CameraSettings.fromAdvancedSettings(settings)
             cameraHandler = CameraHandler(activity.applicationContext, activity as LifecycleOwner, cameraSettings)
-            cameraHandler?.initialize {
+
+            // 3. Bắt đầu preview trực tiếp lên Surface của Flutter
+            cameraHandler?.startCameraPreview(surface) {
                 if (activityBinding == null) {
-                    Log.w(TAG, "Initialization callback fired after plugin was disposed. Ignoring.")
+                    Log.w(TAG, "Initialization callback fired after plugin was disposed.")
                     callback(Result.failure(Exception("Plugin disposed during initialization.")))
-                    return@initialize
+                    return@startCameraPreview
                 }
-
-                Log.d(TAG, "CameraHandler initialized for test")
-
-                // 3. Connect CameraX output directly to the Flutter texture surface
-                cameraHandler?.startCamera(surface)
-                Log.d(TAG, "Camera started with direct SurfaceTexture surface")
+                Log.d(TAG, "Camera started with direct SurfaceTexture surface for test")
                 callback(Result.success(Unit))
             }
         } catch (e: Exception) {
@@ -281,8 +270,20 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
 
     // --- Các hàm còn lại chưa implement ---
      override fun switchCamera(callback: (Result<Unit>) -> Unit) { 
-         Log.d(TAG, "switchCamera not implemented yet")
-         callback(Result.success(Unit)) 
+        Log.d(TAG, "Switching camera")
+        val settings = currentSettings ?: run {
+            callback(Result.failure(Exception("Cannot switch camera, plugin not initialized.")))
+            return
+        }
+        // Đảo ngược camera lens facing
+        val newLensFacing = if (settings.cameraLensFacing?.raw == com.beauty.camera_plugin.models.CameraSettings.CAMERA_FACING_FRONT) {
+            com.beauty.camera_plugin.models.CameraSettings.CAMERA_FACING_BACK
+        } else {
+            com.beauty.camera_plugin.models.CameraSettings.CAMERA_FACING_FRONT
+        }
+        val newSettings = settings.copy(cameraLensFacing = CameraFacing.ofRaw(newLensFacing))
+        // Khởi tạo lại với settings mới
+        initialize(newSettings, callback)
      }
      override fun setZoom(zoomLevel: Double, callback: (Result<Unit>) -> Unit) { 
          Log.d(TAG, "setZoom not implemented yet")
@@ -312,17 +313,55 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
          }
      }
      override fun takePhoto(callback: (Result<String>) -> Unit) { 
+         // TODO: Implement in CameraHandler
          Log.d(TAG, "takePhoto not implemented yet")
          callback(Result.success("/tmp/photo.jpg")) 
      }
-     override fun startVideoRecording(callback: (Result<Unit>) -> Unit) { 
-         Log.d(TAG, "startVideoRecording not implemented yet")
-         callback(Result.success(Unit)) 
-     }
-     override fun stopVideoRecording(callback: (Result<String>) -> Unit) { 
-         Log.d(TAG, "stopVideoRecording not implemented yet")
-         callback(Result.success("/tmp/video.mp4")) 
-     }
+     override fun startVideoRecording(callback: (Result<Unit>) -> Unit) {
+        val handler = cameraHandler ?: run {
+            callback(Result.failure(Exception("Camera not initialized")))
+            return
+        }
+        val activity = activityBinding?.activity ?: run {
+            callback(Result.failure(Exception("Activity not available")))
+            return
+        }
+
+        try {
+            val videoFile = File(activity.cacheDir, "video_${System.currentTimeMillis()}.mp4")
+            currentVideoPath = videoFile.absolutePath
+            Log.d(TAG, "Starting video recording to: $currentVideoPath")
+
+            handler.startVideoRecording(currentVideoPath!!) { success ->
+                // Callback này được gọi khi video KẾT THÚC ghi
+                if (success) {
+                    Log.d(TAG, "Video recording finished successfully.")
+                } else {
+                    Log.e(TAG, "Video recording finished with an error.")
+                }
+            }
+            // Giả định việc ghi hình bắt đầu thành công và trả về kết quả ngay cho Flutter
+            callback(Result.success(Unit))
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to start video recording", e)
+            callback(Result.failure(e))
+        }
+    }
+
+    override fun stopVideoRecording(callback: (Result<String>) -> Unit) {
+        Log.d(TAG, "Stopping video recording")
+        cameraHandler?.stopVideoRecording()
+        val path = currentVideoPath
+        if (path != null) {
+            Log.d(TAG, "Video recording stopped. File at: $path")
+            callback(Result.success(path))
+            currentVideoPath = null
+        } else {
+            val errorMsg = "No video recording was in progress or path is missing."
+            Log.e(TAG, errorMsg)
+            callback(Result.failure(Exception(errorMsg)))
+        }
+    }
      override fun getCameraSensorAspectRatio(callback: (Result<Double>) -> Unit) { 
          Log.d(TAG, "getCameraSensorAspectRatio not implemented yet")
          callback(Result.success(16.0/9.0)) 
