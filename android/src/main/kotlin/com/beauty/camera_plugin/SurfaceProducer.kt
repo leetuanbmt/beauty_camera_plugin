@@ -29,14 +29,25 @@ interface SurfaceProducer {
 /**
  * A concrete implementation of SurfaceProducer that uses Flutter's
  * TextureRegistry.SurfaceTextureEntry.
+ *
+ * @param textureRegistry The Flutter texture registry.
+ * @param width The desired width of the underlying SurfaceTexture.
+ * @param height The desired height of the underlying SurfaceTexture.
  */
-class FlutterSurfaceProducer(private val textureRegistry: TextureRegistry) : SurfaceProducer {
+class FlutterSurfaceProducer(
+    private val textureRegistry: TextureRegistry,
+    width: Int,
+    height: Int
+) : SurfaceProducer {
 
     private var surfaceTextureEntry: TextureRegistry.SurfaceTextureEntry? = null
     private var surface: Surface? = null
 
     init {
         surfaceTextureEntry = textureRegistry.createSurfaceTexture()
+        // This is the critical fix: set the buffer size to match the desired preview size.
+        // Without this, the camera may produce frames at a different resolution, causing blurriness.
+        surfaceTextureEntry!!.surfaceTexture().setDefaultBufferSize(width, height)
         surface = Surface(surfaceTextureEntry!!.surfaceTexture())
     }
 

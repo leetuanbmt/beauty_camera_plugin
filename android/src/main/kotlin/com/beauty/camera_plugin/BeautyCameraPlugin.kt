@@ -49,7 +49,6 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
 
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
         Log.d(TAG, "onAttachedToActivity - Activity: ${binding.activity}")
-        Log.d(TAG, "onAttachedToActivity - Activity class: ${binding.activity?.javaClass?.simpleName}")
         this.activityBinding = binding
         
         // Thực thi lệnh initialize đã cache nếu có
@@ -183,19 +182,23 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
 
             Log.d(TAG, "Executing initializeForTest")
 
-            // 1. Tạo SurfaceProducer trực tiếp từ TextureRegistry
+            // 1. Lấy kích thước preview mong muốn từ settings
+            val quality = settings.videoQuality ?: VideoQuality.HIGH
+            val targetSize = com.beauty.camera_plugin.models.CameraSettings.getResolutionForQuality(quality)
+
+            // 2. Tạo SurfaceProducer với kích thước buffer chính xác
             val textureRegistry = flutterPluginBinding?.textureRegistry ?: run {
                 callback(Result.failure(Exception("TextureRegistry not available")))
                 return
             }
-            previewSurfaceProducer = FlutterSurfaceProducer(textureRegistry)
+            previewSurfaceProducer = FlutterSurfaceProducer(textureRegistry, targetSize.width, targetSize.height)
             val surface = previewSurfaceProducer!!.getSurface()
 
-            // 2. Khởi tạo CameraHandler
+            // 3. Khởi tạo CameraHandler
             val cameraSettings = com.beauty.camera_plugin.models.CameraSettings.fromAdvancedSettings(settings)
             cameraHandler = CameraHandler(activity.applicationContext, activity as LifecycleOwner, cameraSettings)
 
-            // 3. Bắt đầu preview trực tiếp lên Surface của Flutter
+            // 4. Bắt đầu preview trực tiếp lên Surface của Flutter
             cameraHandler?.startCameraPreview(surface) {
                 if (activityBinding == null) {
                     Log.w(TAG, "Initialization callback fired after plugin was disposed.")
@@ -212,10 +215,18 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
     }
 
     override fun getPreviewTexture(callback: (Result<Long>) -> Unit) {
-        // In test mode, the texture entry is already created during initialization.
+        // This function is called to get the texture ID for Flutter to display.
+        // In test mode, the producer is created during initialization.
+        // In OpenGL mode, the producer is created here, connecting the renderer's output to Flutter.
+
+        val textureRegistry = flutterPluginBinding?.textureRegistry ?: run {
+            callback(Result.failure(Exception("TextureRegistry not available")))
+            return
+        }
+
+        // Case 1: Test mode (no OpenGL). The producer was already created.
         if (openGlRenderer == null) {
             val producer = previewSurfaceProducer ?: run {
-                Log.e(TAG, "previewSurfaceProducer not available in test mode")
                 callback(Result.failure(Exception("previewSurfaceProducer not available in test mode")))
                 return
             }
@@ -224,28 +235,29 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
             return
         }
 
+        // Case 2: OpenGL mode. We need to create a new producer for the renderer's output.
         val renderer = openGlRenderer ?: run {
-            Log.e(TAG, "Renderer not initialized")
             callback(Result.failure(Exception("Renderer not initialized")))
-            return
-        }
-        val textureRegistry = flutterPluginBinding?.textureRegistry ?: run {
-            Log.e(TAG, "TextureRegistry not available")
-            callback(Result.failure(Exception("TextureRegistry not available")))
             return
         }
 
         try {
-            // 4. Tạo Flutter Texture và nối OpenGL output với nó
-            val surfaceProducer = FlutterSurfaceProducer(textureRegistry)
+            // Get the target resolution from the current settings to size the texture buffer correctly.
+            val quality = currentSettings?.videoQuality ?: VideoQuality.HIGH
+            val targetSize = com.beauty.camera_plugin.models.CameraSettings.getResolutionForQuality(quality)
+
+            // Create the producer that will provide a surface for the OpenGL renderer to draw on.
+            val surfaceProducer = FlutterSurfaceProducer(textureRegistry, targetSize.width, targetSize.height)
             val flutterSurface = surfaceProducer.getSurface()
             renderer.setOutputSurface(flutterSurface)
 
+            // Keep a reference to the new producer.
             this.previewSurfaceProducer = surfaceProducer
-            Log.d(TAG, "Preview texture created with ID: ${surfaceProducer.getTextureId()}")
+            
+            Log.d(TAG, "Preview texture created for OpenGL output with ID: ${surfaceProducer.getTextureId()}")
             callback(Result.success(surfaceProducer.getTextureId()))
         } catch (e: Exception) {
-            Log.e(TAG, "Error creating preview texture", e)
+            Log.e(TAG, "Error creating preview texture for OpenGL", e)
             callback(Result.failure(e))
         }
     }

@@ -52,6 +52,10 @@ data class CameraSettings(
 
         fun default(): CameraSettings = CameraSettings()
 
+        fun getResolutionForQuality(quality: VideoQuality): Size {
+            return videoQualityToResolution(quality)
+        }
+
         private fun videoQualityToResolution(quality: VideoQuality): Size {
             return when (quality) {
                 VideoQuality.LOW -> Size(640, 480)      // 480p
