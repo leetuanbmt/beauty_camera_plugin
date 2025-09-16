@@ -305,18 +305,34 @@ class FaceDetectionPainter extends CustomPainter {
     if (faces.isEmpty || previewSize.isEmpty) return;
 
     final Paint paint = Paint()
-      ..color = Colors.green
+      ..color = Colors.red
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 3.0;
+      ..strokeWidth = 2.0;
 
+    // Calculate the scale factor to map the preview size to the widget size.
+    // The camera preview is often displayed with AspectRatio.fit, so we need
+    // to find the correct scale and offset.
     final double scaleX = size.width / previewSize.width;
     final double scaleY = size.height / previewSize.height;
+    final double scale = math.min(scaleX, scaleY);
+
+    // Calculate the offset to center the preview within the widget.
+    final double offsetX = (size.width - previewSize.width * scale) / 2.0;
+    final double offsetY = (size.height - previewSize.height * scale) / 2.0;
 
     for (final face in faces) {
-      final double left = face.x * scaleX;
-      final double top = face.y * scaleY;
-      final double faceSize = face.size * math.min(scaleX, scaleY);
-      canvas.drawRect(Rect.fromLTWH(left, top, faceSize, faceSize), paint);
+      // The face coordinates are normalized and relative to the preview size.
+      // We need to scale them to the widget's coordinate system.
+      final Rect faceRect = Rect.fromCenter(
+        center: Offset(
+          face.x * previewSize.width * scale + offsetX,
+          face.y * previewSize.height * scale + offsetY,
+        ),
+        width: face.size * previewSize.width * scale,
+        height: face.size * previewSize.height * scale,
+      );
+
+      canvas.drawRect(faceRect, paint);
     }
   }
 

@@ -1,5 +1,7 @@
 package com.beauty.camera_plugin
 
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
@@ -12,7 +14,7 @@ import java.io.File
  * Plugin chính để quản lý beauty camera và tương tác với Flutter.
  * Class này implement BeautyCameraHostApi và quản lý vòng đời của plugin.
  */
-class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
+class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi, FaceDetectorAnalyzer.DetectorListener {
     companion object {
         private const val TAG = "BeautyCameraPlugin"
     }
@@ -34,6 +36,8 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
     // Lưu đường dẫn của video đang quay và cài đặt hiện tại
     private var currentVideoPath: String? = null
     private var currentSettings: AdvancedCameraSettings? = null
+
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         Log.d(TAG, "onAttachedToEngine")
@@ -109,7 +113,7 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
             pendingInitializeCallback = callback
             return
         }
-        executeInitializeForTest(settings, callback)
+        executeInitialize(settings, callback)
     }
 
     override fun initializeForTest(settings: AdvancedCameraSettings, callback: (Result<Unit>) -> Unit) {
@@ -157,7 +161,7 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
 
             // 3. Khởi tạo CameraHandler với SurfaceProvider đó
             val cameraSettings = com.beauty.camera_plugin.models.CameraSettings.fromAdvancedSettings(settings)
-            cameraHandler = CameraHandler(activity.applicationContext, activity as LifecycleOwner, cameraSettings)
+            cameraHandler = CameraHandler(activity.applicationContext, activity as LifecycleOwner, cameraSettings, this)
             cameraHandler?.startCameraPreview(surfaceProvider) {
                 if (activityBinding == null) {
                     callback(Result.failure(Exception("Plugin disposed during initialization.")))
@@ -205,9 +209,11 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
                 request.provideSurface(producer.getSurface(), ContextCompat.getMainExecutor(activity)) {}
             }
 
+            Log.d(TAG, "Camera cameraLensFacing setting: ${settings.cameraLensFacing}")
+
             // 5. Khởi tạo CameraHandler với SurfaceProvider đó
             val cameraSettings = com.beauty.camera_plugin.models.CameraSettings.fromAdvancedSettings(settings)
-            cameraHandler = CameraHandler(activity.applicationContext, activity as LifecycleOwner, cameraSettings)
+            cameraHandler = CameraHandler(activity.applicationContext, activity as LifecycleOwner, cameraSettings, this)
             cameraHandler?.startCameraPreview(surfaceProvider) {
                 if (activityBinding == null) {
                     callback(Result.failure(Exception("Plugin disposed during initialization.")))
@@ -287,19 +293,21 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
     // --- Các hàm còn lại chưa implement ---
      override fun switchCamera(callback: (Result<Unit>) -> Unit) { 
         Log.d(TAG, "Switching camera")
-        val settings = currentSettings ?: run {
-            callback(Result.failure(Exception("Cannot switch camera, plugin not initialized.")))
-            return
+        mainHandler.post {
+            val settings = currentSettings ?: run {
+                callback(Result.failure(Exception("Cannot switch camera, plugin not initialized.")))
+                return@post
+            }
+            // Đảo ngược camera lens facing
+            val newLensFacing = if (settings.cameraLensFacing?.raw == com.beauty.camera_plugin.models.CameraSettings.CAMERA_FACING_FRONT) {
+                com.beauty.camera_plugin.models.CameraSettings.CAMERA_FACING_BACK
+            } else {
+                com.beauty.camera_plugin.models.CameraSettings.CAMERA_FACING_FRONT
+            }
+            val newSettings = settings.copy(cameraLensFacing = CameraFacing.ofRaw(newLensFacing))
+            // Khởi tạo lại với settings mới
+            initialize(newSettings, callback)
         }
-        // Đảo ngược camera lens facing
-        val newLensFacing = if (settings.cameraLensFacing?.raw == com.beauty.camera_plugin.models.CameraSettings.CAMERA_FACING_FRONT) {
-            com.beauty.camera_plugin.models.CameraSettings.CAMERA_FACING_BACK
-        } else {
-            com.beauty.camera_plugin.models.CameraSettings.CAMERA_FACING_FRONT
-        }
-        val newSettings = settings.copy(cameraLensFacing = CameraFacing.ofRaw(newLensFacing))
-        // Khởi tạo lại với settings mới
-        initialize(newSettings, callback)
      }
      override fun setZoom(zoomLevel: Double, callback: (Result<Unit>) -> Unit) { 
          Log.d(TAG, "setZoom not implemented yet")
@@ -402,4 +410,15 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
          Log.d(TAG, "getAvailableCameras not implemented yet")
          callback(Result.success(emptyList())) 
      }
+
+    override fun onResults(faces: List<FaceData>) {
+        if (flutterPluginBinding != null) { // Ensure plugin is still attached
+            mainHandler.post {
+                flutterApi.onFaceDetected(faces) {
+                    // You can handle the result here if needed, e.g., log success or failure
+                    Log.d(TAG, "onFaceDetected callback result: $it")
+                }
+            }
+        }
+    }
 }

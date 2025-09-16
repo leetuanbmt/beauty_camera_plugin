@@ -67,12 +67,13 @@ class CameraControllerNotifier extends StateNotifier<CameraState> {
     try {
       state = state.copyWith(isInitializing: true);
 
-      await _cameraController.initialize(
+      await _cameraController.initializeForTest(
         settings: AdvancedCameraSettings(
-          videoQuality: VideoQuality.ultra,
+          videoQuality: VideoQuality.high,
           videoStabilization: true,
           autoExposure: true,
           enableFaceDetection: true,
+          cameraLensFacing: CameraFacing.front,
         ),
       );
 

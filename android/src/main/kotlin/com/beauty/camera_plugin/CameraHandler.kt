@@ -21,7 +21,8 @@ import java.util.concurrent.Executor
 class CameraHandler(
     private val context: Context,
     private val lifecycleOwner: LifecycleOwner,
-    private val settings: CameraSettings
+    private val settings: CameraSettings,
+    private val faceDetectorListener: FaceDetectorAnalyzer.DetectorListener? // Add this
 ) {
     companion object {
         private const val TAG = "CameraHandler"
@@ -35,6 +36,9 @@ class CameraHandler(
     private var imageCapture: ImageCapture? = null
     private var videoCapture: VideoCapture<Recorder>? = null
     private var activeRecording: Recording? = null
+
+    private var imageAnalysis: ImageAnalysis? = null
+    private var faceDetectorAnalyzer: FaceDetectorAnalyzer? = null
 
     private val mainExecutor: Executor = ContextCompat.getMainExecutor(context)
 
@@ -69,12 +73,32 @@ class CameraHandler(
         imageCapture = createImageCaptureUseCase()
         videoCapture = createVideoCaptureUseCase()
 
+        if (settings.enableFaceDetection && faceDetectorListener != null) {
+            imageAnalysis = ImageAnalysis.Builder()
+                .setTargetRotation(settings.displayOrientation)
+                .setResolutionSelector(
+                    ResolutionSelector.Builder()
+                        .setAspectRatioStrategy(AspectRatioStrategy.RATIO_16_9_FALLBACK_AUTO_STRATEGY)
+                        .build()
+                )
+                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                .build()
+
+            faceDetectorAnalyzer = FaceDetectorAnalyzer(context, faceDetectorListener)
+            imageAnalysis?.setAnalyzer(mainExecutor, faceDetectorAnalyzer!!)
+        } else {
+            imageAnalysis = null
+            faceDetectorAnalyzer = null
+        }
+
         val cameraSelector = CameraSelector.Builder()
             .requireLensFacing(settings.cameraLensFacing)
             .build()
 
+        Log.d(TAG, "Open camera with lens facing: ${settings.cameraLensFacing}")
+
         try {
-            val useCases = listOfNotNull(preview, imageCapture, videoCapture)
+            val useCases = listOfNotNull(preview, imageCapture, videoCapture, imageAnalysis)
             camera = cameraProvider.bindToLifecycle(
                 lifecycleOwner,
                 cameraSelector,
@@ -83,7 +107,6 @@ class CameraHandler(
             camera?.cameraControl?.setZoomRatio(settings.zoom.toFloat())
             Log.d(TAG, "Use cases bound to lifecycle.")
 
-            
         } catch (e: Exception) {
             Log.e(TAG, "Failed to bind use cases", e)
         }
@@ -144,6 +167,10 @@ class CameraHandler(
         preview = null
         imageCapture = null
         videoCapture = null
+        imageAnalysis?.clearAnalyzer() // Clear analyzer
+        imageAnalysis = null
+        faceDetectorAnalyzer?.close() // Close MediaPipe detector
+        faceDetectorAnalyzer = null
     }
 
     private fun createPreviewUseCase(surfaceProvider: Preview.SurfaceProvider): Preview {

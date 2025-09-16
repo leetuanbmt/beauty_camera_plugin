@@ -2,6 +2,7 @@ package com.beauty.camera_plugin.models
 
 import android.util.Size
 import com.beauty.camera_plugin.AdvancedCameraSettings
+import com.beauty.camera_plugin.CameraFacing
 import com.beauty.camera_plugin.FlashMode
 import com.beauty.camera_plugin.VideoQuality
 
@@ -37,7 +38,11 @@ data class CameraSettings(
         fun fromAdvancedSettings(settings: AdvancedCameraSettings): CameraSettings {
             // The enum from Pigeon is 0 for front, 1 for back.
             // This aligns with our constants.
-            val lensFacing = settings.cameraLensFacing?.raw ?: CAMERA_FACING_BACK
+            val lensFacing = when (settings.cameraLensFacing) {
+                CameraFacing.FRONT -> CAMERA_FACING_FRONT
+                CameraFacing.BACK -> CAMERA_FACING_BACK
+                else -> CAMERA_FACING_BACK
+            }
 
             return CameraSettings(
                 videoQuality = settings.videoQuality ?: VideoQuality.HIGH,
