@@ -69,10 +69,10 @@ class BeautyCameraController {
   bool get isFrontCamera => _isFrontCamera;
 
   /// Face detected data
-  FaceData? _faceDetected;
+  List<FaceData>? _faceDetected;
 
   /// Gets the face detected data
-  FaceData? get faceDetected => _faceDetected;
+  List<FaceData>? get faceDetected => _faceDetected;
 
   /// Creates a new camera controller
   BeautyCameraController() {
@@ -104,7 +104,7 @@ class BeautyCameraController {
             _isRecording = false;
             break;
           case CameraEventType.faceDetected:
-            _faceDetected = event.data;
+            _faceDetected = List<FaceData>.from(event.data);
             break;
           default:
             break;
