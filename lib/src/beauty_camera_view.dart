@@ -307,7 +307,7 @@ class FaceDetectionPainter extends CustomPainter {
     final Paint paint = Paint()
       ..color = Colors.red
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0;
+      ..strokeWidth = 1.0;
 
     final Paint landmarkPaint = Paint()
       ..color = Colors.green
@@ -344,7 +344,7 @@ class FaceDetectionPainter extends CustomPainter {
             landmark.x * previewSize.width * scale + offsetX,
             landmark.y * previewSize.height * scale + offsetY,
           );
-          canvas.drawCircle(landmarkOffset, 3.0, landmarkPaint);
+          canvas.drawCircle(landmarkOffset, 2.0, landmarkPaint);
         }
       }
     }

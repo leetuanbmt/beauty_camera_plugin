@@ -84,7 +84,7 @@ class CameraHandler(
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .build()
 
-            faceDetectorAnalyzer = FaceDetectorAnalyzer(context, faceDetectorListener)
+            faceDetectorAnalyzer = FaceDetectorAnalyzer(context, faceDetectorListener, settings.cameraLensFacing)
             imageAnalysis?.setAnalyzer(mainExecutor, faceDetectorAnalyzer!!)
         } else {
             imageAnalysis = null

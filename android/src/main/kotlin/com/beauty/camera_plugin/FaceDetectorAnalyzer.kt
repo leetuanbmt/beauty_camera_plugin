@@ -14,7 +14,8 @@ import com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarkerResult
 
 class FaceDetectorAnalyzer(
     context: Context,
-    private val listener: DetectorListener
+    private val listener: DetectorListener,
+    private val cameraLensFacing: Int
 ) : ImageAnalysis.Analyzer {
 
     interface DetectorListener {
@@ -39,8 +40,8 @@ class FaceDetectorAnalyzer(
                 Log.e(TAG, "MediaPipe Face Landmarker Error: ${error.message}")
             }
 
-            val faceLandmarkResultListener = { result: FaceLandmarkerResult, input: MPImage ->
-                onResults(result, input)
+            val faceLandmarkResultListener = { result: FaceLandmarkerResult, _: MPImage ->
+                onResults(result)
             }
             val options = FaceLandmarker.FaceLandmarkerOptions.builder()
                 .setBaseOptions(baseOptions)
@@ -65,16 +66,27 @@ class FaceDetectorAnalyzer(
 
     @androidx.annotation.OptIn(androidx.camera.core.ExperimentalGetImage::class)
     override fun analyze(imageProxy: ImageProxy) {
-        imageProxy.use { imageProxy ->
-            val bitmap = imageProxy.toBitmap() // Converting to bitmap is simpler but less efficient
+        imageProxy.use { proxy ->
+            var bitmap = proxy.toBitmap()
+            val rotationDegrees = proxy.imageInfo.rotationDegrees
+            val matrix = android.graphics.Matrix()
+            // Rotate first
+            if (rotationDegrees != 0) {
+                matrix.postRotate(rotationDegrees.toFloat())
+            }
+            // Mirror bitmap for front camera (apply after rotation)
+            if (cameraLensFacing == androidx.camera.core.CameraSelector.LENS_FACING_FRONT) {
+                matrix.postScale(-1f, 1f)
+            }
+            bitmap = android.graphics.Bitmap.createBitmap(
+                bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true
+            )
             val mpImage = BitmapImageBuilder(bitmap).build()
-
-            // Pass timestamp for live stream mode
-            faceLandmark.detectAsync(mpImage, imageProxy.imageInfo.timestamp)
+            faceLandmark.detectAsync(mpImage, proxy.imageInfo.timestamp)
         }
     }
 
-    private fun onResults(result: FaceLandmarkerResult, input: MPImage) {
+    private fun onResults(result: FaceLandmarkerResult) {
         val faceDataList = result.faceLandmarks().mapIndexed { index, landmarks ->
             // Calculate bounding box from landmarks
             var minX = Float.MAX_VALUE

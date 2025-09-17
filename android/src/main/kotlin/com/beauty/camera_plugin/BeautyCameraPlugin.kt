@@ -37,6 +37,9 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi, Fa
     private var currentVideoPath: String? = null
     private var currentSettings: AdvancedCameraSettings? = null
 
+    // Cache for pending switchCamera request
+    private var pendingSwitchCameraCallback: ((Result<Unit>) -> Unit)? = null
+
     private val mainHandler = Handler(Looper.getMainLooper())
 
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
@@ -169,6 +172,12 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi, Fa
                 }
                 Log.d(TAG, "Camera handler initialized for OpenGL mode.")
                 callback(Result.success(Unit))
+
+                // If there was a pending switchCamera, execute it now
+                pendingSwitchCameraCallback?.let {
+                    Log.d(TAG, "Executing cached switchCamera after initialization")
+                    switchCamera(it)
+                }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error initializing camera for OpenGL", e)
@@ -294,8 +303,10 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi, Fa
      override fun switchCamera(callback: (Result<Unit>) -> Unit) { 
         Log.d(TAG, "Switching camera")
         mainHandler.post {
-            val settings = currentSettings ?: run {
-                callback(Result.failure(Exception("Cannot switch camera, plugin not initialized.")))
+            val settings = currentSettings
+            if (settings == null) {
+                Log.w(TAG, "Plugin not initialized - caching switchCamera request")
+                pendingSwitchCameraCallback = callback
                 return@post
             }
             // Đảo ngược camera lens facing
@@ -306,7 +317,11 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi, Fa
             }
             val newSettings = settings.copy(cameraLensFacing = CameraFacing.ofRaw(newLensFacing))
             // Khởi tạo lại với settings mới
-            initialize(newSettings, callback)
+            initialize(newSettings) { result ->
+                callback(result)
+                // If there was a pending switch, clear it
+                pendingSwitchCameraCallback = null
+            }
         }
      }
      override fun setZoom(zoomLevel: Double, callback: (Result<Unit>) -> Unit) { 
