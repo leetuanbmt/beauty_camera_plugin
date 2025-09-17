@@ -7,6 +7,7 @@ class CameraControls extends StatelessWidget {
   final VoidCallback? onOpenGallery;
   final VoidCallback? onToggleFilter;
   final VoidCallback? onShowBeautyFilter;
+  final VoidCallback? onShowMainFilter;
   final bool isFilterEnabled;
 
   const CameraControls({
@@ -16,6 +17,7 @@ class CameraControls extends StatelessWidget {
     this.onOpenGallery,
     this.onToggleFilter,
     this.onShowBeautyFilter,
+    this.onShowMainFilter,
     this.isFilterEnabled = false,
     super.key,
   });
@@ -85,11 +87,13 @@ class CameraControls extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          // IconButton(
-          //   icon: const Icon(Icons.filter_vintage),
-          //   color: Colors.white,
-          //   onPressed: onShowEffects,
-          // ),
+          // Main filter button (TikTok style)
+          if (onShowMainFilter != null)
+            IconButton(
+              icon: const Icon(Icons.auto_fix_high),
+              color: Colors.white,
+              onPressed: onShowMainFilter,
+            ),
           GestureDetector(
             onTap: onTakePhoto,
             child: Container(

@@ -62,6 +62,11 @@ class OpenGLRenderer(private val context: Context) : SurfaceTexture.OnFrameAvail
     // Beauty filter parameters
     private var smoothingStrength: Float = 0.3f // 0.0 = no smoothing, 1.0 = max smoothing
     private var brighteningStrength: Float = 0.2f // 0.0 = no brightening, 1.0 = max brightening
+    
+    // Performance optimization
+    private var frameCount: Int = 0
+    private var lastLandmarkUpdate: Long = 0
+    private val landmarkUpdateInterval: Long = 100 // Update landmarks every 100ms for performance
 
     init {
         Log.d(TAG, "Initializing OpenGLRenderer")
@@ -314,32 +319,63 @@ class OpenGLRenderer(private val context: Context) : SurfaceTexture.OnFrameAvail
         checkGlError("After glVertexAttribPointer texCoordAttribHandle")
         Log.d(TAG, "Set vertex attrib pointer for texture coordinates")
 
+        frameCount++
+        
         // Truyền landmark vào shader chỉ khi filter được bật
         if (isFilterEnabled && faceLandmarks != null) {
             val landmarks = faceLandmarks!!
-            val count = min(landmarks.size, 468)
-            val landmarkArray = FloatArray(count * 2)
-            for (i in 0 until count) {
-                // Chuẩn hóa về hệ tọa độ texture (0..1)
-                landmarkArray[i * 2] = landmarks[i].x.toFloat()
-                landmarkArray[i * 2 + 1] = landmarks[i].y.toFloat()
-            }
-            GLES20.glUniform2fv(uLandmarksHandle, count, landmarkArray, 0)
-            checkGlError("After glUniform2fv uLandmarksHandle")
-            GLES20.glUniform1i(uLandmarkCountHandle, count)
-            checkGlError("After glUniform1i uLandmarkCountHandle")
             
-            // Pass beauty filter parameters to shader
+            // Performance optimization: chỉ update landmarks mỗi 100ms
+            val currentTime = System.currentTimeMillis()
+            val shouldUpdateLandmarks = (currentTime - lastLandmarkUpdate) > landmarkUpdateInterval
+            
+            if (shouldUpdateLandmarks) {
+                // Optimize: chỉ truyền key landmarks thay vì tất cả 468 points
+                val keyLandmarkIndices = intArrayOf(
+                    1, 9, 10, 151, 175, 200, 201, 202, 204, 205, // Face outline và key points
+                    // Thêm một số landmarks quan trọng khác cho beauty filter
+                    33, 7, 163, 144, 145, 153, 154, 155, 133, 173, 157, 158, 159, 160, 161, 246
+                )
+                
+                val optimizedLandmarks = mutableListOf<FaceLandmark>()
+                for (index in keyLandmarkIndices) {
+                    if (index < landmarks.size) {
+                        optimizedLandmarks.add(landmarks[index])
+                    }
+                }
+                
+                val count = optimizedLandmarks.size
+                val landmarkArray = FloatArray(count * 2)
+                for (i in 0 until count) {
+                    // Chuẩn hóa về hệ tọa độ texture (0..1)
+                    landmarkArray[i * 2] = optimizedLandmarks[i].x.toFloat()
+                    landmarkArray[i * 2 + 1] = optimizedLandmarks[i].y.toFloat()
+                }
+                
+                GLES20.glUniform2fv(uLandmarksHandle, count, landmarkArray, 0)
+                checkGlError("After glUniform2fv uLandmarksHandle")
+                GLES20.glUniform1i(uLandmarkCountHandle, count)
+                checkGlError("After glUniform1i uLandmarkCountHandle")
+                
+                lastLandmarkUpdate = currentTime
+                Log.d(TAG, "Filter enabled - passing $count optimized landmarks to shader (frame $frameCount)")
+            } else {
+                // Giữ nguyên landmark count từ lần trước
+                Log.v(TAG, "Skipping landmark update for performance (frame $frameCount)")
+            }
+            
+            // Pass beauty filter parameters to shader (always update for smooth transitions)
             GLES20.glUniform1f(uSmoothingStrengthHandle, smoothingStrength)
             checkGlError("After glUniform1f uSmoothingStrengthHandle")
             GLES20.glUniform1f(uBrighteningStrengthHandle, brighteningStrength)
             checkGlError("After glUniform1f uBrighteningStrengthHandle")
             
-            Log.d(TAG, "Filter enabled - passing $count landmarks to shader with smoothing=$smoothingStrength, brightening=$brighteningStrength")
         } else {
             GLES20.glUniform1i(uLandmarkCountHandle, 0)
             checkGlError("After glUniform1i uLandmarkCountHandle (filter disabled or no landmarks)")
-            Log.d(TAG, "Filter disabled or no landmarks - showing raw camera feed")
+            if (frameCount % 60 == 0) { // Log mỗi 60 frames để giảm spam
+                Log.d(TAG, "Filter disabled or no landmarks - showing raw camera feed (frame $frameCount)")
+            }
         }
         Log.d(TAG, "Drawing triangle strip...")
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)

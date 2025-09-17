@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../controllers/camera_controller.dart';
 import '../widgets/camera_controls.dart';
-import '../widgets/effects_grid.dart';
 import '../widgets/image_preview.dart';
-import '../widgets/beauty_filter_selector.dart';
+// import '../widgets/beauty_filter_selector.dart'; // TODO: Fix when ready
+import '../widgets/main_filter_panel.dart';
 import 'dart:io';
 
 class CameraScreen extends ConsumerStatefulWidget {
@@ -43,44 +43,19 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
     }
   }
 
-  void _showEffectsSheet() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.black87,
-      isScrollControlled: true,
-      builder: (context) => Consumer(
-        builder: (context, ref, _) {
-          final currentState = ref.watch(cameraControllerProvider);
-
-          return EffectsGrid(
-            currentEffect: currentState.currentEffect,
-            onEffectSelected: (effect) {
-              ref.read(cameraControllerProvider.notifier).setEffectMode(effect);
-              Navigator.pop(context);
-            },
-          );
-        },
-      ),
+  void _showBeautyFilterSheet() {
+    // TODO: Implement BeautyFilterSelector when ready
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Beauty filters coming soon!')),
     );
   }
 
-  void _showBeautyFilterSheet() {
+  void _showMainFilterPanel() {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (context) => Consumer(
-        builder: (context, ref, _) {
-          return BeautyFilterSelector(
-            currentFilter: BeautyFilterPresets.natural, // Default filter
-            onFilterChanged: (parameters) {
-              ref
-                  .read(cameraControllerProvider.notifier)
-                  .setBeautyFilter(parameters);
-            },
-          );
-        },
-      ),
+      builder: (context) => const MainFilterPanel(),
     );
   }
 
@@ -158,11 +133,28 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
                   CameraControls(
                     onTakePhoto: () => controller.takePhoto(),
                     onSwitchCamera: () => controller.switchCamera(),
-                    onShowEffects: _showEffectsSheet,
+                    onShowEffects: _showMainFilterPanel,
                     onToggleFilter: () =>
                         controller.setFilterEnabled(!state.isFilterEnabled),
                     onShowBeautyFilter: _showBeautyFilterSheet,
+                    onShowMainFilter: _showMainFilterPanel,
                     isFilterEnabled: state.isFilterEnabled,
+                  ),
+                // Floating filter button
+                if (!state.isInitializing)
+                  Positioned(
+                    right: 20,
+                    bottom: 100,
+                    child: FloatingActionButton(
+                      mini: true,
+                      backgroundColor: Colors.black54,
+                      onPressed: _showMainFilterPanel,
+                      child: const Icon(
+                        Icons.auto_fix_high,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
                   ),
               ],
             ),

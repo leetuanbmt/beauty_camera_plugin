@@ -18,7 +18,8 @@ class BeautyCameraController {
   FlashMode _currentFlashMode = FlashMode.off;
 
   /// Current camera effect mode
-  CameraFilterMode _currentEffectMode = CameraFilterMode.none;
+  // TODO: Implement new filter system
+  // FilterCategory _currentEffectMode = FilterCategory.none;
 
   /// Current zoom level
   double _currentZoomLevel = 1.0;
@@ -26,16 +27,26 @@ class BeautyCameraController {
   /// Current parameters for the filter
   final FilterParameters _currentParameters = FilterParameters(
     intensity: 0.5,
+    skinSmoothing: 0.5,
+    skinBrightening: 0.0,
+    faceSlimming: 0.0,
+    eyeEnlargement: 0.0,
+    lipEnhancement: 0.0,
     brightness: 0.0,
     contrast: 1.0,
     saturation: 1.0,
-    hue: 0.0,
+    warmth: 0.0,
+    tint: 0.0,
+    vibrance: 0.0,
+    blur: 0.0,
     sharpen: 0.0,
-    blurRadius: 0.0,
-    redChannel: 1.0,
-    greenChannel: 1.0,
-    blueChannel: 1.0,
-    skinSmoothness: 0.5,
+    vignette: 0.0,
+    grain: 0.0,
+    fade: 0.0,
+    highlights: 0.0,
+    shadows: 0.0,
+    clarity: 0.0,
+    structure: 0.0,
   );
 
   /// Flag indicating if the camera is initialized
@@ -51,7 +62,8 @@ class BeautyCameraController {
   FlashMode get flashMode => _currentFlashMode;
 
   /// Gets the current effect mode
-  CameraFilterMode get effectMode => _currentEffectMode;
+  // TODO: Implement new filter system
+  // FilterCategory get effectMode => _currentEffectMode;
 
   /// Gets the current zoom level
   double get zoomLevel => _currentZoomLevel;
@@ -95,7 +107,7 @@ class BeautyCameraController {
             _isFrontCamera = event.data == 'front';
             break;
           case CameraEventType.effectChanged:
-            _currentEffectMode = event.data;
+            // _currentEffectMode = event.data; // TODO: Fix when filter system is ready
             break;
           case CameraEventType.recordingStarted:
             _isRecording = true;
@@ -180,11 +192,12 @@ class BeautyCameraController {
     }
   }
 
-  /// Sets the effect mode of the camera
-  Future<void> setEffectMode(CameraFilterMode mode) async {
+  /// Sets the effect mode of the camera (TODO: Implement new filter system)
+  Future<void> setEffectMode(FilterCategory mode) async {
     try {
-      await _api.setFilterMode(mode, currentParameters);
-      _currentEffectMode = mode;
+      // TODO: Implement applyFilter when native code is ready
+      // await _api.applyFilter(mode, FilterType.none, _currentParameters);
+      // _currentEffectMode = mode;
       _eventStreamController.add(CameraEvent(
         type: CameraEventType.effectChanged,
         data: mode,
@@ -213,10 +226,11 @@ class BeautyCameraController {
     }
   }
 
-  /// Sets beauty filter parameters
+  /// Sets beauty filter parameters (TODO: Update to new API)
   Future<void> setBeautyFilter(BeautyFilterParameters parameters) async {
     try {
-      await _api.setBeautyFilter(parameters);
+      // TODO: Replace with new API when ready
+      // await _api.setBeautyFilter(parameters);
       _eventStreamController.add(CameraEvent(
         type: CameraEventType.effectChanged,
         data: parameters,
@@ -227,6 +241,70 @@ class BeautyCameraController {
         e.message ?? 'Failed to set beauty filter',
       );
     }
+  }
+
+  /// Applies filter with new system
+  Future<void> applyFilter(FilterCategory category, FilterType type,
+      FilterParameters parameters) async {
+    try {
+      await _api.applyFilter(category, type, parameters);
+
+      _eventStreamController.add(CameraEvent(
+        type: CameraEventType.effectChanged,
+        data: {'category': category, 'type': type, 'parameters': parameters},
+      ));
+    } on PlatformException catch (e) {
+      throw CameraException(
+        e.code,
+        e.message ?? 'Failed to apply filter',
+      );
+    }
+  }
+
+  /// Adjusts filter intensity
+  Future<void> adjustFilterIntensity(double intensity) async {
+    try {
+      await _api.adjustFilterIntensity(intensity);
+    } on PlatformException catch (e) {
+      throw CameraException(
+        e.code,
+        e.message ?? 'Failed to adjust filter intensity',
+      );
+    }
+  }
+
+  /// Convert FilterParameters sang BeautyFilterParameters (temporary)
+  BeautyFilterParameters _convertToBeautyParameters(
+      FilterCategory category, FilterType type, FilterParameters params) {
+    // Map filter type sang BeautyFilterType
+    BeautyFilterType beautyType;
+    switch (type) {
+      case FilterType.beautyNatural:
+        beautyType = BeautyFilterType.natural;
+        break;
+      case FilterType.beautyGlow:
+        beautyType = BeautyFilterType.glow;
+        break;
+      case FilterType.beautyDoll:
+        beautyType = BeautyFilterType.doll;
+        break;
+      case FilterType.beautyFresh:
+        beautyType = BeautyFilterType.fresh;
+        break;
+      case FilterType.beautySmooth:
+        beautyType = BeautyFilterType.smooth;
+        break;
+      default:
+        beautyType = BeautyFilterType.natural;
+    }
+
+    return BeautyFilterParameters(
+      type: beautyType,
+      smoothingStrength: params.skinSmoothing,
+      brighteningStrength: params.skinBrightening,
+      intensity: params.intensity,
+      faceOnly: category == FilterCategory.beauty,
+    );
   }
 
   /// Focuses the camera on a specific point in the preview
@@ -417,10 +495,11 @@ class BeautyCameraPlugin implements BeautyCameraFlutterApi {
   }
 
   @override
-  Future<void> onFilterModeChanged(CameraFilterMode mode) async {
+  Future<void> onFilterChanged(FilterCategory category, FilterType type,
+      FilterParameters parameters) async {
     final event = CameraEvent(
       type: CameraEventType.effectChanged,
-      data: mode,
+      data: {'category': category, 'type': type, 'parameters': parameters},
     );
     _onEvent(event);
   }

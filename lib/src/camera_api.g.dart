@@ -42,75 +42,87 @@ bool _deepEquals(Object? a, Object? b) {
 }
 
 
-/// Định nghĩa các loại bộ lọc camera có thể áp dụng.
-/// Sử dụng theo mẫu Strategy Pattern, cho phép dễ dàng thêm filter mới.
-enum CameraFilterMode {
-  /// Không áp dụng bộ lọc
+/// Filter Categories (TikTok/CapCut style)
+enum FilterCategory {
+  /// Không filter
   none,
-  /// Làm mịn và tăng cường vẻ đẹp cho khuôn mặt
+  /// Beauty filters - làm đẹp (cần face detection)
   beauty,
-  /// Chuyển đổi sang chế độ đen trắng
-  mono,
-  /// Đảo ngược màu sắc
-  negative,
-  /// Tông màu nâu đỏ hoài cổ
-  sepia,
-  /// Hiệu ứng sáng cực đại tại một số vùng
-  solarize,
-  /// Giảm số lượng màu sắc, tạo hiệu ứng poster
-  posterize,
-  /// Hiệu ứng bảng trắng, tăng cường viền và độ tương phản
-  whiteboard,
-  /// Hiệu ứng bảng đen, tăng cường viền trên nền tối
-  blackboard,
-  /// Tông màu xanh nước biển
-  aqua,
-  /// Hiệu ứng chạm nổi
-  emboss,
-  /// Hiệu ứng phác họa
-  sketch,
-  /// Hiệu ứng màu sắc rực rỡ, phong cách neon
-  neon,
-  /// Hiệu ứng hoài cổ, tạo cảm giác hình ảnh cũ
+  /// Portrait filters - chân dung
+  portrait,
+  /// Food filters - đồ ăn
+  food,
+  /// Landscape filters - phong cảnh
+  landscape,
+  /// Vintage filters - cổ điển
   vintage,
-  /// Điều chỉnh độ sáng
-  brightness,
-  /// Điều chỉnh độ tương phản
-  contrast,
-  /// Điều chỉnh độ bão hòa màu sắc
-  saturation,
-  /// Tăng cường chi tiết, làm sắc nét hình ảnh
-  sharpen,
-  /// Làm mờ hình ảnh theo thuật toán Gaussian
-  gaussianBlur,
-  /// Tạo hiệu ứng viền tối ở góc hình ảnh
-  vignette,
-  /// Điều chỉnh tông màu
-  hue,
-  /// Điều chỉnh độ phơi sáng
-  exposure,
-  /// Điều chỉnh vùng tối và vùng sáng
-  highlightShadow,
-  /// Điều chỉnh các mức độ màu sắc
-  levels,
-  /// Cân bằng màu RGB
-  colorBalance,
-  /// Áp dụng bảng màu tra cứu (Lookup Table - LUT)
-  lookup,
+  /// Vibrant filters - sống động
+  vibrant,
+  /// Moody filters - tâm trạng
+  moody,
+  /// Film filters - phim ảnh
+  film,
+  /// Art filters - nghệ thuật
+  art,
 }
 
-/// Định nghĩa các loại beauty filter cụ thể
+/// Filter Types (TikTok/CapCut style)
+enum FilterType {
+  none,
+  beautyNatural,
+  beautyGlow,
+  beautyDoll,
+  beautyFresh,
+  beautySmooth,
+  beautyBright,
+  portraitClassic,
+  portraitDramatic,
+  portraitSoft,
+  portraitBW,
+  foodWarm,
+  foodVibrant,
+  foodFresh,
+  foodInstagram,
+  landscapeGolden,
+  landscapeDramatic,
+  landscapeVibrant,
+  landscapeMoody,
+  vintageFilm,
+  vintageSepia,
+  vintageFaded,
+  vintageRetro,
+  vibrantPop,
+  vibrantNeon,
+  vibrantSummer,
+  vibrantTropical,
+  moodyDark,
+  moodyBlue,
+  moodyCinematic,
+  moodyNoir,
+  filmKodak,
+  filmFuji,
+  filmPolaroid,
+  filmVHS,
+  artCartoon,
+  artOilPainting,
+  artWatercolor,
+  artSketch,
+}
+
+/// Định nghĩa các loại beauty filter cụ thể (TikTok/CapCut style)
 enum BeautyFilterType {
   /// Không áp dụng beauty filter
   none,
-  /// Làm mịn da
-  skinSmoothing,
-  /// Làm sáng da
-  skinBrightening,
-  /// Kết hợp làm mịn và sáng da
-  skinBeauty,
-  /// Làm mịn da nâng cao
-  advancedSmoothing,
+  /// Natural - làm đẹp tự nhiên
+  natural,
+  /// Glow - hiệu ứng rạng rỡ
+  glow,
+  /// Doll - hiệu ứng búp bê
+  doll,
+  /// Fresh - tươi tắn
+  fresh,
+  /// Smooth - làm mịn
+  smooth,
 }
 
 /// Chất lượng video khi quay.
@@ -223,80 +235,6 @@ class BeautyFilterParameters {
 ;
 }
 
-/// Thông tin chi tiết về bộ lọc được hỗ trợ.
-/// Cung cấp metadata về filter từ native lên Flutter.
-class FilterInfo {
-  FilterInfo({
-    required this.id,
-    required this.mode,
-    required this.displayName,
-    this.thumbnailPath,
-    this.description,
-    this.adjustableParameters,
-  });
-
-  /// Định danh độc nhất của filter
-  String id;
-
-  /// Loại bộ lọc
-  CameraFilterMode mode;
-
-  /// Tên hiển thị cho người dùng
-  String displayName;
-
-  /// Đường dẫn đến hình thu nhỏ nếu có
-  String? thumbnailPath;
-
-  /// Mô tả ngắn về bộ lọc
-  String? description;
-
-  /// Danh sách các tham số có thể điều chỉnh
-  List<String>? adjustableParameters;
-
-  List<Object?> _toList() {
-    return <Object?>[
-      id,
-      mode,
-      displayName,
-      thumbnailPath,
-      description,
-      adjustableParameters,
-    ];
-  }
-
-  Object encode() {
-    return _toList();  }
-
-  static FilterInfo decode(Object result) {
-    result as List<Object?>;
-    return FilterInfo(
-      id: result[0]! as String,
-      mode: result[1]! as CameraFilterMode,
-      displayName: result[2]! as String,
-      thumbnailPath: result[3] as String?,
-      description: result[4] as String?,
-      adjustableParameters: (result[5] as List<Object?>?)?.cast<String>(),
-    );
-  }
-
-  @override
-  // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  bool operator ==(Object other) {
-    if (other is! FilterInfo || other.runtimeType != runtimeType) {
-      return false;
-    }
-    if (identical(this, other)) {
-      return true;
-    }
-    return _deepEquals(encode(), other.encode());
-  }
-
-  @override
-  // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
-}
-
 /// Cài đặt nâng cao cho camera.
 /// Sử dụng để cấu hình chi tiết cho CameraX.
 class AdvancedCameraSettings {
@@ -371,74 +309,102 @@ class AdvancedCameraSettings {
 ;
 }
 
-/// Cài đặt tham số cho filter camera.
-/// Sử dụng Builder Pattern để dễ dàng xây dựng và tùy chỉnh.
+/// Filter Parameters (TikTok/CapCut style - unified system)
 class FilterParameters {
   FilterParameters({
     required this.intensity,
+    required this.skinSmoothing,
+    required this.skinBrightening,
+    required this.faceSlimming,
+    required this.eyeEnlargement,
+    required this.lipEnhancement,
     required this.brightness,
     required this.contrast,
     required this.saturation,
-    required this.hue,
+    required this.warmth,
+    required this.tint,
+    required this.vibrance,
+    required this.blur,
     required this.sharpen,
-    required this.blurRadius,
-    required this.redChannel,
-    required this.greenChannel,
-    required this.blueChannel,
-    required this.skinSmoothness,
-    this.lookupTablePath,
+    required this.vignette,
+    required this.grain,
+    required this.fade,
+    required this.highlights,
+    required this.shadows,
+    required this.clarity,
+    required this.structure,
   });
 
-  /// Cường độ áp dụng bộ lọc (0.0 - 1.0)
+  /// Độ mạnh tổng thể (0.0 - 1.0)
   double intensity;
 
-  /// Độ sáng (-1.0 đến 1.0, 0.0 là nguyên bản)
+  /// Beauty parameters
+  double skinSmoothing;
+
+  double skinBrightening;
+
+  double faceSlimming;
+
+  double eyeEnlargement;
+
+  double lipEnhancement;
+
+  /// Color parameters
   double brightness;
 
-  /// Độ tương phản (0.0 - 2.0, 1.0 là nguyên bản)
   double contrast;
 
-  /// Độ bão hòa màu (0.0 - 2.0, 1.0 là nguyên bản)
   double saturation;
 
-  /// Điều chỉnh tông màu (-1.0 đến 1.0)
-  double hue;
+  double warmth;
 
-  /// Độ sắc nét (0.0 - 2.0)
+  double tint;
+
+  double vibrance;
+
+  /// Artistic parameters
+  double blur;
+
   double sharpen;
 
-  /// Bán kính làm mờ (0.0 - 10.0)
-  double blurRadius;
+  double vignette;
 
-  /// Hệ số kênh đỏ (0.0 - 2.0, 1.0 là nguyên bản)
-  double redChannel;
+  double grain;
 
-  /// Hệ số kênh xanh lá (0.0 - 2.0, 1.0 là nguyên bản)
-  double greenChannel;
+  double fade;
 
-  /// Hệ số kênh xanh dương (0.0 - 2.0, 1.0 là nguyên bản)
-  double blueChannel;
+  /// Advanced parameters
+  double highlights;
 
-  /// Độ làm mịn da (0.0 - 1.0)
-  double skinSmoothness;
+  double shadows;
 
-  /// Đường dẫn đến file LUT (Lookup Table)
-  String? lookupTablePath;
+  double clarity;
+
+  double structure;
 
   List<Object?> _toList() {
     return <Object?>[
       intensity,
+      skinSmoothing,
+      skinBrightening,
+      faceSlimming,
+      eyeEnlargement,
+      lipEnhancement,
       brightness,
       contrast,
       saturation,
-      hue,
+      warmth,
+      tint,
+      vibrance,
+      blur,
       sharpen,
-      blurRadius,
-      redChannel,
-      greenChannel,
-      blueChannel,
-      skinSmoothness,
-      lookupTablePath,
+      vignette,
+      grain,
+      fade,
+      highlights,
+      shadows,
+      clarity,
+      structure,
     ];
   }
 
@@ -449,17 +415,26 @@ class FilterParameters {
     result as List<Object?>;
     return FilterParameters(
       intensity: result[0]! as double,
-      brightness: result[1]! as double,
-      contrast: result[2]! as double,
-      saturation: result[3]! as double,
-      hue: result[4]! as double,
-      sharpen: result[5]! as double,
-      blurRadius: result[6]! as double,
-      redChannel: result[7]! as double,
-      greenChannel: result[8]! as double,
-      blueChannel: result[9]! as double,
-      skinSmoothness: result[10]! as double,
-      lookupTablePath: result[11] as String?,
+      skinSmoothing: result[1]! as double,
+      skinBrightening: result[2]! as double,
+      faceSlimming: result[3]! as double,
+      eyeEnlargement: result[4]! as double,
+      lipEnhancement: result[5]! as double,
+      brightness: result[6]! as double,
+      contrast: result[7]! as double,
+      saturation: result[8]! as double,
+      warmth: result[9]! as double,
+      tint: result[10]! as double,
+      vibrance: result[11]! as double,
+      blur: result[12]! as double,
+      sharpen: result[13]! as double,
+      vignette: result[14]! as double,
+      grain: result[15]! as double,
+      fade: result[16]! as double,
+      highlights: result[17]! as double,
+      shadows: result[18]! as double,
+      clarity: result[19]! as double,
+      structure: result[20]! as double,
     );
   }
 
@@ -867,28 +842,28 @@ class _PigeonCodec extends StandardMessageCodec {
     if (value is int) {
       buffer.putUint8(4);
       buffer.putInt64(value);
-    }    else if (value is CameraFilterMode) {
+    }    else if (value is FilterCategory) {
       buffer.putUint8(129);
       writeValue(buffer, value.index);
-    }    else if (value is BeautyFilterType) {
+    }    else if (value is FilterType) {
       buffer.putUint8(130);
       writeValue(buffer, value.index);
-    }    else if (value is VideoQuality) {
+    }    else if (value is BeautyFilterType) {
       buffer.putUint8(131);
       writeValue(buffer, value.index);
-    }    else if (value is FlashMode) {
+    }    else if (value is VideoQuality) {
       buffer.putUint8(132);
       writeValue(buffer, value.index);
-    }    else if (value is CameraFacing) {
+    }    else if (value is FlashMode) {
       buffer.putUint8(133);
       writeValue(buffer, value.index);
-    }    else if (value is ScaleType) {
+    }    else if (value is CameraFacing) {
       buffer.putUint8(134);
       writeValue(buffer, value.index);
-    }    else if (value is BeautyFilterParameters) {
+    }    else if (value is ScaleType) {
       buffer.putUint8(135);
-      writeValue(buffer, value.encode());
-    }    else if (value is FilterInfo) {
+      writeValue(buffer, value.index);
+    }    else if (value is BeautyFilterParameters) {
       buffer.putUint8(136);
       writeValue(buffer, value.encode());
     }    else if (value is AdvancedCameraSettings) {
@@ -925,26 +900,27 @@ class _PigeonCodec extends StandardMessageCodec {
     switch (type) {
       case 129: 
         final int? value = readValue(buffer) as int?;
-        return value == null ? null : CameraFilterMode.values[value];
+        return value == null ? null : FilterCategory.values[value];
       case 130: 
         final int? value = readValue(buffer) as int?;
-        return value == null ? null : BeautyFilterType.values[value];
+        return value == null ? null : FilterType.values[value];
       case 131: 
         final int? value = readValue(buffer) as int?;
-        return value == null ? null : VideoQuality.values[value];
+        return value == null ? null : BeautyFilterType.values[value];
       case 132: 
         final int? value = readValue(buffer) as int?;
-        return value == null ? null : FlashMode.values[value];
+        return value == null ? null : VideoQuality.values[value];
       case 133: 
         final int? value = readValue(buffer) as int?;
-        return value == null ? null : CameraFacing.values[value];
+        return value == null ? null : FlashMode.values[value];
       case 134: 
         final int? value = readValue(buffer) as int?;
-        return value == null ? null : ScaleType.values[value];
+        return value == null ? null : CameraFacing.values[value];
       case 135: 
-        return BeautyFilterParameters.decode(readValue(buffer)!);
+        final int? value = readValue(buffer) as int?;
+        return value == null ? null : ScaleType.values[value];
       case 136: 
-        return FilterInfo.decode(readValue(buffer)!);
+        return BeautyFilterParameters.decode(readValue(buffer)!);
       case 137: 
         return AdvancedCameraSettings.decode(readValue(buffer)!);
       case 138: 
@@ -1319,15 +1295,15 @@ class BeautyCameraHostApi {
     }
   }
 
-  /// Đặt chế độ bộ lọc với các tham số
-  Future<void> setFilterMode(CameraFilterMode mode, FilterParameters parameters) async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.setFilterMode$pigeonVar_messageChannelSuffix';
+  /// Áp dụng filter với category và type
+  Future<void> applyFilter(FilterCategory category, FilterType type, FilterParameters parameters) async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.applyFilter$pigeonVar_messageChannelSuffix';
     final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[mode, parameters]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[category, type, parameters]);
     final List<Object?>? pigeonVar_replyList =
         await pigeonVar_sendFuture as List<Object?>?;
     if (pigeonVar_replyList == null) {
@@ -1352,59 +1328,6 @@ class BeautyCameraHostApi {
       binaryMessenger: pigeonVar_binaryMessenger,
     );
     final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[scaleType]);
-    final List<Object?>? pigeonVar_replyList =
-        await pigeonVar_sendFuture as List<Object?>?;
-    if (pigeonVar_replyList == null) {
-      throw _createConnectionError(pigeonVar_channelName);
-    } else if (pigeonVar_replyList.length > 1) {
-      throw PlatformException(
-        code: pigeonVar_replyList[0]! as String,
-        message: pigeonVar_replyList[1] as String?,
-        details: pigeonVar_replyList[2],
-      );
-    } else {
-      return;
-    }
-  }
-
-  /// Lấy danh sách thông tin chi tiết về các bộ lọc có sẵn từ native
-  Future<List<FilterInfo>> getAvailableFilters() async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.getAvailableFilters$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
-      pigeonVar_channelName,
-      pigeonChannelCodec,
-      binaryMessenger: pigeonVar_binaryMessenger,
-    );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
-    final List<Object?>? pigeonVar_replyList =
-        await pigeonVar_sendFuture as List<Object?>?;
-    if (pigeonVar_replyList == null) {
-      throw _createConnectionError(pigeonVar_channelName);
-    } else if (pigeonVar_replyList.length > 1) {
-      throw PlatformException(
-        code: pigeonVar_replyList[0]! as String,
-        message: pigeonVar_replyList[1] as String?,
-        details: pigeonVar_replyList[2],
-      );
-    } else if (pigeonVar_replyList[0] == null) {
-      throw PlatformException(
-        code: 'null-error',
-        message: 'Host platform returned null value for non-null return value.',
-      );
-    } else {
-      return (pigeonVar_replyList[0] as List<Object?>?)!.cast<FilterInfo>();
-    }
-  }
-
-  /// Điều chỉnh tham số của bộ lọc hiện tại
-  Future<void> adjustFilterParameters(FilterParameters parameters) async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.adjustFilterParameters$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
-      pigeonVar_channelName,
-      pigeonChannelCodec,
-      binaryMessenger: pigeonVar_binaryMessenger,
-    );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[parameters]);
     final List<Object?>? pigeonVar_replyList =
         await pigeonVar_sendFuture as List<Object?>?;
     if (pigeonVar_replyList == null) {
@@ -1473,15 +1396,15 @@ class BeautyCameraHostApi {
     }
   }
 
-  /// Thiết lập beauty filter parameters
-  Future<void> setBeautyFilter(BeautyFilterParameters parameters) async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.setBeautyFilter$pigeonVar_messageChannelSuffix';
+  /// Điều chỉnh intensity của filter hiện tại
+  Future<void> adjustFilterIntensity(double intensity) async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.adjustFilterIntensity$pigeonVar_messageChannelSuffix';
     final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[parameters]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[intensity]);
     final List<Object?>? pigeonVar_replyList =
         await pigeonVar_sendFuture as List<Object?>?;
     if (pigeonVar_replyList == null) {
@@ -1810,11 +1733,8 @@ abstract class BeautyCameraFlutterApi {
   /// Thông báo khi dừng quay video
   Future<void> onVideoRecordingStopped(String path);
 
-  /// Thông báo khi chế độ bộ lọc thay đổi
-  Future<void> onFilterModeChanged(CameraFilterMode mode);
-
-  /// Thông báo khi tham số bộ lọc thay đổi
-  Future<void> onFilterParametersChanged(FilterParameters parameters);
+  /// Thông báo khi filter thay đổi
+  Future<void> onFilterChanged(FilterCategory category, FilterType type, FilterParameters parameters);
 
   /// Thông báo khi xảy ra lỗi camera
   Future<void> onCameraError(String errorCode, String errorMessage);
@@ -1967,45 +1887,26 @@ abstract class BeautyCameraFlutterApi {
     }
     {
       final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
-          'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onFilterModeChanged$messageChannelSuffix', pigeonChannelCodec,
+          'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onFilterChanged$messageChannelSuffix', pigeonChannelCodec,
           binaryMessenger: binaryMessenger);
       if (api == null) {
         pigeonVar_channel.setMessageHandler(null);
       } else {
         pigeonVar_channel.setMessageHandler((Object? message) async {
           assert(message != null,
-          'Argument for dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onFilterModeChanged was null.');
+          'Argument for dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onFilterChanged was null.');
           final List<Object?> args = (message as List<Object?>?)!;
-          final CameraFilterMode? arg_mode = (args[0] as CameraFilterMode?);
-          assert(arg_mode != null,
-              'Argument for dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onFilterModeChanged was null, expected non-null CameraFilterMode.');
-          try {
-            await api.onFilterModeChanged(arg_mode!);
-            return wrapResponse(empty: true);
-          } on PlatformException catch (e) {
-            return wrapResponse(error: e);
-          }          catch (e) {
-            return wrapResponse(error: PlatformException(code: 'error', message: e.toString()));
-          }
-        });
-      }
-    }
-    {
-      final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
-          'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onFilterParametersChanged$messageChannelSuffix', pigeonChannelCodec,
-          binaryMessenger: binaryMessenger);
-      if (api == null) {
-        pigeonVar_channel.setMessageHandler(null);
-      } else {
-        pigeonVar_channel.setMessageHandler((Object? message) async {
-          assert(message != null,
-          'Argument for dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onFilterParametersChanged was null.');
-          final List<Object?> args = (message as List<Object?>?)!;
-          final FilterParameters? arg_parameters = (args[0] as FilterParameters?);
+          final FilterCategory? arg_category = (args[0] as FilterCategory?);
+          assert(arg_category != null,
+              'Argument for dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onFilterChanged was null, expected non-null FilterCategory.');
+          final FilterType? arg_type = (args[1] as FilterType?);
+          assert(arg_type != null,
+              'Argument for dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onFilterChanged was null, expected non-null FilterType.');
+          final FilterParameters? arg_parameters = (args[2] as FilterParameters?);
           assert(arg_parameters != null,
-              'Argument for dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onFilterParametersChanged was null, expected non-null FilterParameters.');
+              'Argument for dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onFilterChanged was null, expected non-null FilterParameters.');
           try {
-            await api.onFilterParametersChanged(arg_parameters!);
+            await api.onFilterChanged(arg_category!, arg_type!, arg_parameters!);
             return wrapResponse(empty: true);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);

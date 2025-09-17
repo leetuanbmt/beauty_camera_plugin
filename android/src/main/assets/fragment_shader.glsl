@@ -13,39 +13,62 @@ uniform int uLandmarkCount;
 uniform float uSmoothingStrength;
 uniform float uBrighteningStrength;
 
-// Gaussian blur function for skin smoothing
-vec4 gaussianBlur(samplerExternalOES tex, vec2 coord, float radius) {
-    vec4 color = vec4(0.0);
-    float total = 0.0;
+// Optimized blur function for better performance
+vec4 optimizedBlur(samplerExternalOES tex, vec2 coord, float strength) {
+    vec4 center = texture2D(tex, coord);
     
-    for (float x = -2.0; x <= 2.0; x += 1.0) {
-        for (float y = -2.0; y <= 2.0; y += 1.0) {
-            vec2 offset = vec2(x, y) * radius / 512.0;
-            float weight = exp(-0.5 * (x*x + y*y) / (radius*radius));
-            color += texture2D(tex, coord + offset) * weight;
-            total += weight;
-        }
-    }
+    // Simple 5-sample blur for performance
+    vec4 color = center;
+    color += texture2D(tex, coord + vec2(0.002, 0.0) * strength);
+    color += texture2D(tex, coord + vec2(-0.002, 0.0) * strength);
+    color += texture2D(tex, coord + vec2(0.0, 0.002) * strength);
+    color += texture2D(tex, coord + vec2(0.0, -0.002) * strength);
     
-    return color / total;
+    return color / 5.0;
 }
 
-// Check if current pixel is near face landmarks (skin area)
+// Optimized landmark check - only check key facial points for performance
 bool isNearFaceLandmarks(vec2 coord) {
     if (uLandmarkCount == 0) return false;
     
-    // Check distance to key facial landmarks (skin areas)
-    for (int i = 0; i < 468; i++) {
+    // Only check every 10th landmark for performance (still covers face well)
+    for (int i = 0; i < 468; i += 10) {
         if (i >= uLandmarkCount) break;
         
         vec2 landmark = uLandmarks[i];
         float dist = distance(coord, landmark);
         
-        // If within skin smoothing radius
-        if (dist < 0.05) {
+        // Larger radius since we're checking fewer points
+        if (dist < 0.08) {
             return true;
         }
     }
+    
+    // Also check some key facial points specifically
+    if (uLandmarkCount > 50) {
+        // Check nose tip, cheeks, forehead areas (hardcoded for GLSL ES 100 compatibility)
+        if (1 < uLandmarkCount) {
+            float dist = distance(coord, uLandmarks[1]);
+            if (dist < 0.06) return true;
+        }
+        if (9 < uLandmarkCount) {
+            float dist = distance(coord, uLandmarks[9]);
+            if (dist < 0.06) return true;
+        }
+        if (10 < uLandmarkCount) {
+            float dist = distance(coord, uLandmarks[10]);
+            if (dist < 0.06) return true;
+        }
+        if (151 < uLandmarkCount) {
+            float dist = distance(coord, uLandmarks[151]);
+            if (dist < 0.06) return true;
+        }
+        if (175 < uLandmarkCount) {
+            float dist = distance(coord, uLandmarks[175]);
+            if (dist < 0.06) return true;
+        }
+    }
+    
     return false;
 }
 
@@ -61,7 +84,7 @@ void main() {
     // Apply beauty filters only to skin areas
     if (isNearFaceLandmarks(vTextureCoord)) {
         // Skin smoothing: blend original with blurred version
-        vec4 blurredColor = gaussianBlur(sTexture, vTextureCoord, 2.0);
+        vec4 blurredColor = optimizedBlur(sTexture, vTextureCoord, uSmoothingStrength);
         vec4 smoothedColor = mix(originalColor, blurredColor, uSmoothingStrength);
         
         // Skin brightening: increase brightness slightly
@@ -74,3 +97,4 @@ void main() {
         gl_FragColor = originalColor;
     }
 }
+

@@ -135,75 +135,87 @@ func deepHashBeautyCameraPluginPigeon(value: Any?, hasher: inout Hasher) {
 
     
 
-/// Định nghĩa các loại bộ lọc camera có thể áp dụng.
-/// Sử dụng theo mẫu Strategy Pattern, cho phép dễ dàng thêm filter mới.
-enum CameraFilterMode: Int {
-  /// Không áp dụng bộ lọc
+/// Filter Categories (TikTok/CapCut style)
+enum FilterCategory: Int {
+  /// Không filter
   case none = 0
-  /// Làm mịn và tăng cường vẻ đẹp cho khuôn mặt
+  /// Beauty filters - làm đẹp (cần face detection)
   case beauty = 1
-  /// Chuyển đổi sang chế độ đen trắng
-  case mono = 2
-  /// Đảo ngược màu sắc
-  case negative = 3
-  /// Tông màu nâu đỏ hoài cổ
-  case sepia = 4
-  /// Hiệu ứng sáng cực đại tại một số vùng
-  case solarize = 5
-  /// Giảm số lượng màu sắc, tạo hiệu ứng poster
-  case posterize = 6
-  /// Hiệu ứng bảng trắng, tăng cường viền và độ tương phản
-  case whiteboard = 7
-  /// Hiệu ứng bảng đen, tăng cường viền trên nền tối
-  case blackboard = 8
-  /// Tông màu xanh nước biển
-  case aqua = 9
-  /// Hiệu ứng chạm nổi
-  case emboss = 10
-  /// Hiệu ứng phác họa
-  case sketch = 11
-  /// Hiệu ứng màu sắc rực rỡ, phong cách neon
-  case neon = 12
-  /// Hiệu ứng hoài cổ, tạo cảm giác hình ảnh cũ
-  case vintage = 13
-  /// Điều chỉnh độ sáng
-  case brightness = 14
-  /// Điều chỉnh độ tương phản
-  case contrast = 15
-  /// Điều chỉnh độ bão hòa màu sắc
-  case saturation = 16
-  /// Tăng cường chi tiết, làm sắc nét hình ảnh
-  case sharpen = 17
-  /// Làm mờ hình ảnh theo thuật toán Gaussian
-  case gaussianBlur = 18
-  /// Tạo hiệu ứng viền tối ở góc hình ảnh
-  case vignette = 19
-  /// Điều chỉnh tông màu
-  case hue = 20
-  /// Điều chỉnh độ phơi sáng
-  case exposure = 21
-  /// Điều chỉnh vùng tối và vùng sáng
-  case highlightShadow = 22
-  /// Điều chỉnh các mức độ màu sắc
-  case levels = 23
-  /// Cân bằng màu RGB
-  case colorBalance = 24
-  /// Áp dụng bảng màu tra cứu (Lookup Table - LUT)
-  case lookup = 25
+  /// Portrait filters - chân dung
+  case portrait = 2
+  /// Food filters - đồ ăn
+  case food = 3
+  /// Landscape filters - phong cảnh
+  case landscape = 4
+  /// Vintage filters - cổ điển
+  case vintage = 5
+  /// Vibrant filters - sống động
+  case vibrant = 6
+  /// Moody filters - tâm trạng
+  case moody = 7
+  /// Film filters - phim ảnh
+  case film = 8
+  /// Art filters - nghệ thuật
+  case art = 9
 }
 
-/// Định nghĩa các loại beauty filter cụ thể
+/// Filter Types (TikTok/CapCut style)
+enum FilterType: Int {
+  case none = 0
+  case beautyNatural = 1
+  case beautyGlow = 2
+  case beautyDoll = 3
+  case beautyFresh = 4
+  case beautySmooth = 5
+  case beautyBright = 6
+  case portraitClassic = 7
+  case portraitDramatic = 8
+  case portraitSoft = 9
+  case portraitBW = 10
+  case foodWarm = 11
+  case foodVibrant = 12
+  case foodFresh = 13
+  case foodInstagram = 14
+  case landscapeGolden = 15
+  case landscapeDramatic = 16
+  case landscapeVibrant = 17
+  case landscapeMoody = 18
+  case vintageFilm = 19
+  case vintageSepia = 20
+  case vintageFaded = 21
+  case vintageRetro = 22
+  case vibrantPop = 23
+  case vibrantNeon = 24
+  case vibrantSummer = 25
+  case vibrantTropical = 26
+  case moodyDark = 27
+  case moodyBlue = 28
+  case moodyCinematic = 29
+  case moodyNoir = 30
+  case filmKodak = 31
+  case filmFuji = 32
+  case filmPolaroid = 33
+  case filmVHS = 34
+  case artCartoon = 35
+  case artOilPainting = 36
+  case artWatercolor = 37
+  case artSketch = 38
+}
+
+/// Định nghĩa các loại beauty filter cụ thể (TikTok/CapCut style)
 enum BeautyFilterType: Int {
   /// Không áp dụng beauty filter
   case none = 0
-  /// Làm mịn da
-  case skinSmoothing = 1
-  /// Làm sáng da
-  case skinBrightening = 2
-  /// Kết hợp làm mịn và sáng da
-  case skinBeauty = 3
-  /// Làm mịn da nâng cao
-  case advancedSmoothing = 4
+  /// Natural - làm đẹp tự nhiên
+  case natural = 1
+  /// Glow - hiệu ứng rạng rỡ
+  case glow = 2
+  /// Doll - hiệu ứng búp bê
+  case doll = 3
+  /// Fresh - tươi tắn
+  case fresh = 4
+  /// Smooth - làm mịn
+  case smooth = 5
 }
 
 /// Chất lượng video khi quay.
@@ -297,60 +309,6 @@ struct BeautyFilterParameters: Hashable {
   }
 }
 
-/// Thông tin chi tiết về bộ lọc được hỗ trợ.
-/// Cung cấp metadata về filter từ native lên Flutter.
-///
-/// Generated class from Pigeon that represents data sent in messages.
-struct FilterInfo: Hashable {
-  /// Định danh độc nhất của filter
-  var id: String
-  /// Loại bộ lọc
-  var mode: CameraFilterMode
-  /// Tên hiển thị cho người dùng
-  var displayName: String
-  /// Đường dẫn đến hình thu nhỏ nếu có
-  var thumbnailPath: String? = nil
-  /// Mô tả ngắn về bộ lọc
-  var description: String? = nil
-  /// Danh sách các tham số có thể điều chỉnh
-  var adjustableParameters: [String]? = nil
-
-
-  // swift-format-ignore: AlwaysUseLowerCamelCase
-  static func fromList(_ pigeonVar_list: [Any?]) -> FilterInfo? {
-    let id = pigeonVar_list[0] as! String
-    let mode = pigeonVar_list[1] as! CameraFilterMode
-    let displayName = pigeonVar_list[2] as! String
-    let thumbnailPath: String? = nilOrValue(pigeonVar_list[3])
-    let description: String? = nilOrValue(pigeonVar_list[4])
-    let adjustableParameters: [String]? = nilOrValue(pigeonVar_list[5])
-
-    return FilterInfo(
-      id: id,
-      mode: mode,
-      displayName: displayName,
-      thumbnailPath: thumbnailPath,
-      description: description,
-      adjustableParameters: adjustableParameters
-    )
-  }
-  func toList() -> [Any?] {
-    return [
-      id,
-      mode,
-      displayName,
-      thumbnailPath,
-      description,
-      adjustableParameters,
-    ]
-  }
-  static func == (lhs: FilterInfo, rhs: FilterInfo) -> Bool {
-    return deepEqualsBeautyCameraPluginPigeon(lhs.toList(), rhs.toList())  }
-  func hash(into hasher: inout Hasher) {
-    deepHashBeautyCameraPluginPigeon(value: toList(), hasher: &hasher)
-  }
-}
-
 /// Cài đặt nâng cao cho camera.
 /// Sử dụng để cấu hình chi tiết cho CameraX.
 ///
@@ -405,81 +363,109 @@ struct AdvancedCameraSettings: Hashable {
   }
 }
 
-/// Cài đặt tham số cho filter camera.
-/// Sử dụng Builder Pattern để dễ dàng xây dựng và tùy chỉnh.
+/// Filter Parameters (TikTok/CapCut style - unified system)
 ///
 /// Generated class from Pigeon that represents data sent in messages.
 struct FilterParameters: Hashable {
-  /// Cường độ áp dụng bộ lọc (0.0 - 1.0)
+  /// Độ mạnh tổng thể (0.0 - 1.0)
   var intensity: Double
-  /// Độ sáng (-1.0 đến 1.0, 0.0 là nguyên bản)
+  /// Beauty parameters
+  var skinSmoothing: Double
+  var skinBrightening: Double
+  var faceSlimming: Double
+  var eyeEnlargement: Double
+  var lipEnhancement: Double
+  /// Color parameters
   var brightness: Double
-  /// Độ tương phản (0.0 - 2.0, 1.0 là nguyên bản)
   var contrast: Double
-  /// Độ bão hòa màu (0.0 - 2.0, 1.0 là nguyên bản)
   var saturation: Double
-  /// Điều chỉnh tông màu (-1.0 đến 1.0)
-  var hue: Double
-  /// Độ sắc nét (0.0 - 2.0)
+  var warmth: Double
+  var tint: Double
+  var vibrance: Double
+  /// Artistic parameters
+  var blur: Double
   var sharpen: Double
-  /// Bán kính làm mờ (0.0 - 10.0)
-  var blurRadius: Double
-  /// Hệ số kênh đỏ (0.0 - 2.0, 1.0 là nguyên bản)
-  var redChannel: Double
-  /// Hệ số kênh xanh lá (0.0 - 2.0, 1.0 là nguyên bản)
-  var greenChannel: Double
-  /// Hệ số kênh xanh dương (0.0 - 2.0, 1.0 là nguyên bản)
-  var blueChannel: Double
-  /// Độ làm mịn da (0.0 - 1.0)
-  var skinSmoothness: Double
-  /// Đường dẫn đến file LUT (Lookup Table)
-  var lookupTablePath: String? = nil
+  var vignette: Double
+  var grain: Double
+  var fade: Double
+  /// Advanced parameters
+  var highlights: Double
+  var shadows: Double
+  var clarity: Double
+  var structure: Double
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
   static func fromList(_ pigeonVar_list: [Any?]) -> FilterParameters? {
     let intensity = pigeonVar_list[0] as! Double
-    let brightness = pigeonVar_list[1] as! Double
-    let contrast = pigeonVar_list[2] as! Double
-    let saturation = pigeonVar_list[3] as! Double
-    let hue = pigeonVar_list[4] as! Double
-    let sharpen = pigeonVar_list[5] as! Double
-    let blurRadius = pigeonVar_list[6] as! Double
-    let redChannel = pigeonVar_list[7] as! Double
-    let greenChannel = pigeonVar_list[8] as! Double
-    let blueChannel = pigeonVar_list[9] as! Double
-    let skinSmoothness = pigeonVar_list[10] as! Double
-    let lookupTablePath: String? = nilOrValue(pigeonVar_list[11])
+    let skinSmoothing = pigeonVar_list[1] as! Double
+    let skinBrightening = pigeonVar_list[2] as! Double
+    let faceSlimming = pigeonVar_list[3] as! Double
+    let eyeEnlargement = pigeonVar_list[4] as! Double
+    let lipEnhancement = pigeonVar_list[5] as! Double
+    let brightness = pigeonVar_list[6] as! Double
+    let contrast = pigeonVar_list[7] as! Double
+    let saturation = pigeonVar_list[8] as! Double
+    let warmth = pigeonVar_list[9] as! Double
+    let tint = pigeonVar_list[10] as! Double
+    let vibrance = pigeonVar_list[11] as! Double
+    let blur = pigeonVar_list[12] as! Double
+    let sharpen = pigeonVar_list[13] as! Double
+    let vignette = pigeonVar_list[14] as! Double
+    let grain = pigeonVar_list[15] as! Double
+    let fade = pigeonVar_list[16] as! Double
+    let highlights = pigeonVar_list[17] as! Double
+    let shadows = pigeonVar_list[18] as! Double
+    let clarity = pigeonVar_list[19] as! Double
+    let structure = pigeonVar_list[20] as! Double
 
     return FilterParameters(
       intensity: intensity,
+      skinSmoothing: skinSmoothing,
+      skinBrightening: skinBrightening,
+      faceSlimming: faceSlimming,
+      eyeEnlargement: eyeEnlargement,
+      lipEnhancement: lipEnhancement,
       brightness: brightness,
       contrast: contrast,
       saturation: saturation,
-      hue: hue,
+      warmth: warmth,
+      tint: tint,
+      vibrance: vibrance,
+      blur: blur,
       sharpen: sharpen,
-      blurRadius: blurRadius,
-      redChannel: redChannel,
-      greenChannel: greenChannel,
-      blueChannel: blueChannel,
-      skinSmoothness: skinSmoothness,
-      lookupTablePath: lookupTablePath
+      vignette: vignette,
+      grain: grain,
+      fade: fade,
+      highlights: highlights,
+      shadows: shadows,
+      clarity: clarity,
+      structure: structure
     )
   }
   func toList() -> [Any?] {
     return [
       intensity,
+      skinSmoothing,
+      skinBrightening,
+      faceSlimming,
+      eyeEnlargement,
+      lipEnhancement,
       brightness,
       contrast,
       saturation,
-      hue,
+      warmth,
+      tint,
+      vibrance,
+      blur,
       sharpen,
-      blurRadius,
-      redChannel,
-      greenChannel,
-      blueChannel,
-      skinSmoothness,
-      lookupTablePath,
+      vignette,
+      grain,
+      fade,
+      highlights,
+      shadows,
+      clarity,
+      structure,
     ]
   }
   static func == (lhs: FilterParameters, rhs: FilterParameters) -> Bool {
@@ -763,43 +749,47 @@ private class BeautyCameraPluginPigeonPigeonCodecReader: FlutterStandardReader {
     case 129:
       let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
       if let enumResultAsInt = enumResultAsInt {
-        return CameraFilterMode(rawValue: enumResultAsInt)
+        return FilterCategory(rawValue: enumResultAsInt)
       }
       return nil
     case 130:
       let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
       if let enumResultAsInt = enumResultAsInt {
-        return BeautyFilterType(rawValue: enumResultAsInt)
+        return FilterType(rawValue: enumResultAsInt)
       }
       return nil
     case 131:
       let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
       if let enumResultAsInt = enumResultAsInt {
-        return VideoQuality(rawValue: enumResultAsInt)
+        return BeautyFilterType(rawValue: enumResultAsInt)
       }
       return nil
     case 132:
       let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
       if let enumResultAsInt = enumResultAsInt {
-        return FlashMode(rawValue: enumResultAsInt)
+        return VideoQuality(rawValue: enumResultAsInt)
       }
       return nil
     case 133:
       let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
       if let enumResultAsInt = enumResultAsInt {
-        return CameraFacing(rawValue: enumResultAsInt)
+        return FlashMode(rawValue: enumResultAsInt)
       }
       return nil
     case 134:
       let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
       if let enumResultAsInt = enumResultAsInt {
-        return ScaleType(rawValue: enumResultAsInt)
+        return CameraFacing(rawValue: enumResultAsInt)
       }
       return nil
     case 135:
-      return BeautyFilterParameters.fromList(self.readValue() as! [Any?])
+      let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
+      if let enumResultAsInt = enumResultAsInt {
+        return ScaleType(rawValue: enumResultAsInt)
+      }
+      return nil
     case 136:
-      return FilterInfo.fromList(self.readValue() as! [Any?])
+      return BeautyFilterParameters.fromList(self.readValue() as! [Any?])
     case 137:
       return AdvancedCameraSettings.fromList(self.readValue() as! [Any?])
     case 138:
@@ -824,28 +814,28 @@ private class BeautyCameraPluginPigeonPigeonCodecReader: FlutterStandardReader {
 
 private class BeautyCameraPluginPigeonPigeonCodecWriter: FlutterStandardWriter {
   override func writeValue(_ value: Any) {
-    if let value = value as? CameraFilterMode {
+    if let value = value as? FilterCategory {
       super.writeByte(129)
       super.writeValue(value.rawValue)
-    } else if let value = value as? BeautyFilterType {
+    } else if let value = value as? FilterType {
       super.writeByte(130)
       super.writeValue(value.rawValue)
-    } else if let value = value as? VideoQuality {
+    } else if let value = value as? BeautyFilterType {
       super.writeByte(131)
       super.writeValue(value.rawValue)
-    } else if let value = value as? FlashMode {
+    } else if let value = value as? VideoQuality {
       super.writeByte(132)
       super.writeValue(value.rawValue)
-    } else if let value = value as? CameraFacing {
+    } else if let value = value as? FlashMode {
       super.writeByte(133)
       super.writeValue(value.rawValue)
-    } else if let value = value as? ScaleType {
+    } else if let value = value as? CameraFacing {
       super.writeByte(134)
       super.writeValue(value.rawValue)
-    } else if let value = value as? BeautyFilterParameters {
+    } else if let value = value as? ScaleType {
       super.writeByte(135)
-      super.writeValue(value.toList())
-    } else if let value = value as? FilterInfo {
+      super.writeValue(value.rawValue)
+    } else if let value = value as? BeautyFilterParameters {
       super.writeByte(136)
       super.writeValue(value.toList())
     } else if let value = value as? AdvancedCameraSettings {
@@ -924,20 +914,16 @@ protocol BeautyCameraHostApi {
   func stopVideoRecording(completion: @escaping (Result<String, Error>) -> Void)
   /// Lấy tỷ lệ khung hình cảm biến
   func getCameraSensorAspectRatio(completion: @escaping (Result<Double, Error>) -> Void)
-  /// Đặt chế độ bộ lọc với các tham số
-  func setFilterMode(mode: CameraFilterMode, parameters: FilterParameters, completion: @escaping (Result<Void, Error>) -> Void)
+  /// Áp dụng filter với category và type
+  func applyFilter(category: FilterCategory, type: FilterType, parameters: FilterParameters, completion: @escaping (Result<Void, Error>) -> Void)
   /// Đặt kiểu scale cho preview
   func setScaleType(scaleType: ScaleType, completion: @escaping (Result<Void, Error>) -> Void)
-  /// Lấy danh sách thông tin chi tiết về các bộ lọc có sẵn từ native
-  func getAvailableFilters(completion: @escaping (Result<[FilterInfo], Error>) -> Void)
-  /// Điều chỉnh tham số của bộ lọc hiện tại
-  func adjustFilterParameters(parameters: FilterParameters, completion: @escaping (Result<Void, Error>) -> Void)
   /// Lấy thông tin về các camera có sẵn trên thiết bị
   func getAvailableCameras(completion: @escaping (Result<[CameraInfo], Error>) -> Void)
   /// Bật/tắt filter cho camera
   func setFilterEnabled(enabled: Bool, completion: @escaping (Result<Void, Error>) -> Void)
-  /// Thiết lập beauty filter parameters
-  func setBeautyFilter(parameters: BeautyFilterParameters, completion: @escaping (Result<Void, Error>) -> Void)
+  /// Điều chỉnh intensity của filter hiện tại
+  func adjustFilterIntensity(intensity: Double, completion: @escaping (Result<Void, Error>) -> Void)
 }
 
 /// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
@@ -1165,14 +1151,15 @@ class BeautyCameraHostApiSetup {
     } else {
       getCameraSensorAspectRatioChannel.setMessageHandler(nil)
     }
-    /// Đặt chế độ bộ lọc với các tham số
-    let setFilterModeChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.setFilterMode\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    /// Áp dụng filter với category và type
+    let applyFilterChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.applyFilter\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
-      setFilterModeChannel.setMessageHandler { message, reply in
+      applyFilterChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
-        let modeArg = args[0] as! CameraFilterMode
-        let parametersArg = args[1] as! FilterParameters
-        api.setFilterMode(mode: modeArg, parameters: parametersArg) { result in
+        let categoryArg = args[0] as! FilterCategory
+        let typeArg = args[1] as! FilterType
+        let parametersArg = args[2] as! FilterParameters
+        api.applyFilter(category: categoryArg, type: typeArg, parameters: parametersArg) { result in
           switch result {
           case .success:
             reply(wrapResult(nil))
@@ -1182,7 +1169,7 @@ class BeautyCameraHostApiSetup {
         }
       }
     } else {
-      setFilterModeChannel.setMessageHandler(nil)
+      applyFilterChannel.setMessageHandler(nil)
     }
     /// Đặt kiểu scale cho preview
     let setScaleTypeChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.setScaleType\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
@@ -1201,40 +1188,6 @@ class BeautyCameraHostApiSetup {
       }
     } else {
       setScaleTypeChannel.setMessageHandler(nil)
-    }
-    /// Lấy danh sách thông tin chi tiết về các bộ lọc có sẵn từ native
-    let getAvailableFiltersChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.getAvailableFilters\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
-    if let api = api {
-      getAvailableFiltersChannel.setMessageHandler { _, reply in
-        api.getAvailableFilters { result in
-          switch result {
-          case .success(let res):
-            reply(wrapResult(res))
-          case .failure(let error):
-            reply(wrapError(error))
-          }
-        }
-      }
-    } else {
-      getAvailableFiltersChannel.setMessageHandler(nil)
-    }
-    /// Điều chỉnh tham số của bộ lọc hiện tại
-    let adjustFilterParametersChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.adjustFilterParameters\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
-    if let api = api {
-      adjustFilterParametersChannel.setMessageHandler { message, reply in
-        let args = message as! [Any?]
-        let parametersArg = args[0] as! FilterParameters
-        api.adjustFilterParameters(parameters: parametersArg) { result in
-          switch result {
-          case .success:
-            reply(wrapResult(nil))
-          case .failure(let error):
-            reply(wrapError(error))
-          }
-        }
-      }
-    } else {
-      adjustFilterParametersChannel.setMessageHandler(nil)
     }
     /// Lấy thông tin về các camera có sẵn trên thiết bị
     let getAvailableCamerasChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.getAvailableCameras\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
@@ -1270,13 +1223,13 @@ class BeautyCameraHostApiSetup {
     } else {
       setFilterEnabledChannel.setMessageHandler(nil)
     }
-    /// Thiết lập beauty filter parameters
-    let setBeautyFilterChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.setBeautyFilter\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    /// Điều chỉnh intensity của filter hiện tại
+    let adjustFilterIntensityChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.adjustFilterIntensity\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
-      setBeautyFilterChannel.setMessageHandler { message, reply in
+      adjustFilterIntensityChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
-        let parametersArg = args[0] as! BeautyFilterParameters
-        api.setBeautyFilter(parameters: parametersArg) { result in
+        let intensityArg = args[0] as! Double
+        api.adjustFilterIntensity(intensity: intensityArg) { result in
           switch result {
           case .success:
             reply(wrapResult(nil))
@@ -1286,7 +1239,7 @@ class BeautyCameraHostApiSetup {
         }
       }
     } else {
-      setBeautyFilterChannel.setMessageHandler(nil)
+      adjustFilterIntensityChannel.setMessageHandler(nil)
     }
   }
 }
@@ -1529,10 +1482,8 @@ protocol BeautyCameraFlutterApiProtocol {
   func onVideoRecordingStarted(completion: @escaping (Result<Void, PigeonError>) -> Void)
   /// Thông báo khi dừng quay video
   func onVideoRecordingStopped(path pathArg: String, completion: @escaping (Result<Void, PigeonError>) -> Void)
-  /// Thông báo khi chế độ bộ lọc thay đổi
-  func onFilterModeChanged(mode modeArg: CameraFilterMode, completion: @escaping (Result<Void, PigeonError>) -> Void)
-  /// Thông báo khi tham số bộ lọc thay đổi
-  func onFilterParametersChanged(parameters parametersArg: FilterParameters, completion: @escaping (Result<Void, PigeonError>) -> Void)
+  /// Thông báo khi filter thay đổi
+  func onFilterChanged(category categoryArg: FilterCategory, type typeArg: FilterType, parameters parametersArg: FilterParameters, completion: @escaping (Result<Void, PigeonError>) -> Void)
   /// Thông báo khi xảy ra lỗi camera
   func onCameraError(errorCode errorCodeArg: String, errorMessage errorMessageArg: String, completion: @escaping (Result<Void, PigeonError>) -> Void)
 }
@@ -1660,30 +1611,11 @@ class BeautyCameraFlutterApi: BeautyCameraFlutterApiProtocol {
       }
     }
   }
-  /// Thông báo khi chế độ bộ lọc thay đổi
-  func onFilterModeChanged(mode modeArg: CameraFilterMode, completion: @escaping (Result<Void, PigeonError>) -> Void) {
-    let channelName: String = "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onFilterModeChanged\(messageChannelSuffix)"
+  /// Thông báo khi filter thay đổi
+  func onFilterChanged(category categoryArg: FilterCategory, type typeArg: FilterType, parameters parametersArg: FilterParameters, completion: @escaping (Result<Void, PigeonError>) -> Void) {
+    let channelName: String = "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onFilterChanged\(messageChannelSuffix)"
     let channel = FlutterBasicMessageChannel(name: channelName, binaryMessenger: binaryMessenger, codec: codec)
-    channel.sendMessage([modeArg] as [Any?]) { response in
-      guard let listResponse = response as? [Any?] else {
-        completion(.failure(createConnectionError(withChannelName: channelName)))
-        return
-      }
-      if listResponse.count > 1 {
-        let code: String = listResponse[0] as! String
-        let message: String? = nilOrValue(listResponse[1])
-        let details: String? = nilOrValue(listResponse[2])
-        completion(.failure(PigeonError(code: code, message: message, details: details)))
-      } else {
-        completion(.success(()))
-      }
-    }
-  }
-  /// Thông báo khi tham số bộ lọc thay đổi
-  func onFilterParametersChanged(parameters parametersArg: FilterParameters, completion: @escaping (Result<Void, PigeonError>) -> Void) {
-    let channelName: String = "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraFlutterApi.onFilterParametersChanged\(messageChannelSuffix)"
-    let channel = FlutterBasicMessageChannel(name: channelName, binaryMessenger: binaryMessenger, codec: codec)
-    channel.sendMessage([parametersArg] as [Any?]) { response in
+    channel.sendMessage([categoryArg, typeArg, parametersArg] as [Any?]) { response in
       guard let listResponse = response as? [Any?] else {
         completion(.failure(createConnectionError(withChannelName: channelName)))
         return

@@ -7,7 +7,7 @@ import 'dart:io';
 class CameraState {
   final bool isInitialized;
   final bool isInitializing;
-  final CameraFilterMode currentEffect;
+  final FilterCategory currentEffect;
   final String? lastImagePath;
   final bool hasPermission;
   final bool isFilterEnabled;
@@ -15,7 +15,7 @@ class CameraState {
   const CameraState({
     this.isInitialized = false,
     this.isInitializing = true,
-    this.currentEffect = CameraFilterMode.none,
+    this.currentEffect = FilterCategory.none,
     this.lastImagePath,
     this.hasPermission = false,
     this.isFilterEnabled = false,
@@ -24,7 +24,7 @@ class CameraState {
   CameraState copyWith({
     bool? isInitialized,
     bool? isInitializing,
-    CameraFilterMode? currentEffect,
+    FilterCategory? currentEffect,
     String? lastImagePath,
     bool? hasPermission,
     bool? isFilterEnabled,
@@ -49,7 +49,7 @@ class CameraControllerNotifier extends StateNotifier<CameraState> {
 
   CameraControllerNotifier()
       : _cameraController = BeautyCameraController(),
-        super(const CameraState());
+        super(const CameraState(currentEffect: FilterCategory.none));
 
   BeautyCameraController get cameraController => _cameraController;
 
@@ -129,9 +129,10 @@ class CameraControllerNotifier extends StateNotifier<CameraState> {
     }
   }
 
-  Future<void> setEffectMode(CameraFilterMode effect) async {
+  Future<void> setEffectMode(FilterCategory effect) async {
     try {
-      await _cameraController.setEffectMode(effect);
+      // TODO: Implement applyFilter when native code is ready
+      // await _cameraController.applyFilter(effect, FilterType.none, FilterParameters());
       state = state.copyWith(currentEffect: effect);
     } catch (e) {
       debugPrint('Error changing effect: $e');

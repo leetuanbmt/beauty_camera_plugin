@@ -15,7 +15,7 @@ class BeautyFilterPresets {
 
   /// Light skin smoothing only
   static final BeautyFilterParameters lightSmoothing = BeautyFilterParameters(
-    type: BeautyFilterType.skinSmoothing,
+    type: BeautyFilterType.smooth,
     smoothingStrength: 0.2,
     brighteningStrength: 0.0,
     intensity: 0.5,
@@ -24,7 +24,7 @@ class BeautyFilterPresets {
 
   /// Medium skin smoothing
   static final BeautyFilterParameters mediumSmoothing = BeautyFilterParameters(
-    type: BeautyFilterType.skinSmoothing,
+    type: BeautyFilterType.smooth,
     smoothingStrength: 0.4,
     brighteningStrength: 0.0,
     intensity: 0.7,
@@ -33,7 +33,7 @@ class BeautyFilterPresets {
 
   /// Strong skin smoothing
   static final BeautyFilterParameters strongSmoothing = BeautyFilterParameters(
-    type: BeautyFilterType.skinSmoothing,
+    type: BeautyFilterType.smooth,
     smoothingStrength: 0.7,
     brighteningStrength: 0.0,
     intensity: 1.0,
@@ -42,7 +42,7 @@ class BeautyFilterPresets {
 
   /// Light skin brightening only
   static final BeautyFilterParameters lightBrightening = BeautyFilterParameters(
-    type: BeautyFilterType.skinBrightening,
+    type: BeautyFilterType.glow,
     smoothingStrength: 0.0,
     brighteningStrength: 0.2,
     intensity: 0.5,
@@ -52,7 +52,7 @@ class BeautyFilterPresets {
   /// Medium skin brightening
   static final BeautyFilterParameters mediumBrightening =
       BeautyFilterParameters(
-    type: BeautyFilterType.skinBrightening,
+    type: BeautyFilterType.glow,
     smoothingStrength: 0.0,
     brighteningStrength: 0.4,
     intensity: 0.7,
@@ -62,7 +62,7 @@ class BeautyFilterPresets {
   /// Strong skin brightening
   static final BeautyFilterParameters strongBrightening =
       BeautyFilterParameters(
-    type: BeautyFilterType.skinBrightening,
+    type: BeautyFilterType.glow,
     smoothingStrength: 0.0,
     brighteningStrength: 0.6,
     intensity: 1.0,
@@ -71,7 +71,7 @@ class BeautyFilterPresets {
 
   /// Natural beauty - light smoothing + light brightening
   static final BeautyFilterParameters natural = BeautyFilterParameters(
-    type: BeautyFilterType.skinBeauty,
+    type: BeautyFilterType.natural,
     smoothingStrength: 0.2,
     brighteningStrength: 0.15,
     intensity: 0.6,
@@ -80,7 +80,7 @@ class BeautyFilterPresets {
 
   /// Balanced beauty - medium smoothing + medium brightening
   static final BeautyFilterParameters balanced = BeautyFilterParameters(
-    type: BeautyFilterType.skinBeauty,
+    type: BeautyFilterType.doll,
     smoothingStrength: 0.35,
     brighteningStrength: 0.25,
     intensity: 0.8,
@@ -89,7 +89,7 @@ class BeautyFilterPresets {
 
   /// Enhanced beauty - strong smoothing + strong brightening
   static final BeautyFilterParameters enhanced = BeautyFilterParameters(
-    type: BeautyFilterType.skinBeauty,
+    type: BeautyFilterType.fresh,
     smoothingStrength: 0.5,
     brighteningStrength: 0.35,
     intensity: 1.0,
@@ -98,7 +98,7 @@ class BeautyFilterPresets {
 
   /// Advanced smoothing with minimal brightening
   static final BeautyFilterParameters advancedSmooth = BeautyFilterParameters(
-    type: BeautyFilterType.advancedSmoothing,
+    type: BeautyFilterType.smooth,
     smoothingStrength: 0.6,
     brighteningStrength: 0.1,
     intensity: 0.9,
@@ -146,7 +146,7 @@ class BeautyFilterPresets {
 
   /// Create custom beauty filter parameters
   static BeautyFilterParameters custom({
-    BeautyFilterType type = BeautyFilterType.skinBeauty,
+    BeautyFilterType type = BeautyFilterType.natural,
     double smoothingStrength = 0.3,
     double brighteningStrength = 0.2,
     double intensity = 1.0,

@@ -344,20 +344,8 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi, Fa
          Log.d(TAG, "getCameraSensorAspectRatio not implemented yet")
          callback(Result.success(16.0/9.0)) 
      }
-     override fun setFilterMode(mode: CameraFilterMode, parameters: FilterParameters, callback: (Result<Unit>) -> Unit) { 
-         Log.d(TAG, "setFilterMode not implemented yet")
-         callback(Result.success(Unit)) 
-     }
      override fun setScaleType(scaleType: ScaleType, callback: (Result<Unit>) -> Unit) { 
          Log.d(TAG, "setScaleType not implemented yet")
-         callback(Result.success(Unit)) 
-     }
-     override fun getAvailableFilters(callback: (Result<List<FilterInfo>>) -> Unit) { 
-         Log.d(TAG, "getAvailableFilters not implemented yet")
-         callback(Result.success(emptyList())) 
-     }
-     override fun adjustFilterParameters(parameters: FilterParameters, callback: (Result<Unit>) -> Unit) { 
-         Log.d(TAG, "adjustFilterParameters not implemented yet")
          callback(Result.success(Unit)) 
      }
      override fun getAvailableCameras(callback: (Result<List<CameraInfo>>) -> Unit) { 
@@ -371,7 +359,7 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi, Fa
         callback(Result.success(Unit))
     }
     
-    override fun setBeautyFilter(parameters: BeautyFilterParameters, callback: (Result<Unit>) -> Unit) {
+    fun setBeautyFilter(parameters: BeautyFilterParameters, callback: (Result<Unit>) -> Unit) {
         Log.d(TAG, "setBeautyFilter: type=${parameters.type}, smoothing=${parameters.smoothingStrength}, brightening=${parameters.brighteningStrength}")
         
         // Convert parameters và gửi xuống OpenGLRenderer
@@ -386,6 +374,152 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi, Fa
         
         Log.d(TAG, "Beauty filter applied successfully - filter enabled: $shouldEnableFilter")
         callback(Result.success(Unit))
+    }
+
+    override fun applyFilter(category: FilterCategory, type: FilterType, parameters: FilterParameters, callback: (Result<Unit>) -> Unit) {
+        Log.d(TAG, "applyFilter called - category: $category, type: $type")
+        
+        try {
+            val renderer = openGlRenderer
+            if (renderer == null) {
+                Log.e(TAG, "OpenGL renderer is not initialized")
+                callback(Result.failure(Exception("Camera not initialized")))
+                return
+            }
+
+            // Apply filter based on category and type
+            when (category) {
+                FilterCategory.BEAUTY -> {
+                    applyBeautyFilter(type, parameters, callback)
+                }
+                FilterCategory.PORTRAIT -> {
+                    applyPortraitFilter(type, parameters, callback)
+                }
+                FilterCategory.FOOD -> {
+                    applyFoodFilter(type, parameters, callback)
+                }
+                FilterCategory.LANDSCAPE -> {
+                    applyLandscapeFilter(type, parameters, callback)
+                }
+                FilterCategory.VINTAGE -> {
+                    applyVintageFilter(type, parameters, callback)
+                }
+                FilterCategory.VIBRANT -> {
+                    applyVibrantFilter(type, parameters, callback)
+                }
+                FilterCategory.MOODY -> {
+                    applyMoodyFilter(type, parameters, callback)
+                }
+                FilterCategory.FILM -> {
+                    applyFilmFilter(type, parameters, callback)
+                }
+                FilterCategory.ART -> {
+                    applyArtFilter(type, parameters, callback)
+                }
+                FilterCategory.NONE -> {
+                    // Disable all filters
+                    renderer.setFilterEnabled(false)
+                    callback(Result.success(Unit))
+                }
+                else -> {
+                    Log.w(TAG, "Unknown filter category: $category")
+                    callback(Result.failure(Exception("Unknown filter category: $category")))
+                }
+            }
+
+            // Notify Flutter about filter change
+            flutterApi.onFilterChanged(category, type, parameters) { }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error applying filter", e)
+            callback(Result.failure(e))
+        }
+    }
+
+    private fun applyBeautyFilter(type: FilterType, parameters: FilterParameters, callback: (Result<Unit>) -> Unit) {
+        val renderer = openGlRenderer ?: return
+        
+        // Apply beauty-specific parameters
+        renderer.setBeautyFilterParameters(
+            parameters.skinSmoothing.toFloat(),
+            parameters.skinBrightening.toFloat()
+        )
+        
+        // Enable filter
+        renderer.setFilterEnabled(true)
+        
+        Log.d(TAG, "Beauty filter applied: $type")
+        callback(Result.success(Unit))
+    }
+
+    private fun applyPortraitFilter(type: FilterType, parameters: FilterParameters, callback: (Result<Unit>) -> Unit) {
+        // TODO: Implement portrait filters
+        Log.d(TAG, "Portrait filter not implemented yet: $type")
+        callback(Result.success(Unit))
+    }
+
+    private fun applyFoodFilter(type: FilterType, parameters: FilterParameters, callback: (Result<Unit>) -> Unit) {
+        // TODO: Implement food filters
+        Log.d(TAG, "Food filter not implemented yet: $type")
+        callback(Result.success(Unit))
+    }
+
+    private fun applyLandscapeFilter(type: FilterType, parameters: FilterParameters, callback: (Result<Unit>) -> Unit) {
+        // TODO: Implement landscape filters
+        Log.d(TAG, "Landscape filter not implemented yet: $type")
+        callback(Result.success(Unit))
+    }
+
+    private fun applyVintageFilter(type: FilterType, parameters: FilterParameters, callback: (Result<Unit>) -> Unit) {
+        // TODO: Implement vintage filters
+        Log.d(TAG, "Vintage filter not implemented yet: $type")
+        callback(Result.success(Unit))
+    }
+
+    private fun applyVibrantFilter(type: FilterType, parameters: FilterParameters, callback: (Result<Unit>) -> Unit) {
+        // TODO: Implement vibrant filters
+        Log.d(TAG, "Vibrant filter not implemented yet: $type")
+        callback(Result.success(Unit))
+    }
+
+    private fun applyMoodyFilter(type: FilterType, parameters: FilterParameters, callback: (Result<Unit>) -> Unit) {
+        // TODO: Implement moody filters
+        Log.d(TAG, "Moody filter not implemented yet: $type")
+        callback(Result.success(Unit))
+    }
+
+    private fun applyFilmFilter(type: FilterType, parameters: FilterParameters, callback: (Result<Unit>) -> Unit) {
+        // TODO: Implement film filters
+        Log.d(TAG, "Film filter not implemented yet: $type")
+        callback(Result.success(Unit))
+    }
+
+    private fun applyArtFilter(type: FilterType, parameters: FilterParameters, callback: (Result<Unit>) -> Unit) {
+        // TODO: Implement art filters
+        Log.d(TAG, "Art filter not implemented yet: $type")
+        callback(Result.success(Unit))
+    }
+
+    override fun adjustFilterIntensity(intensity: Double, callback: (Result<Unit>) -> Unit) {
+        Log.d(TAG, "adjustFilterIntensity called - intensity: $intensity")
+        
+        try {
+            val renderer = openGlRenderer
+            if (renderer == null) {
+                Log.e(TAG, "OpenGL renderer is not initialized")
+                callback(Result.failure(Exception("Camera not initialized")))
+                return
+            }
+
+            // TODO: Implement filter intensity adjustment in OpenGL renderer
+            // For now, we'll just log it
+            Log.d(TAG, "Filter intensity adjusted to: $intensity")
+            callback(Result.success(Unit))
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error adjusting filter intensity", e)
+            callback(Result.failure(e))
+        }
     }
 
     private fun createFlutterSurfaceWithResolution(resolution: android.util.Size) {

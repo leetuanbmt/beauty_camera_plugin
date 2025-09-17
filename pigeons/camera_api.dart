@@ -13,104 +13,120 @@ import 'package:pigeon/pigeon.dart';
   ),
 )
 
-/// Định nghĩa các loại bộ lọc camera có thể áp dụng.
-/// Sử dụng theo mẫu Strategy Pattern, cho phép dễ dàng thêm filter mới.
-enum CameraFilterMode {
-  /// Không áp dụng bộ lọc
+/// Filter Categories (TikTok/CapCut style)
+enum FilterCategory {
+  /// Không filter
   none,
 
-  /// Làm mịn và tăng cường vẻ đẹp cho khuôn mặt
+  /// Beauty filters - làm đẹp (cần face detection)
   beauty,
 
-  /// Chuyển đổi sang chế độ đen trắng
-  mono,
+  /// Portrait filters - chân dung
+  portrait,
 
-  /// Đảo ngược màu sắc
-  negative,
+  /// Food filters - đồ ăn
+  food,
 
-  /// Tông màu nâu đỏ hoài cổ
-  sepia,
+  /// Landscape filters - phong cảnh
+  landscape,
 
-  /// Hiệu ứng sáng cực đại tại một số vùng
-  solarize,
-
-  /// Giảm số lượng màu sắc, tạo hiệu ứng poster
-  posterize,
-
-  /// Hiệu ứng bảng trắng, tăng cường viền và độ tương phản
-  whiteboard,
-
-  /// Hiệu ứng bảng đen, tăng cường viền trên nền tối
-  blackboard,
-
-  /// Tông màu xanh nước biển
-  aqua,
-
-  /// Hiệu ứng chạm nổi
-  emboss,
-
-  /// Hiệu ứng phác họa
-  sketch,
-
-  /// Hiệu ứng màu sắc rực rỡ, phong cách neon
-  neon,
-
-  /// Hiệu ứng hoài cổ, tạo cảm giác hình ảnh cũ
+  /// Vintage filters - cổ điển
   vintage,
 
-  /// Điều chỉnh độ sáng
-  brightness,
+  /// Vibrant filters - sống động
+  vibrant,
 
-  /// Điều chỉnh độ tương phản
-  contrast,
+  /// Moody filters - tâm trạng
+  moody,
 
-  /// Điều chỉnh độ bão hòa màu sắc
-  saturation,
+  /// Film filters - phim ảnh
+  film,
 
-  /// Tăng cường chi tiết, làm sắc nét hình ảnh
-  sharpen,
-
-  /// Làm mờ hình ảnh theo thuật toán Gaussian
-  gaussianBlur,
-
-  /// Tạo hiệu ứng viền tối ở góc hình ảnh
-  vignette,
-
-  /// Điều chỉnh tông màu
-  hue,
-
-  /// Điều chỉnh độ phơi sáng
-  exposure,
-
-  /// Điều chỉnh vùng tối và vùng sáng
-  highlightShadow,
-
-  /// Điều chỉnh các mức độ màu sắc
-  levels,
-
-  /// Cân bằng màu RGB
-  colorBalance,
-
-  /// Áp dụng bảng màu tra cứu (Lookup Table - LUT)
-  lookup,
+  /// Art filters - nghệ thuật
+  art,
 }
 
-/// Định nghĩa các loại beauty filter cụ thể
+/// Filter Types (TikTok/CapCut style)
+enum FilterType {
+  // None
+  none,
+
+  // Beauty filters (cần face detection)
+  beautyNatural, // Tự nhiên
+  beautyGlow, // Rạng rỡ
+  beautyDoll, // Búp bê
+  beautyFresh, // Tươi tắn
+  beautySmooth, // Mịn màng
+  beautyBright, // Sáng da
+
+  // Portrait filters
+  portraitClassic, // Cổ điển
+  portraitDramatic, // Kịch tính
+  portraitSoft, // Mềm mại
+  portraitBW, // Đen trắng
+
+  // Food filters
+  foodWarm, // Ấm áp
+  foodVibrant, // Sống động
+  foodFresh, // Tươi ngon
+  foodInstagram, // Instagram style
+
+  // Landscape filters
+  landscapeGolden, // Giờ vàng
+  landscapeDramatic, // Kịch tính
+  landscapeVibrant, // Sống động
+  landscapeMoody, // U ám
+
+  // Vintage filters
+  vintageFilm, // Phim cũ
+  vintageSepia, // Nâu cổ điển
+  vintageFaded, // Phai màu
+  vintageRetro, // Retro
+
+  // Vibrant filters
+  vibrantPop, // Pop
+  vibrantNeon, // Neon
+  vibrantSummer, // Mùa hè
+  vibrantTropical, // Nhiệt đới
+
+  // Moody filters
+  moodyDark, // Tối
+  moodyBlue, // Xanh u ám
+  moodyCinematic, // Điện ảnh
+  moodyNoir, // Noir
+
+  // Film filters
+  filmKodak, // Kodak
+  filmFuji, // Fujifilm
+  filmPolaroid, // Polaroid
+  filmVHS, // VHS
+
+  // Art filters
+  artCartoon, // Hoạt hình
+  artOilPainting, // Sơn dầu
+  artWatercolor, // Màu nước
+  artSketch, // Phác họa
+}
+
+/// Định nghĩa các loại beauty filter cụ thể (TikTok/CapCut style)
 enum BeautyFilterType {
   /// Không áp dụng beauty filter
   none,
 
-  /// Làm mịn da
-  skinSmoothing,
+  /// Natural - làm đẹp tự nhiên
+  natural,
 
-  /// Làm sáng da
-  skinBrightening,
+  /// Glow - hiệu ứng rạng rỡ
+  glow,
 
-  /// Kết hợp làm mịn và sáng da
-  skinBeauty,
+  /// Doll - hiệu ứng búp bê
+  doll,
 
-  /// Làm mịn da nâng cao
-  advancedSmoothing,
+  /// Fresh - tươi tắn
+  fresh,
+
+  /// Smooth - làm mịn
+  smooth,
 }
 
 /// Parameters cho beauty filter
@@ -136,37 +152,6 @@ class BeautyFilterParameters {
     this.brighteningStrength = 0.2,
     this.intensity = 1.0,
     this.faceOnly = true,
-  });
-}
-
-/// Thông tin chi tiết về bộ lọc được hỗ trợ.
-/// Cung cấp metadata về filter từ native lên Flutter.
-class FilterInfo {
-  /// Định danh độc nhất của filter
-  final String id;
-
-  /// Loại bộ lọc
-  final CameraFilterMode mode;
-
-  /// Tên hiển thị cho người dùng
-  final String displayName;
-
-  /// Đường dẫn đến hình thu nhỏ nếu có
-  final String? thumbnailPath;
-
-  /// Mô tả ngắn về bộ lọc
-  final String? description;
-
-  /// Danh sách các tham số có thể điều chỉnh
-  final List<String>? adjustableParameters;
-
-  FilterInfo({
-    required this.id,
-    required this.mode,
-    required this.displayName,
-    this.thumbnailPath,
-    this.description,
-    this.adjustableParameters,
   });
 }
 
@@ -201,58 +186,65 @@ class AdvancedCameraSettings {
   });
 }
 
-/// Cài đặt tham số cho filter camera.
-/// Sử dụng Builder Pattern để dễ dàng xây dựng và tùy chỉnh.
+/// Filter Parameters (TikTok/CapCut style - unified system)
 class FilterParameters {
-  /// Cường độ áp dụng bộ lọc (0.0 - 1.0)
+  /// Độ mạnh tổng thể (0.0 - 1.0)
   final double intensity;
 
-  /// Độ sáng (-1.0 đến 1.0, 0.0 là nguyên bản)
-  final double brightness;
+  /// Beauty parameters
+  final double skinSmoothing; // Làm mịn da
+  final double skinBrightening; // Làm sáng da
+  final double faceSlimming; // Thon gọn mặt
+  final double eyeEnlargement; // To mắt
+  final double lipEnhancement; // Tô môi
 
-  /// Độ tương phản (0.0 - 2.0, 1.0 là nguyên bản)
-  final double contrast;
+  /// Color parameters
+  final double brightness; // Độ sáng (-1.0 to 1.0)
+  final double contrast; // Độ tương phản (-1.0 to 1.0)
+  final double saturation; // Độ bão hòa (-1.0 to 1.0)
+  final double warmth; // Độ ấm (-1.0 to 1.0)
+  final double tint; // Sắc thái (-1.0 to 1.0)
+  final double vibrance; // Độ sống động (-1.0 to 1.0)
 
-  /// Độ bão hòa màu (0.0 - 2.0, 1.0 là nguyên bản)
-  final double saturation;
+  /// Artistic parameters
+  final double blur; // Độ mờ (0.0 to 1.0)
+  final double sharpen; // Độ sắc nét (0.0 to 1.0)
+  final double vignette; // Viền tối (0.0 to 1.0)
+  final double grain; // Hạt film (0.0 to 1.0)
+  final double fade; // Độ phai (0.0 to 1.0)
 
-  /// Điều chỉnh tông màu (-1.0 đến 1.0)
-  final double hue;
+  /// Advanced parameters
+  final double highlights; // Vùng sáng (-1.0 to 1.0)
+  final double shadows; // Vùng tối (-1.0 to 1.0)
+  final double clarity; // Độ trong (-1.0 to 1.0)
+  final double structure; // Cấu trúc (-1.0 to 1.0)
 
-  /// Độ sắc nét (0.0 - 2.0)
-  final double sharpen;
-
-  /// Bán kính làm mờ (0.0 - 10.0)
-  final double blurRadius;
-
-  /// Hệ số kênh đỏ (0.0 - 2.0, 1.0 là nguyên bản)
-  final double redChannel;
-
-  /// Hệ số kênh xanh lá (0.0 - 2.0, 1.0 là nguyên bản)
-  final double greenChannel;
-
-  /// Hệ số kênh xanh dương (0.0 - 2.0, 1.0 là nguyên bản)
-  final double blueChannel;
-
-  /// Độ làm mịn da (0.0 - 1.0)
-  final double skinSmoothness;
-
-  /// Đường dẫn đến file LUT (Lookup Table)
-  final String? lookupTablePath;
-
-  FilterParameters({
-    this.intensity = 0.5,
+  const FilterParameters({
+    this.intensity = 1.0,
+    // Beauty
+    this.skinSmoothing = 0.0,
+    this.skinBrightening = 0.0,
+    this.faceSlimming = 0.0,
+    this.eyeEnlargement = 0.0,
+    this.lipEnhancement = 0.0,
+    // Color
     this.brightness = 0.0,
-    this.contrast = 1.0,
-    this.saturation = 1.0,
-    this.hue = 0.0,
+    this.contrast = 0.0,
+    this.saturation = 0.0,
+    this.warmth = 0.0,
+    this.tint = 0.0,
+    this.vibrance = 0.0,
+    // Artistic
+    this.blur = 0.0,
     this.sharpen = 0.0,
-    this.blurRadius = 0.0,
-    this.redChannel = 1.0,
-    this.greenChannel = 1.0,
-    this.blueChannel = 1.0,
-    this.skinSmoothness = 0.5,
-    this.lookupTablePath,
+    this.vignette = 0.0,
+    this.grain = 0.0,
+    this.fade = 0.0,
+    // Advanced
+    this.highlights = 0.0,
+    this.shadows = 0.0,
+    this.clarity = 0.0,
+    this.structure = 0.0,
   });
 }
 
@@ -387,21 +379,14 @@ abstract class BeautyCameraHostApi {
   @async
   double getCameraSensorAspectRatio();
 
-  /// Đặt chế độ bộ lọc với các tham số
+  /// Áp dụng filter với category và type
   @async
-  void setFilterMode(CameraFilterMode mode, FilterParameters parameters);
+  void applyFilter(
+      FilterCategory category, FilterType type, FilterParameters parameters);
 
   /// Đặt kiểu scale cho preview
   @async
   void setScaleType(ScaleType scaleType);
-
-  /// Lấy danh sách thông tin chi tiết về các bộ lọc có sẵn từ native
-  @async
-  List<FilterInfo> getAvailableFilters();
-
-  /// Điều chỉnh tham số của bộ lọc hiện tại
-  @async
-  void adjustFilterParameters(FilterParameters parameters);
 
   /// Lấy thông tin về các camera có sẵn trên thiết bị
   @async
@@ -411,9 +396,9 @@ abstract class BeautyCameraHostApi {
   @async
   void setFilterEnabled(bool enabled);
 
-  /// Thiết lập beauty filter parameters
+  /// Điều chỉnh intensity của filter hiện tại
   @async
-  void setBeautyFilter(BeautyFilterParameters parameters);
+  void adjustFilterIntensity(double intensity);
 }
 
 /// Chế độ đèn flash
@@ -595,13 +580,10 @@ abstract class BeautyCameraFlutterApi {
   @async
   void onVideoRecordingStopped(String path);
 
-  /// Thông báo khi chế độ bộ lọc thay đổi
+  /// Thông báo khi filter thay đổi
   @async
-  void onFilterModeChanged(CameraFilterMode mode);
-
-  /// Thông báo khi tham số bộ lọc thay đổi
-  @async
-  void onFilterParametersChanged(FilterParameters parameters);
+  void onFilterChanged(
+      FilterCategory category, FilterType type, FilterParameters parameters);
 
   /// Thông báo khi xảy ra lỗi camera
   @async
