@@ -405,7 +405,8 @@ class FaceData {
   FaceData({
     required this.x,
     required this.y,
-    required this.size,
+    required this.width,
+    required this.height,
     required this.id,
     this.landmarks,
     this.smileScore,
@@ -418,8 +419,11 @@ class FaceData {
   /// Tọa độ Y của trung tâm khuôn mặt (đã chuẩn hóa)
   double y;
 
-  /// Kích thước tương đối của khuôn mặt
-  double size;
+  /// Chiều rộng tương đối của khuôn mặt
+  double width;
+
+  /// Chiều cao tương đối của khuôn mặt
+  double height;
 
   /// ID để theo dõi khuôn mặt này qua các frame
   int id;
@@ -437,7 +441,8 @@ class FaceData {
     return <Object?>[
       x,
       y,
-      size,
+      width,
+      height,
       id,
       landmarks,
       smileScore,
@@ -453,11 +458,12 @@ class FaceData {
     return FaceData(
       x: result[0]! as double,
       y: result[1]! as double,
-      size: result[2]! as double,
-      id: result[3]! as int,
-      landmarks: (result[4] as List<Object?>?)?.cast<FaceLandmark>(),
-      smileScore: result[5] as double?,
-      eyeOpenScore: result[6] as double?,
+      width: result[2]! as double,
+      height: result[3]! as double,
+      id: result[4]! as int,
+      landmarks: (result[5] as List<Object?>?)?.cast<FaceLandmark>(),
+      smileScore: result[6] as double?,
+      eyeOpenScore: result[7] as double?,
     );
   }
 

@@ -239,8 +239,11 @@ class FaceData {
   /// Tọa độ Y của trung tâm khuôn mặt (đã chuẩn hóa)
   final double y;
 
-  /// Kích thước tương đối của khuôn mặt
-  final double size;
+  /// Chiều rộng tương đối của khuôn mặt
+  final double width;
+
+  /// Chiều cao tương đối của khuôn mặt
+  final double height;
 
   /// ID để theo dõi khuôn mặt này qua các frame
   final int id;
@@ -257,7 +260,8 @@ class FaceData {
   FaceData({
     required this.x,
     required this.y,
-    required this.size,
+    required this.width,
+    required this.height,
     required this.id,
     this.landmarks,
     this.smileScore,

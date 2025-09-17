@@ -435,8 +435,10 @@ struct FaceData: Hashable {
   var x: Double
   /// Tọa độ Y của trung tâm khuôn mặt (đã chuẩn hóa)
   var y: Double
-  /// Kích thước tương đối của khuôn mặt
-  var size: Double
+  /// Chiều rộng tương đối của khuôn mặt
+  var width: Double
+  /// Chiều cao tương đối của khuôn mặt
+  var height: Double
   /// ID để theo dõi khuôn mặt này qua các frame
   var id: Int64
   /// Các điểm mốc trên khuôn mặt
@@ -451,16 +453,18 @@ struct FaceData: Hashable {
   static func fromList(_ pigeonVar_list: [Any?]) -> FaceData? {
     let x = pigeonVar_list[0] as! Double
     let y = pigeonVar_list[1] as! Double
-    let size = pigeonVar_list[2] as! Double
-    let id = pigeonVar_list[3] as! Int64
-    let landmarks: [FaceLandmark]? = nilOrValue(pigeonVar_list[4])
-    let smileScore: Double? = nilOrValue(pigeonVar_list[5])
-    let eyeOpenScore: Double? = nilOrValue(pigeonVar_list[6])
+    let width = pigeonVar_list[2] as! Double
+    let height = pigeonVar_list[3] as! Double
+    let id = pigeonVar_list[4] as! Int64
+    let landmarks: [FaceLandmark]? = nilOrValue(pigeonVar_list[5])
+    let smileScore: Double? = nilOrValue(pigeonVar_list[6])
+    let eyeOpenScore: Double? = nilOrValue(pigeonVar_list[7])
 
     return FaceData(
       x: x,
       y: y,
-      size: size,
+      width: width,
+      height: height,
       id: id,
       landmarks: landmarks,
       smileScore: smileScore,
@@ -471,7 +475,8 @@ struct FaceData: Hashable {
     return [
       x,
       y,
-      size,
+      width,
+      height,
       id,
       landmarks,
       smileScore,

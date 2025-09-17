@@ -414,8 +414,10 @@ data class FaceData (
   val x: Double,
   /** Tọa độ Y của trung tâm khuôn mặt (đã chuẩn hóa) */
   val y: Double,
-  /** Kích thước tương đối của khuôn mặt */
-  val size: Double,
+  /** Chiều rộng tương đối của khuôn mặt */
+  val width: Double,
+  /** Chiều cao tương đối của khuôn mặt */
+  val height: Double,
   /** ID để theo dõi khuôn mặt này qua các frame */
   val id: Long,
   /** Các điểm mốc trên khuôn mặt */
@@ -430,19 +432,21 @@ data class FaceData (
     fun fromList(pigeonVar_list: List<Any?>): FaceData {
       val x = pigeonVar_list[0] as Double
       val y = pigeonVar_list[1] as Double
-      val size = pigeonVar_list[2] as Double
-      val id = pigeonVar_list[3] as Long
-      val landmarks = pigeonVar_list[4] as List<FaceLandmark>?
-      val smileScore = pigeonVar_list[5] as Double?
-      val eyeOpenScore = pigeonVar_list[6] as Double?
-      return FaceData(x, y, size, id, landmarks, smileScore, eyeOpenScore)
+      val width = pigeonVar_list[2] as Double
+      val height = pigeonVar_list[3] as Double
+      val id = pigeonVar_list[4] as Long
+      val landmarks = pigeonVar_list[5] as List<FaceLandmark>?
+      val smileScore = pigeonVar_list[6] as Double?
+      val eyeOpenScore = pigeonVar_list[7] as Double?
+      return FaceData(x, y, width, height, id, landmarks, smileScore, eyeOpenScore)
     }
   }
   fun toList(): List<Any?> {
     return listOf(
       x,
       y,
-      size,
+      width,
+      height,
       id,
       landmarks,
       smileScore,

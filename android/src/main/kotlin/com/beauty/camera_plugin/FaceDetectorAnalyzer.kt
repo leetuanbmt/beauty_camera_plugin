@@ -7,9 +7,10 @@ import androidx.camera.core.ImageProxy
 import com.google.mediapipe.framework.image.BitmapImageBuilder
 import com.google.mediapipe.framework.image.MPImage
 import com.google.mediapipe.tasks.core.BaseOptions
+import com.google.mediapipe.tasks.core.Delegate
 import com.google.mediapipe.tasks.vision.core.RunningMode
-import com.google.mediapipe.tasks.vision.facedetector.FaceDetector
-import com.google.mediapipe.tasks.vision.facedetector.FaceDetectorResult
+import com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarker
+import com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarkerResult
 
 class FaceDetectorAnalyzer(
     context: Context,
@@ -24,25 +25,43 @@ class FaceDetectorAnalyzer(
         private const val TAG = "FaceDetectorAnalyzer"
     }
 
-    private val faceDetector: FaceDetector
+    private val faceLandmark: FaceLandmarker
 
     init {
-        val baseOptions = BaseOptions.builder()
-            .setModelAssetPath("blaze_face_short_range.tflite") // Ensure this model is in your assets
-            .build()
+        try{
+            val baseOptions = BaseOptions.builder()
+                .setDelegate(Delegate.GPU)
+                .setModelAssetPath("face_landmarker.task") // Ensure this model is in your assets
+                .build()
 
-        val options = FaceDetector.FaceDetectorOptions.builder()
-            .setBaseOptions(baseOptions)
-            .setRunningMode(RunningMode.LIVE_STREAM)
-            .setMinDetectionConfidence(0.5f)
-            .setResultListener(this::onResults)
-            .setErrorListener { error ->
-                Log.e(TAG, "MediaPipe Face Detector Error: ${error.message}")
+
+            val faceLandmarkErrorListener: (RuntimeException) -> Unit = { error ->
+                Log.e(TAG, "MediaPipe Face Landmarker Error: ${error.message}")
             }
-            .build()
 
-        faceDetector = FaceDetector.createFromOptions(context, options)
+            val faceLandmarkResultListener = { result: FaceLandmarkerResult, input: MPImage ->
+                onResults(result, input)
+            }
+            val options = FaceLandmarker.FaceLandmarkerOptions.builder()
+                .setBaseOptions(baseOptions)
+                .setNumFaces(1)
+                .setMinFaceDetectionConfidence(0.5F)
+                .setMinTrackingConfidence(0.5F)
+                .setMinFacePresenceConfidence(0.5F)
+                .setOutputFaceBlendshapes(true)
+                .setRunningMode(RunningMode.LIVE_STREAM)
+                .setErrorListener(faceLandmarkErrorListener)
+                .setResultListener(faceLandmarkResultListener)
+                .build()
+
+            faceLandmark = FaceLandmarker.createFromOptions(context, options)
+        }catch (e: IllegalStateException) {
+            throw RuntimeException("Error initializing MediaPipe Face Landmark: ${e.message}")
+        } catch (e: RuntimeException) {
+            throw RuntimeException("Error initializing MediaPipe Face Landmark: ${e.message}")
+        }
     }
+
 
     @androidx.annotation.OptIn(androidx.camera.core.ExperimentalGetImage::class)
     override fun analyze(imageProxy: ImageProxy) {
@@ -51,29 +70,54 @@ class FaceDetectorAnalyzer(
             val mpImage = BitmapImageBuilder(bitmap).build()
 
             // Pass timestamp for live stream mode
-            faceDetector.detectAsync(mpImage, imageProxy.imageInfo.timestamp)
+            faceLandmark.detectAsync(mpImage, imageProxy.imageInfo.timestamp)
         }
     }
 
-    private fun onResults(result: FaceDetectorResult, input: MPImage) {
-        val faceDataList = result.detections().mapIndexed { index, detection ->
-            val boundingBox = detection.boundingBox()
+    private fun onResults(result: FaceLandmarkerResult, input: MPImage) {
+        val faceDataList = result.faceLandmarks().mapIndexed { index, landmarks ->
+            // Calculate bounding box from landmarks
+            var minX = Float.MAX_VALUE
+            var minY = Float.MAX_VALUE
+            var maxX = Float.MIN_VALUE
+            var maxY = Float.MIN_VALUE
+
+            for (landmark in landmarks) { // 'landmarks' here is List<NormalizedLandmark> for a single face
+                minX = minOf(minX, landmark.x())
+                minY = minOf(minY, landmark.y())
+                maxX = maxOf(maxX, landmark.x())
+                maxY = maxOf(maxY, landmark.y())
+            }
+
+            // These min/max values are normalized (0.0 to 1.0)
+            val boundingBoxWidth = maxX - minX
+            val boundingBoxHeight = maxY - minY
+            val boundingBoxCenterX = minX + (boundingBoxWidth / 2)
+            val boundingBoxCenterY = minY + (boundingBoxHeight / 2)
 
             // Convert bounding box to the format expected by FaceData
-            val centerX = boundingBox.centerX() / input.width
-            val centerY = boundingBox.centerY() / input.height
-            val size = boundingBox.width() / input.width // Use width as relative size
+            val centerX = boundingBoxCenterX
+            val centerY = boundingBoxCenterY
+            val normalizedWidth = boundingBoxWidth
+            val normalizedHeight = boundingBoxHeight
 
-            // Note: MediaPipe does not provide a stable ID for faces in the same way as MLKit.
-            // We use the index as a temporary ID for this frame.
+            val faceLandmarks = landmarks.map { landmark ->
+                FaceLandmark(
+                    type = 0, // TODO: Map the landmark type
+                    x = landmark.x().toDouble(),
+                    y = landmark.y().toDouble()
+                )
+            }
+
             FaceData(
                 x = centerX.toDouble(),
                 y = centerY.toDouble(),
-                size = size.toDouble(),
+                width = normalizedWidth.toDouble(),
+                height = normalizedHeight.toDouble(),
                 id = index.toLong(), // Pigeon expects Long
-                landmarks = null, // FaceDetector doesn't provide landmarks, FaceLandmarker does
-                smileScore = null, // Not available in FaceDetector
-                eyeOpenScore = null // Not available in FaceDetector
+                landmarks = faceLandmarks,
+                smileScore = null, // Not available in FaceLandmarker
+                eyeOpenScore = null // Not available in FaceLandmarker
             )
         }
 
@@ -82,6 +126,6 @@ class FaceDetectorAnalyzer(
         }
     }
     fun close() {
-        faceDetector.close()
+        faceLandmark.close()
     }
 }

@@ -309,6 +309,10 @@ class FaceDetectionPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.0;
 
+    final Paint landmarkPaint = Paint()
+      ..color = Colors.green
+      ..style = PaintingStyle.fill;
+
     // Calculate the scale factor to map the preview size to the widget size.
     // The camera preview is often displayed with AspectRatio.fit, so we need
     // to find the correct scale and offset.
@@ -328,11 +332,21 @@ class FaceDetectionPainter extends CustomPainter {
           face.x * previewSize.width * scale + offsetX,
           face.y * previewSize.height * scale + offsetY,
         ),
-        width: face.size * previewSize.width * scale,
-        height: face.size * previewSize.height * scale,
+        width: face.width * previewSize.width * scale,
+        height: face.height * previewSize.height * scale,
       );
 
       canvas.drawRect(faceRect, paint);
+
+      if (face.landmarks != null) {
+        for (final landmark in face.landmarks!) {
+          final Offset landmarkOffset = Offset(
+            landmark.x * previewSize.width * scale + offsetX,
+            landmark.y * previewSize.height * scale + offsetY,
+          );
+          canvas.drawCircle(landmarkOffset, 3.0, landmarkPaint);
+        }
+      }
     }
   }
 
