@@ -52,10 +52,15 @@ class CameraHandler(
         Log.d(TAG, "Starting camera preview...")
         cameraProviderFuture = ProcessCameraProvider.getInstance(context)
         cameraProviderFuture.addListener({
-            cameraProvider = cameraProviderFuture.get()
-            setupAndBindUseCases(surfaceProvider)
-            onInitialized()
-            Log.d(TAG, "Camera preview started successfully.")
+            try {
+                cameraProvider = cameraProviderFuture.get()
+                Log.d(TAG, "CameraProvider obtained successfully")
+                setupAndBindUseCases(surfaceProvider)
+                onInitialized()
+                Log.d(TAG, "Camera preview started successfully.")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error starting camera preview", e)
+            }
         }, mainExecutor)
     }
 
@@ -67,11 +72,13 @@ class CameraHandler(
             return
         }
 
+        Log.d(TAG, "Setting up camera use cases...")
         cameraProvider.unbindAll()
 
         preview = createPreviewUseCase(surfaceProvider)
         imageCapture = createImageCaptureUseCase()
         videoCapture = createVideoCaptureUseCase()
+        Log.d(TAG, "Use cases created successfully")
 
         if (settings.enableFaceDetection && faceDetectorListener != null) {
             imageAnalysis = ImageAnalysis.Builder()
@@ -99,13 +106,14 @@ class CameraHandler(
 
         try {
             val useCases = listOfNotNull(preview, imageCapture, videoCapture, imageAnalysis)
+            Log.d(TAG, "Binding ${useCases.size} use cases to lifecycle...")
             camera = cameraProvider.bindToLifecycle(
                 lifecycleOwner,
                 cameraSelector,
                 *useCases.toTypedArray()
             )
             camera?.cameraControl?.setZoomRatio(settings.zoom.toFloat())
-            Log.d(TAG, "Use cases bound to lifecycle.")
+            Log.d(TAG, "Use cases bound to lifecycle successfully. Camera: $camera")
 
         } catch (e: Exception) {
             Log.e(TAG, "Failed to bind use cases", e)
@@ -174,6 +182,7 @@ class CameraHandler(
     }
 
     private fun createPreviewUseCase(surfaceProvider: Preview.SurfaceProvider): Preview {
+        Log.d(TAG, "Creating preview use case...")
         return Preview.Builder()
             .setTargetRotation(settings.displayOrientation)
             .setResolutionSelector(
@@ -182,7 +191,10 @@ class CameraHandler(
                     .build()
             )
             .build()
-            .also { it.surfaceProvider = surfaceProvider }
+            .also { 
+                it.surfaceProvider = surfaceProvider
+                Log.d(TAG, "Preview use case created with surface provider")
+            }
     }
 
     private fun createImageCaptureUseCase(): ImageCapture {

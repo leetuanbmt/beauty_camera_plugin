@@ -10,6 +10,7 @@ class CameraState {
   final CameraFilterMode currentEffect;
   final String? lastImagePath;
   final bool hasPermission;
+  final bool isFilterEnabled;
 
   const CameraState({
     this.isInitialized = false,
@@ -17,6 +18,7 @@ class CameraState {
     this.currentEffect = CameraFilterMode.none,
     this.lastImagePath,
     this.hasPermission = false,
+    this.isFilterEnabled = false,
   });
 
   CameraState copyWith({
@@ -25,6 +27,7 @@ class CameraState {
     CameraFilterMode? currentEffect,
     String? lastImagePath,
     bool? hasPermission,
+    bool? isFilterEnabled,
   }) {
     return CameraState(
       isInitialized: isInitialized ?? this.isInitialized,
@@ -32,6 +35,7 @@ class CameraState {
       currentEffect: currentEffect ?? this.currentEffect,
       lastImagePath: lastImagePath ?? this.lastImagePath,
       hasPermission: hasPermission ?? this.hasPermission,
+      isFilterEnabled: isFilterEnabled ?? this.isFilterEnabled,
     );
   }
 
@@ -67,7 +71,7 @@ class CameraControllerNotifier extends StateNotifier<CameraState> {
     try {
       state = state.copyWith(isInitializing: true);
 
-      await _cameraController.initializeForTest(
+      await _cameraController.initialize(
         settings: AdvancedCameraSettings(
           videoQuality: VideoQuality.high,
           videoStabilization: true,
@@ -139,6 +143,26 @@ class CameraControllerNotifier extends StateNotifier<CameraState> {
       await _cameraController.setFlashMode(mode);
     } catch (e) {
       debugPrint('Error setting flash mode: $e');
+    }
+  }
+
+  Future<void> setFilterEnabled(bool enabled) async {
+    try {
+      await _cameraController.setFilterEnabled(enabled);
+      state = state.copyWith(isFilterEnabled: enabled);
+    } catch (e) {
+      debugPrint('Error setting filter enabled: $e');
+    }
+  }
+
+  Future<void> setBeautyFilter(BeautyFilterParameters parameters) async {
+    try {
+      await _cameraController.setBeautyFilter(parameters);
+      state = state.copyWith(
+          isFilterEnabled: parameters.type != BeautyFilterType.none);
+      debugPrint('Beauty filter applied: ${parameters.type}');
+    } catch (e) {
+      debugPrint('Error setting beauty filter: $e');
     }
   }
 

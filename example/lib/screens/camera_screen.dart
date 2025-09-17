@@ -5,6 +5,7 @@ import '../controllers/camera_controller.dart';
 import '../widgets/camera_controls.dart';
 import '../widgets/effects_grid.dart';
 import '../widgets/image_preview.dart';
+import '../widgets/beauty_filter_selector.dart';
 import 'dart:io';
 
 class CameraScreen extends ConsumerStatefulWidget {
@@ -56,6 +57,26 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
             onEffectSelected: (effect) {
               ref.read(cameraControllerProvider.notifier).setEffectMode(effect);
               Navigator.pop(context);
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  void _showBeautyFilterSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Consumer(
+        builder: (context, ref, _) {
+          return BeautyFilterSelector(
+            currentFilter: BeautyFilterPresets.natural, // Default filter
+            onFilterChanged: (parameters) {
+              ref
+                  .read(cameraControllerProvider.notifier)
+                  .setBeautyFilter(parameters);
             },
           );
         },
@@ -138,6 +159,10 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
                     onTakePhoto: () => controller.takePhoto(),
                     onSwitchCamera: () => controller.switchCamera(),
                     onShowEffects: _showEffectsSheet,
+                    onToggleFilter: () =>
+                        controller.setFilterEnabled(!state.isFilterEnabled),
+                    onShowBeautyFilter: _showBeautyFilterSheet,
+                    isFilterEnabled: state.isFilterEnabled,
                   ),
               ],
             ),

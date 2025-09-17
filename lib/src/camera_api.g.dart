@@ -99,6 +99,20 @@ enum CameraFilterMode {
   lookup,
 }
 
+/// Định nghĩa các loại beauty filter cụ thể
+enum BeautyFilterType {
+  /// Không áp dụng beauty filter
+  none,
+  /// Làm mịn da
+  skinSmoothing,
+  /// Làm sáng da
+  skinBrightening,
+  /// Kết hợp làm mịn và sáng da
+  skinBeauty,
+  /// Làm mịn da nâng cao
+  advancedSmoothing,
+}
+
 /// Chất lượng video khi quay.
 /// Định nghĩa theo mức độ tăng dần.
 enum VideoQuality {
@@ -140,6 +154,73 @@ enum ScaleType {
   centerCrop,
   /// Thu nhỏ để vừa khung, có thể có đường viền đen
   centerInside,
+}
+
+/// Parameters cho beauty filter
+class BeautyFilterParameters {
+  BeautyFilterParameters({
+    required this.type,
+    required this.smoothingStrength,
+    required this.brighteningStrength,
+    required this.intensity,
+    required this.faceOnly,
+  });
+
+  /// Loại beauty filter
+  BeautyFilterType type;
+
+  /// Độ mạnh làm mịn da (0.0 - 1.0)
+  double smoothingStrength;
+
+  /// Độ mạnh làm sáng da (0.0 - 1.0)
+  double brighteningStrength;
+
+  /// Độ mạnh tổng thể của filter (0.0 - 1.0)
+  double intensity;
+
+  /// Có áp dụng filter lên toàn bộ frame hay chỉ vùng face
+  bool faceOnly;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      type,
+      smoothingStrength,
+      brighteningStrength,
+      intensity,
+      faceOnly,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static BeautyFilterParameters decode(Object result) {
+    result as List<Object?>;
+    return BeautyFilterParameters(
+      type: result[0]! as BeautyFilterType,
+      smoothingStrength: result[1]! as double,
+      brighteningStrength: result[2]! as double,
+      intensity: result[3]! as double,
+      faceOnly: result[4]! as bool,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! BeautyFilterParameters || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(encode(), other.encode());
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => Object.hashAll(_toList())
+;
 }
 
 /// Thông tin chi tiết về bộ lọc được hỗ trợ.
@@ -789,44 +870,50 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is CameraFilterMode) {
       buffer.putUint8(129);
       writeValue(buffer, value.index);
-    }    else if (value is VideoQuality) {
+    }    else if (value is BeautyFilterType) {
       buffer.putUint8(130);
       writeValue(buffer, value.index);
-    }    else if (value is FlashMode) {
+    }    else if (value is VideoQuality) {
       buffer.putUint8(131);
       writeValue(buffer, value.index);
-    }    else if (value is CameraFacing) {
+    }    else if (value is FlashMode) {
       buffer.putUint8(132);
       writeValue(buffer, value.index);
-    }    else if (value is ScaleType) {
+    }    else if (value is CameraFacing) {
       buffer.putUint8(133);
       writeValue(buffer, value.index);
-    }    else if (value is FilterInfo) {
+    }    else if (value is ScaleType) {
       buffer.putUint8(134);
-      writeValue(buffer, value.encode());
-    }    else if (value is AdvancedCameraSettings) {
+      writeValue(buffer, value.index);
+    }    else if (value is BeautyFilterParameters) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
-    }    else if (value is FilterParameters) {
+    }    else if (value is FilterInfo) {
       buffer.putUint8(136);
       writeValue(buffer, value.encode());
-    }    else if (value is FaceData) {
+    }    else if (value is AdvancedCameraSettings) {
       buffer.putUint8(137);
       writeValue(buffer, value.encode());
-    }    else if (value is FaceLandmark) {
+    }    else if (value is FilterParameters) {
       buffer.putUint8(138);
       writeValue(buffer, value.encode());
-    }    else if (value is CameraInfo) {
+    }    else if (value is FaceData) {
       buffer.putUint8(139);
       writeValue(buffer, value.encode());
-    }    else if (value is ResolutionInfo) {
+    }    else if (value is FaceLandmark) {
       buffer.putUint8(140);
       writeValue(buffer, value.encode());
-    }    else if (value is CameraSettings) {
+    }    else if (value is CameraInfo) {
       buffer.putUint8(141);
       writeValue(buffer, value.encode());
-    }    else if (value is PreviewSize) {
+    }    else if (value is ResolutionInfo) {
       buffer.putUint8(142);
+      writeValue(buffer, value.encode());
+    }    else if (value is CameraSettings) {
+      buffer.putUint8(143);
+      writeValue(buffer, value.encode());
+    }    else if (value is PreviewSize) {
+      buffer.putUint8(144);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -841,33 +928,38 @@ class _PigeonCodec extends StandardMessageCodec {
         return value == null ? null : CameraFilterMode.values[value];
       case 130: 
         final int? value = readValue(buffer) as int?;
-        return value == null ? null : VideoQuality.values[value];
+        return value == null ? null : BeautyFilterType.values[value];
       case 131: 
         final int? value = readValue(buffer) as int?;
-        return value == null ? null : FlashMode.values[value];
+        return value == null ? null : VideoQuality.values[value];
       case 132: 
         final int? value = readValue(buffer) as int?;
-        return value == null ? null : CameraFacing.values[value];
+        return value == null ? null : FlashMode.values[value];
       case 133: 
         final int? value = readValue(buffer) as int?;
-        return value == null ? null : ScaleType.values[value];
+        return value == null ? null : CameraFacing.values[value];
       case 134: 
-        return FilterInfo.decode(readValue(buffer)!);
+        final int? value = readValue(buffer) as int?;
+        return value == null ? null : ScaleType.values[value];
       case 135: 
-        return AdvancedCameraSettings.decode(readValue(buffer)!);
+        return BeautyFilterParameters.decode(readValue(buffer)!);
       case 136: 
-        return FilterParameters.decode(readValue(buffer)!);
+        return FilterInfo.decode(readValue(buffer)!);
       case 137: 
-        return FaceData.decode(readValue(buffer)!);
+        return AdvancedCameraSettings.decode(readValue(buffer)!);
       case 138: 
-        return FaceLandmark.decode(readValue(buffer)!);
+        return FilterParameters.decode(readValue(buffer)!);
       case 139: 
-        return CameraInfo.decode(readValue(buffer)!);
+        return FaceData.decode(readValue(buffer)!);
       case 140: 
-        return ResolutionInfo.decode(readValue(buffer)!);
+        return FaceLandmark.decode(readValue(buffer)!);
       case 141: 
-        return CameraSettings.decode(readValue(buffer)!);
+        return CameraInfo.decode(readValue(buffer)!);
       case 142: 
+        return ResolutionInfo.decode(readValue(buffer)!);
+      case 143: 
+        return CameraSettings.decode(readValue(buffer)!);
+      case 144: 
         return PreviewSize.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -1354,6 +1446,54 @@ class BeautyCameraHostApi {
       );
     } else {
       return (pigeonVar_replyList[0] as List<Object?>?)!.cast<CameraInfo>();
+    }
+  }
+
+  /// Bật/tắt filter cho camera
+  Future<void> setFilterEnabled(bool enabled) async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.setFilterEnabled$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[enabled]);
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_sendFuture as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else {
+      return;
+    }
+  }
+
+  /// Thiết lập beauty filter parameters
+  Future<void> setBeautyFilter(BeautyFilterParameters parameters) async {
+    final String pigeonVar_channelName = 'dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.setBeautyFilter$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[parameters]);
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_sendFuture as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else {
+      return;
     }
   }
 }

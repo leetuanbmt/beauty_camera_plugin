@@ -5,12 +5,18 @@ class CameraControls extends StatelessWidget {
   final VoidCallback onSwitchCamera;
   final VoidCallback onShowEffects;
   final VoidCallback? onOpenGallery;
+  final VoidCallback? onToggleFilter;
+  final VoidCallback? onShowBeautyFilter;
+  final bool isFilterEnabled;
 
   const CameraControls({
     required this.onTakePhoto,
     required this.onSwitchCamera,
     required this.onShowEffects,
     this.onOpenGallery,
+    this.onToggleFilter,
+    this.onShowBeautyFilter,
+    this.isFilterEnabled = false,
     super.key,
   });
 
@@ -47,6 +53,20 @@ class CameraControls extends StatelessWidget {
                 color: Colors.white,
                 onPressed: () => {},
               ),
+              if (onToggleFilter != null)
+                IconButton(
+                  icon: Icon(
+                    isFilterEnabled ? Icons.filter_alt : Icons.filter_alt_off,
+                    color: isFilterEnabled ? Colors.blue : Colors.white,
+                  ),
+                  onPressed: onToggleFilter,
+                ),
+              if (onShowBeautyFilter != null)
+                IconButton(
+                  icon: const Icon(Icons.face_retouching_natural),
+                  color: Colors.white,
+                  onPressed: onShowBeautyFilter,
+                ),
               IconButton(
                 icon: const Icon(Icons.switch_camera),
                 color: Colors.white,
@@ -65,11 +85,11 @@ class CameraControls extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          IconButton(
-            icon: const Icon(Icons.filter_vintage),
-            color: Colors.white,
-            onPressed: onShowEffects,
-          ),
+          // IconButton(
+          //   icon: const Icon(Icons.filter_vintage),
+          //   color: Colors.white,
+          //   onPressed: onShowEffects,
+          // ),
           GestureDetector(
             onTap: onTakePhoto,
             child: Container(

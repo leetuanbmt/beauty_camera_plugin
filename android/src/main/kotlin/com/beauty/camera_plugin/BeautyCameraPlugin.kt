@@ -133,121 +133,93 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi, Fa
     
     private fun executeInitialize(settings: AdvancedCameraSettings, callback: (Result<Unit>) -> Unit) {
         val activity = activityBinding?.activity ?: run {
-            Log.e(TAG, "Activity is null during executeInitialize")
             callback(Result.failure(Exception("Activity is null")))
-            // Notify all pending switchCamera callbacks of failure
-            if (pendingSwitchCameraCallbacks.isNotEmpty()) {
-                pendingSwitchCameraCallbacks.forEach { it(Result.failure(Exception("Activity is null"))) }
-                pendingSwitchCameraCallbacks.clear()
-            }
             return
         }
+
         try {
             cameraHandler?.dispose()
             openGlRenderer?.release()
             previewSurfaceProducer?.release()
 
-            Log.d(TAG, "Executing initialize with OpenGL")
-
-            // 1. Khởi tạo OpenGL Renderer
-            openGlRenderer = OpenGLRenderer(activity.applicationContext).apply {
-                start()
-                waitUntilReady()
-            }
-
-            // 2. Tạo SurfaceProvider cho OpenGL
-            val rendererInputSurface = openGlRenderer?.cameraInputSurface ?: run {
-                callback(Result.failure(Exception("OpenGL renderer input surface is null")))
+            val textureRegistry = flutterPluginBinding?.textureRegistry ?: run {
+                callback(Result.failure(Exception("TextureRegistry not available")))
                 return
             }
+
+            Log.d(TAG, "Executing initialize with OpenGL")
+
+            // 1. Tạo FlutterSurfaceProducer trước, nhưng chưa set size
+            val producer = FlutterSurfaceProducer(textureRegistry)
+            this.previewSurfaceProducer = producer
+
+            // 2. Tạo SurfaceProvider sẽ khởi tạo OpenGL khi có resolution
             val surfaceProvider = androidx.camera.core.Preview.SurfaceProvider { request ->
                 val resolution = request.resolution
-                Log.d(TAG, "[SurfaceProvider] Setting OpenGL input surface buffer size to: ${resolution.width}x${resolution.height}")
-                openGlRenderer?.setInputSurfaceBufferSize(resolution.width, resolution.height)
                 Log.d(TAG, "CameraX selected resolution for OpenGL mode: ${resolution.width}x${resolution.height}")
+
+                // 3. Khởi tạo OpenGL Renderer khi đã có resolution
+                if (openGlRenderer == null) {
+                    Log.d(TAG, "Creating OpenGL Renderer with resolution...")
+                    openGlRenderer = OpenGLRenderer(activity.applicationContext).apply {
+                        start()
+                        waitUntilReady()
+                        setCameraResolution(resolution)
+                    }
+                    Log.d(TAG, "OpenGL Renderer created and ready")
+                }
+
+                // 4. Set size cho FlutterSurfaceProducer với camera resolution
+                producer.setSize(resolution.width, resolution.height)
+                Log.d(TAG, "FlutterSurfaceProducer size set to: ${resolution.width}x${resolution.height}")
+
+                // 5. Set output surface cho OpenGL
+                openGlRenderer?.setOutputSurface(producer.getSurface())
+                Log.d(TAG, "OpenGL output surface set")
+
+                // 6. Cung cấp input surface cho CameraX
+                val rendererInputSurface = openGlRenderer?.cameraInputSurface ?: run {
+                    Log.e(TAG, "OpenGL renderer input surface is null")
+                    return@SurfaceProvider
+                }
+                
                 request.provideSurface(rendererInputSurface, ContextCompat.getMainExecutor(activity)) {
                     Log.d(TAG, "Surface provided to CameraX and callback received.")
                 }
             }
 
-            // 3. Khởi tạo CameraHandler với SurfaceProvider đó
+            Log.d(TAG, "Camera cameraLensFacing setting: ${settings.cameraLensFacing}")
+
+            // 5. Khởi tạo CameraHandler với SurfaceProvider đó
             val cameraSettings = com.beauty.camera_plugin.models.CameraSettings.fromAdvancedSettings(settings)
             cameraHandler = CameraHandler(activity.applicationContext, activity as LifecycleOwner, cameraSettings, this)
             cameraHandler?.startCameraPreview(surfaceProvider) {
                 if (activityBinding == null) {
                     callback(Result.failure(Exception("Plugin disposed during initialization.")))
-                    // Notify all pending switchCamera callbacks of failure
-                    if (pendingSwitchCameraCallbacks.isNotEmpty()) {
-                        pendingSwitchCameraCallbacks.forEach { it(Result.failure(Exception("Plugin disposed during initialization."))) }
-                        pendingSwitchCameraCallbacks.clear()
-                    }
                     return@startCameraPreview
                 }
                 Log.d(TAG, "Camera handler initialized for OpenGL mode.")
                 callback(Result.success(Unit))
-
-                // Execute and clear all pending switchCamera requests
-                if (pendingSwitchCameraCallbacks.isNotEmpty()) {
-                    Log.d(TAG, "Executing queued switchCamera requests after initialization")
-                    val callbacks = pendingSwitchCameraCallbacks.toList()
-                    pendingSwitchCameraCallbacks.clear()
-                    callbacks.forEach { switchCamera(it) }
-                }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error initializing camera for OpenGL", e)
             callback(Result.failure(e))
-            // Notify all pending switchCamera callbacks of failure
-            if (pendingSwitchCameraCallbacks.isNotEmpty()) {
-                pendingSwitchCameraCallbacks.forEach { it(Result.failure(e)) }
-                pendingSwitchCameraCallbacks.clear()
-            }
         }
     }
 
 
     override fun getPreviewTexture(callback: (Result<Long>) -> Unit) {
         // This function is called to get the texture ID for Flutter to display.
-        // In test mode, the producer is created during initialization.
-        // In OpenGL mode, the producer is created here, connecting the renderer's output to Flutter.
+        // The producer is always created during initialization.
 
-        val textureRegistry = flutterPluginBinding?.textureRegistry ?: run {
-            callback(Result.failure(Exception("TextureRegistry not available")))
+        val producer = previewSurfaceProducer ?: run {
+            callback(Result.failure(Exception("previewSurfaceProducer not available")))
             return
         }
-
-        // Case 1: Test mode (no OpenGL). The producer was already created.
-        if (openGlRenderer == null) {
-            val producer = previewSurfaceProducer ?: run {
-                callback(Result.failure(Exception("previewSurfaceProducer not available in test mode")))
-                return
-            }
-            Log.d(TAG, "Returning existing preview texture for test mode with ID: ${producer.getTextureId()}")
-            callback(Result.success(producer.getTextureId()))
-            return
-        }
-
-        // Case 2: OpenGL mode. We need to create a new producer for the renderer's output.
-        val renderer = openGlRenderer ?: run {
-            callback(Result.failure(Exception("Renderer not initialized")))
-            return
-        }
-
-        try {
-            // Create the producer that will provide a surface for the OpenGL renderer to draw on.
-            val surfaceProducer = FlutterSurfaceProducer(textureRegistry)
-            val flutterSurface = surfaceProducer.getSurface()
-            renderer.setOutputSurface(flutterSurface)
-
-            // Keep a reference to the new producer.
-            this.previewSurfaceProducer = surfaceProducer
-            
-            Log.d(TAG, "Preview texture created for OpenGL output with ID: ${surfaceProducer.getTextureId()}")
-            callback(Result.success(surfaceProducer.getTextureId()))
-        } catch (e: Exception) {
-            Log.e(TAG, "Error creating preview texture for OpenGL", e)
-            callback(Result.failure(e))
-        }
+        
+        val mode = if (openGlRenderer != null) "OpenGL" else "test"
+        Log.d(TAG, "Returning preview texture for $mode mode with ID: ${producer.getTextureId()}")
+        callback(Result.success(producer.getTextureId()))
     }
 
     override fun dispose(callback: (Result<Unit>) -> Unit) {
@@ -392,6 +364,62 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi, Fa
          Log.d(TAG, "getAvailableCameras not implemented yet")
          callback(Result.success(emptyList())) 
      }
+     
+    override fun setFilterEnabled(enabled: Boolean, callback: (Result<Unit>) -> Unit) {
+        Log.d(TAG, "setFilterEnabled: $enabled")
+        openGlRenderer?.setFilterEnabled(enabled)
+        callback(Result.success(Unit))
+    }
+    
+    override fun setBeautyFilter(parameters: BeautyFilterParameters, callback: (Result<Unit>) -> Unit) {
+        Log.d(TAG, "setBeautyFilter: type=${parameters.type}, smoothing=${parameters.smoothingStrength}, brightening=${parameters.brighteningStrength}")
+        
+        // Convert parameters và gửi xuống OpenGLRenderer
+        val smoothing = parameters.smoothingStrength.toFloat()
+        val brightening = parameters.brighteningStrength.toFloat()
+        
+        openGlRenderer?.setBeautyFilterParameters(smoothing, brightening)
+        
+        // Tự động bật filter nếu type không phải none
+        val shouldEnableFilter = parameters.type != BeautyFilterType.NONE
+        openGlRenderer?.setFilterEnabled(shouldEnableFilter)
+        
+        Log.d(TAG, "Beauty filter applied successfully - filter enabled: $shouldEnableFilter")
+        callback(Result.success(Unit))
+    }
+
+    private fun createFlutterSurfaceWithResolution(resolution: android.util.Size) {
+        try {
+            val textureRegistry = flutterPluginBinding?.textureRegistry
+            if (textureRegistry != null) {
+                Log.d(TAG, "Creating FlutterSurfaceProducer with camera resolution: ${resolution.width}x${resolution.height}")
+                
+                // Create surface producer
+                val surfaceProducer = FlutterSurfaceProducer(textureRegistry)
+                val flutterSurface = surfaceProducer.getSurface()
+                Log.d(TAG, "FlutterSurfaceProducer created successfully")
+                
+                // Store the producer reference first
+                this.previewSurfaceProducer = surfaceProducer
+                
+                // Set output surface with a small delay to ensure everything is ready
+                mainHandler.postDelayed({
+                    openGlRenderer?.setOutputSurface(flutterSurface)
+                    Log.d(TAG, "Output surface set with camera resolution: ${resolution.width}x${resolution.height}")
+                    
+                    // Check the actual surface size after setting
+                    mainHandler.postDelayed({
+                        Log.d(TAG, "FlutterSurfaceProducer texture ID: ${surfaceProducer.getTextureId()}")
+                    }, 100)
+                }, 300) // 300ms delay to ensure Flutter widget is ready
+                
+            } else {
+                Log.e(TAG, "TextureRegistry not available for FlutterSurfaceProducer creation")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error creating FlutterSurfaceProducer with resolution", e)
+        }
+    }
 
     override fun onResults(faces: List<FaceData>) {
         if (flutterPluginBinding != null) {
@@ -405,4 +433,5 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi, Fa
             }
         }
     }
+    
 }

@@ -106,6 +106,9 @@ class BeautyCameraController {
           case CameraEventType.faceDetected:
             _faceDetected = List<FaceData>.from(event.data);
             break;
+          case CameraEventType.filterEnabledChanged:
+            // Handle filter enabled/disabled state if needed
+            break;
           default:
             break;
         }
@@ -117,28 +120,6 @@ class BeautyCameraController {
 
   /// Initializes the camera with the specified settings
   Future<void> initialize({
-    AdvancedCameraSettings? settings,
-  }) async {
-    try {
-      await _api.initialize(settings ?? AdvancedCameraSettings());
-
-      _isInitialized = true;
-
-      _eventStreamController.add(CameraEvent(
-        type: CameraEventType.initialized,
-      ));
-
-      return;
-    } on PlatformException catch (e) {
-      throw CameraException(
-        e.code,
-        e.message ?? 'An unknown camera error occurred',
-      );
-    }
-  }
-
-  /// Initializes the camera for testing (without OpenGL)
-  Future<void> initializeForTest({
     AdvancedCameraSettings? settings,
   }) async {
     try {
@@ -212,6 +193,38 @@ class BeautyCameraController {
       throw CameraException(
         e.code,
         e.message ?? 'Failed to set effect mode',
+      );
+    }
+  }
+
+  /// Enables or disables the filter for the camera
+  Future<void> setFilterEnabled(bool enabled) async {
+    try {
+      await _api.setFilterEnabled(enabled);
+      _eventStreamController.add(CameraEvent(
+        type: CameraEventType.filterEnabledChanged,
+        data: enabled,
+      ));
+    } on PlatformException catch (e) {
+      throw CameraException(
+        e.code,
+        e.message ?? 'Failed to set filter enabled state',
+      );
+    }
+  }
+
+  /// Sets beauty filter parameters
+  Future<void> setBeautyFilter(BeautyFilterParameters parameters) async {
+    try {
+      await _api.setBeautyFilter(parameters);
+      _eventStreamController.add(CameraEvent(
+        type: CameraEventType.effectChanged,
+        data: parameters,
+      ));
+    } on PlatformException catch (e) {
+      throw CameraException(
+        e.code,
+        e.message ?? 'Failed to set beauty filter',
       );
     }
   }
@@ -472,6 +485,7 @@ enum CameraEventType {
   recordingStarted,
   recordingStopped,
   filterParametersChanged,
+  filterEnabledChanged,
   error,
 }
 

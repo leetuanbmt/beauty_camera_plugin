@@ -192,6 +192,20 @@ enum CameraFilterMode: Int {
   case lookup = 25
 }
 
+/// Định nghĩa các loại beauty filter cụ thể
+enum BeautyFilterType: Int {
+  /// Không áp dụng beauty filter
+  case none = 0
+  /// Làm mịn da
+  case skinSmoothing = 1
+  /// Làm sáng da
+  case skinBrightening = 2
+  /// Kết hợp làm mịn và sáng da
+  case skinBeauty = 3
+  /// Làm mịn da nâng cao
+  case advancedSmoothing = 4
+}
+
 /// Chất lượng video khi quay.
 /// Định nghĩa theo mức độ tăng dần.
 enum VideoQuality: Int {
@@ -233,6 +247,54 @@ enum ScaleType: Int {
   case centerCrop = 0
   /// Thu nhỏ để vừa khung, có thể có đường viền đen
   case centerInside = 1
+}
+
+/// Parameters cho beauty filter
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct BeautyFilterParameters: Hashable {
+  /// Loại beauty filter
+  var type: BeautyFilterType
+  /// Độ mạnh làm mịn da (0.0 - 1.0)
+  var smoothingStrength: Double
+  /// Độ mạnh làm sáng da (0.0 - 1.0)
+  var brighteningStrength: Double
+  /// Độ mạnh tổng thể của filter (0.0 - 1.0)
+  var intensity: Double
+  /// Có áp dụng filter lên toàn bộ frame hay chỉ vùng face
+  var faceOnly: Bool
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> BeautyFilterParameters? {
+    let type = pigeonVar_list[0] as! BeautyFilterType
+    let smoothingStrength = pigeonVar_list[1] as! Double
+    let brighteningStrength = pigeonVar_list[2] as! Double
+    let intensity = pigeonVar_list[3] as! Double
+    let faceOnly = pigeonVar_list[4] as! Bool
+
+    return BeautyFilterParameters(
+      type: type,
+      smoothingStrength: smoothingStrength,
+      brighteningStrength: brighteningStrength,
+      intensity: intensity,
+      faceOnly: faceOnly
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      type,
+      smoothingStrength,
+      brighteningStrength,
+      intensity,
+      faceOnly,
+    ]
+  }
+  static func == (lhs: BeautyFilterParameters, rhs: BeautyFilterParameters) -> Bool {
+    return deepEqualsBeautyCameraPluginPigeon(lhs.toList(), rhs.toList())  }
+  func hash(into hasher: inout Hasher) {
+    deepHashBeautyCameraPluginPigeon(value: toList(), hasher: &hasher)
+  }
 }
 
 /// Thông tin chi tiết về bộ lọc được hỗ trợ.
@@ -707,44 +769,52 @@ private class BeautyCameraPluginPigeonPigeonCodecReader: FlutterStandardReader {
     case 130:
       let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
       if let enumResultAsInt = enumResultAsInt {
-        return VideoQuality(rawValue: enumResultAsInt)
+        return BeautyFilterType(rawValue: enumResultAsInt)
       }
       return nil
     case 131:
       let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
       if let enumResultAsInt = enumResultAsInt {
-        return FlashMode(rawValue: enumResultAsInt)
+        return VideoQuality(rawValue: enumResultAsInt)
       }
       return nil
     case 132:
       let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
       if let enumResultAsInt = enumResultAsInt {
-        return CameraFacing(rawValue: enumResultAsInt)
+        return FlashMode(rawValue: enumResultAsInt)
       }
       return nil
     case 133:
       let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
       if let enumResultAsInt = enumResultAsInt {
-        return ScaleType(rawValue: enumResultAsInt)
+        return CameraFacing(rawValue: enumResultAsInt)
       }
       return nil
     case 134:
-      return FilterInfo.fromList(self.readValue() as! [Any?])
+      let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
+      if let enumResultAsInt = enumResultAsInt {
+        return ScaleType(rawValue: enumResultAsInt)
+      }
+      return nil
     case 135:
-      return AdvancedCameraSettings.fromList(self.readValue() as! [Any?])
+      return BeautyFilterParameters.fromList(self.readValue() as! [Any?])
     case 136:
-      return FilterParameters.fromList(self.readValue() as! [Any?])
+      return FilterInfo.fromList(self.readValue() as! [Any?])
     case 137:
-      return FaceData.fromList(self.readValue() as! [Any?])
+      return AdvancedCameraSettings.fromList(self.readValue() as! [Any?])
     case 138:
-      return FaceLandmark.fromList(self.readValue() as! [Any?])
+      return FilterParameters.fromList(self.readValue() as! [Any?])
     case 139:
-      return CameraInfo.fromList(self.readValue() as! [Any?])
+      return FaceData.fromList(self.readValue() as! [Any?])
     case 140:
-      return ResolutionInfo.fromList(self.readValue() as! [Any?])
+      return FaceLandmark.fromList(self.readValue() as! [Any?])
     case 141:
-      return CameraSettings.fromList(self.readValue() as! [Any?])
+      return CameraInfo.fromList(self.readValue() as! [Any?])
     case 142:
+      return ResolutionInfo.fromList(self.readValue() as! [Any?])
+    case 143:
+      return CameraSettings.fromList(self.readValue() as! [Any?])
+    case 144:
       return PreviewSize.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
@@ -757,44 +827,50 @@ private class BeautyCameraPluginPigeonPigeonCodecWriter: FlutterStandardWriter {
     if let value = value as? CameraFilterMode {
       super.writeByte(129)
       super.writeValue(value.rawValue)
-    } else if let value = value as? VideoQuality {
+    } else if let value = value as? BeautyFilterType {
       super.writeByte(130)
       super.writeValue(value.rawValue)
-    } else if let value = value as? FlashMode {
+    } else if let value = value as? VideoQuality {
       super.writeByte(131)
       super.writeValue(value.rawValue)
-    } else if let value = value as? CameraFacing {
+    } else if let value = value as? FlashMode {
       super.writeByte(132)
       super.writeValue(value.rawValue)
-    } else if let value = value as? ScaleType {
+    } else if let value = value as? CameraFacing {
       super.writeByte(133)
       super.writeValue(value.rawValue)
-    } else if let value = value as? FilterInfo {
+    } else if let value = value as? ScaleType {
       super.writeByte(134)
-      super.writeValue(value.toList())
-    } else if let value = value as? AdvancedCameraSettings {
+      super.writeValue(value.rawValue)
+    } else if let value = value as? BeautyFilterParameters {
       super.writeByte(135)
       super.writeValue(value.toList())
-    } else if let value = value as? FilterParameters {
+    } else if let value = value as? FilterInfo {
       super.writeByte(136)
       super.writeValue(value.toList())
-    } else if let value = value as? FaceData {
+    } else if let value = value as? AdvancedCameraSettings {
       super.writeByte(137)
       super.writeValue(value.toList())
-    } else if let value = value as? FaceLandmark {
+    } else if let value = value as? FilterParameters {
       super.writeByte(138)
       super.writeValue(value.toList())
-    } else if let value = value as? CameraInfo {
+    } else if let value = value as? FaceData {
       super.writeByte(139)
       super.writeValue(value.toList())
-    } else if let value = value as? ResolutionInfo {
+    } else if let value = value as? FaceLandmark {
       super.writeByte(140)
       super.writeValue(value.toList())
-    } else if let value = value as? CameraSettings {
+    } else if let value = value as? CameraInfo {
       super.writeByte(141)
       super.writeValue(value.toList())
-    } else if let value = value as? PreviewSize {
+    } else if let value = value as? ResolutionInfo {
       super.writeByte(142)
+      super.writeValue(value.toList())
+    } else if let value = value as? CameraSettings {
+      super.writeByte(143)
+      super.writeValue(value.toList())
+    } else if let value = value as? PreviewSize {
+      super.writeByte(144)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -858,6 +934,10 @@ protocol BeautyCameraHostApi {
   func adjustFilterParameters(parameters: FilterParameters, completion: @escaping (Result<Void, Error>) -> Void)
   /// Lấy thông tin về các camera có sẵn trên thiết bị
   func getAvailableCameras(completion: @escaping (Result<[CameraInfo], Error>) -> Void)
+  /// Bật/tắt filter cho camera
+  func setFilterEnabled(enabled: Bool, completion: @escaping (Result<Void, Error>) -> Void)
+  /// Thiết lập beauty filter parameters
+  func setBeautyFilter(parameters: BeautyFilterParameters, completion: @escaping (Result<Void, Error>) -> Void)
 }
 
 /// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
@@ -1171,6 +1251,42 @@ class BeautyCameraHostApiSetup {
       }
     } else {
       getAvailableCamerasChannel.setMessageHandler(nil)
+    }
+    /// Bật/tắt filter cho camera
+    let setFilterEnabledChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.setFilterEnabled\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      setFilterEnabledChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let enabledArg = args[0] as! Bool
+        api.setFilterEnabled(enabled: enabledArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      setFilterEnabledChannel.setMessageHandler(nil)
+    }
+    /// Thiết lập beauty filter parameters
+    let setBeautyFilterChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.setBeautyFilter\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      setBeautyFilterChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let parametersArg = args[0] as! BeautyFilterParameters
+        api.setBeautyFilter(parameters: parametersArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      setBeautyFilterChannel.setMessageHandler(nil)
     }
   }
 }

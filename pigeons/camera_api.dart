@@ -95,6 +95,50 @@ enum CameraFilterMode {
   lookup,
 }
 
+/// Định nghĩa các loại beauty filter cụ thể
+enum BeautyFilterType {
+  /// Không áp dụng beauty filter
+  none,
+
+  /// Làm mịn da
+  skinSmoothing,
+
+  /// Làm sáng da
+  skinBrightening,
+
+  /// Kết hợp làm mịn và sáng da
+  skinBeauty,
+
+  /// Làm mịn da nâng cao
+  advancedSmoothing,
+}
+
+/// Parameters cho beauty filter
+class BeautyFilterParameters {
+  /// Loại beauty filter
+  final BeautyFilterType type;
+
+  /// Độ mạnh làm mịn da (0.0 - 1.0)
+  final double smoothingStrength;
+
+  /// Độ mạnh làm sáng da (0.0 - 1.0)
+  final double brighteningStrength;
+
+  /// Độ mạnh tổng thể của filter (0.0 - 1.0)
+  final double intensity;
+
+  /// Có áp dụng filter lên toàn bộ frame hay chỉ vùng face
+  final bool faceOnly;
+
+  const BeautyFilterParameters({
+    this.type = BeautyFilterType.none,
+    this.smoothingStrength = 0.3,
+    this.brighteningStrength = 0.2,
+    this.intensity = 1.0,
+    this.faceOnly = true,
+  });
+}
+
 /// Thông tin chi tiết về bộ lọc được hỗ trợ.
 /// Cung cấp metadata về filter từ native lên Flutter.
 class FilterInfo {
@@ -362,6 +406,14 @@ abstract class BeautyCameraHostApi {
   /// Lấy thông tin về các camera có sẵn trên thiết bị
   @async
   List<CameraInfo> getAvailableCameras();
+
+  /// Bật/tắt filter cho camera
+  @async
+  void setFilterEnabled(bool enabled);
+
+  /// Thiết lập beauty filter parameters
+  @async
+  void setBeautyFilter(BeautyFilterParameters parameters);
 }
 
 /// Chế độ đèn flash
