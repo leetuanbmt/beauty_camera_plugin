@@ -142,7 +142,7 @@ class BeautyCameraController {
     AdvancedCameraSettings? settings,
   }) async {
     try {
-      await _api.initializeForTest(settings ?? AdvancedCameraSettings());
+      await _api.initialize(settings ?? AdvancedCameraSettings());
 
       _isInitialized = true;
 

@@ -11,6 +11,7 @@ import android.view.Surface
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
+import kotlin.math.min
 
 class OpenGLRenderer(private val context: Context) : SurfaceTexture.OnFrameAvailableListener {
 
@@ -43,10 +44,15 @@ class OpenGLRenderer(private val context: Context) : SurfaceTexture.OnFrameAvail
     private var texCoordAttribHandle: Int = 0
     private var textureMatrixHandle: Int = 0
     private var sTextureHandle: Int = 0 // Handle for the sampler
+    private var uLandmarksHandle: Int = -1
+    private var uLandmarkCountHandle: Int = -1
 
     // Đồng bộ hóa thread
     private val startLock = Object()
     private var isReady = false
+
+    // Biến lưu trữ dữ liệu landmark từ BeautyCameraPlugin
+    private var faceLandmarks: List<FaceLandmark>? = null
 
     init {
         Log.d(TAG, "Initializing OpenGLRenderer")
@@ -153,10 +159,22 @@ class OpenGLRenderer(private val context: Context) : SurfaceTexture.OnFrameAvail
         }
     }
 
+    fun setInputSurfaceBufferSize(width: Int, height: Int) {
+        cameraInputSurfaceTexture.setDefaultBufferSize(width, height)
+        Log.d(TAG, "Set camera input surface buffer size: ${width}x${height}")
+    }
+
     override fun onFrameAvailable(surfaceTexture: SurfaceTexture) {
         // Log.v(TAG, "New frame available") // Verbose log, can be spammy
         handler.post {
             drawFrame()
+        }
+    }
+
+    private fun checkGlError(msg: String) {
+        val error = GLES20.glGetError()
+        if (error != GLES20.GL_NO_ERROR) {
+            Log.e(TAG, "$msg: GL error = 0x${Integer.toHexString(error)}")
         }
     }
 
@@ -167,28 +185,30 @@ class OpenGLRenderer(private val context: Context) : SurfaceTexture.OnFrameAvail
             return
         }
         eglCore.makeCurrent(output)
-
+        checkGlError("After makeCurrent")
         try {
             cameraInputSurfaceTexture.updateTexImage()
+            checkGlError("After updateTexImage")
             cameraInputSurfaceTexture.getTransformMatrix(textureMatrix)
+            checkGlError("After getTransformMatrix")
         } catch (e: Exception) {
             Log.e(TAG, "Error updating texture image", e)
             return
         }
-
         Log.d(TAG, "Drawing frame with textureId: $textureId, program: $program")
-
         if (program == 0) {
             Log.d(TAG, "Creating GL program")
             val vertexShader = context.assets.open("vertex_shader.glsl").bufferedReader().use { it.readText() }
             val fragmentShader = context.assets.open("fragment_shader.glsl").bufferedReader().use { it.readText() }
             program = GlUtil.createProgram(vertexShader, fragmentShader)
             Log.d(TAG, "GL program created, ID: $program")
-
             posAttribHandle = GLES20.glGetAttribLocation(program, "aPosition")
             texCoordAttribHandle = GLES20.glGetAttribLocation(program, "aTextureCoord")
             textureMatrixHandle = GLES20.glGetUniformLocation(program, "uTextureMatrix")
             sTextureHandle = GLES20.glGetUniformLocation(program, "sTexture")
+            uLandmarksHandle = GLES20.glGetUniformLocation(program, "uLandmarks")
+            uLandmarkCountHandle = GLES20.glGetUniformLocation(program, "uLandmarkCount")
+            checkGlError("After shader program creation")
         }
 
         // Lấy kích thước surface động để set viewport
@@ -206,35 +226,60 @@ class OpenGLRenderer(private val context: Context) : SurfaceTexture.OnFrameAvail
         }
 
         GLES20.glUseProgram(program)
+        checkGlError("After glUseProgram")
         GLES20.glViewport(0, 0, width, height)
+        checkGlError("After glViewport")
         GLES20.glClearColor(0f, 0f, 0f, 1f)
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT)
-
+        checkGlError("After glClear")
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
+        checkGlError("After glActiveTexture")
         GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, textureId)
-
-        // Set the sampler to use texture unit 0
+        checkGlError("After glBindTexture")
         GLES20.glUniform1i(sTextureHandle, 0)
-
+        checkGlError("After glUniform1i sTextureHandle")
         GLES20.glUniformMatrix4fv(textureMatrixHandle, 1, false, textureMatrix, 0)
-
+        checkGlError("After glUniformMatrix4fv textureMatrixHandle")
         GLES20.glEnableVertexAttribArray(posAttribHandle)
+        checkGlError("After glEnableVertexAttribArray posAttribHandle")
         GLES20.glVertexAttribPointer(posAttribHandle, 2, GLES20.GL_FLOAT, false, 8, vertexBuffer)
-
+        checkGlError("After glVertexAttribPointer posAttribHandle")
         GLES20.glEnableVertexAttribArray(texCoordAttribHandle)
+        checkGlError("After glEnableVertexAttribArray texCoordAttribHandle")
         GLES20.glVertexAttribPointer(texCoordAttribHandle, 2, GLES20.GL_FLOAT, false, 8, texCoordBuffer)
+        checkGlError("After glVertexAttribPointer texCoordAttribHandle")
 
+        // Truyền landmark vào shader nếu có
+        faceLandmarks?.let { landmarks ->
+            val count = min(landmarks.size, 468)
+            val landmarkArray = FloatArray(count * 2)
+            for (i in 0 until count) {
+                // Chuẩn hóa về hệ tọa độ texture (0..1)
+                landmarkArray[i * 2] = landmarks[i].x.toFloat()
+                landmarkArray[i * 2 + 1] = landmarks[i].y.toFloat()
+            }
+            GLES20.glUniform2fv(uLandmarksHandle, count, landmarkArray, 0)
+            checkGlError("After glUniform2fv uLandmarksHandle")
+            GLES20.glUniform1i(uLandmarkCountHandle, count)
+            checkGlError("After glUniform1i uLandmarkCountHandle")
+        } ?: run {
+            GLES20.glUniform1i(uLandmarkCountHandle, 0)
+            checkGlError("After glUniform1i uLandmarkCountHandle (no landmarks)")
+        }
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
-
+        checkGlError("After glDrawArrays")
         GLES20.glDisableVertexAttribArray(posAttribHandle)
         GLES20.glDisableVertexAttribArray(texCoordAttribHandle)
         GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, 0)
         GLES20.glUseProgram(0)
-
         Log.d(TAG, "Viewport = ${width}x${height}, textureMatrix=${textureMatrix.contentToString()}")
-
         eglCore.swapBuffers(output)
+        checkGlError("After swapBuffers")
         Log.d(TAG, "Frame drawn and buffers swapped.")
+    }
+
+    fun setFaceLandmarks(landmarks: List<FaceLandmark>?) {
+        this.faceLandmarks = landmarks
     }
 
     fun release() {

@@ -37,8 +37,8 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi, Fa
     private var currentVideoPath: String? = null
     private var currentSettings: AdvancedCameraSettings? = null
 
-    // Cache for pending switchCamera request
-    private var pendingSwitchCameraCallback: ((Result<Unit>) -> Unit)? = null
+    // Queue for pending switchCamera requests
+    private val pendingSwitchCameraCallbacks: MutableList<(Result<Unit>) -> Unit> = mutableListOf()
 
     private val mainHandler = Handler(Looper.getMainLooper())
 
@@ -92,6 +92,11 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi, Fa
         cameraHandler?.dispose()
         openGlRenderer?.release()
         previewSurfaceProducer?.release()
+        // Release previous OpenGL input surface if exists
+        if (openGlRenderer?.cameraInputSurface != null) {
+            Log.d(TAG, "Releasing previous OpenGL input surface")
+            openGlRenderer?.cameraInputSurface?.release()
+        }
         activityBinding = null
         cameraHandler = null
         openGlRenderer = null
@@ -102,6 +107,11 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi, Fa
         // Clear cache
         pendingInitializeSettings = null
         pendingInitializeCallback = null
+        // Notify and clear all pending switchCamera callbacks
+        if (pendingSwitchCameraCallbacks.isNotEmpty()) {
+            pendingSwitchCameraCallbacks.forEach { it(Result.failure(Exception("Plugin disposed."))) }
+            pendingSwitchCameraCallbacks.clear()
+        }
     }
 
     // --- BeautyCameraHostApi Implementation ---
@@ -119,25 +129,19 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi, Fa
         executeInitialize(settings, callback)
     }
 
-    override fun initializeForTest(settings: AdvancedCameraSettings, callback: (Result<Unit>) -> Unit) {
-        Log.d(TAG, "InitializeForTest with settings: $settings")
-        val activity = activityBinding?.activity
-        if (activity == null) {
-            Log.w(TAG, "Activity not attached - caching initializeForTest command")
-            pendingInitializeSettings = settings
-            pendingInitializeCallback = callback
-            return
-        }
-        executeInitializeForTest(settings, callback)
-    }
+
     
     private fun executeInitialize(settings: AdvancedCameraSettings, callback: (Result<Unit>) -> Unit) {
         val activity = activityBinding?.activity ?: run {
             Log.e(TAG, "Activity is null during executeInitialize")
             callback(Result.failure(Exception("Activity is null")))
+            // Notify all pending switchCamera callbacks of failure
+            if (pendingSwitchCameraCallbacks.isNotEmpty()) {
+                pendingSwitchCameraCallbacks.forEach { it(Result.failure(Exception("Activity is null"))) }
+                pendingSwitchCameraCallbacks.clear()
+            }
             return
         }
-
         try {
             cameraHandler?.dispose()
             openGlRenderer?.release()
@@ -157,9 +161,13 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi, Fa
                 return
             }
             val surfaceProvider = androidx.camera.core.Preview.SurfaceProvider { request ->
-                Log.d(TAG, "CameraX selected resolution for OpenGL mode: ${request.resolution.width}x${request.resolution.height}")
-                // Chỉ cần cung cấp surface nội bộ của renderer cho CameraX
-                request.provideSurface(rendererInputSurface, ContextCompat.getMainExecutor(activity)) {}
+                val resolution = request.resolution
+                Log.d(TAG, "[SurfaceProvider] Setting OpenGL input surface buffer size to: ${resolution.width}x${resolution.height}")
+                openGlRenderer?.setInputSurfaceBufferSize(resolution.width, resolution.height)
+                Log.d(TAG, "CameraX selected resolution for OpenGL mode: ${resolution.width}x${resolution.height}")
+                request.provideSurface(rendererInputSurface, ContextCompat.getMainExecutor(activity)) {
+                    Log.d(TAG, "Surface provided to CameraX and callback received.")
+                }
             }
 
             // 3. Khởi tạo CameraHandler với SurfaceProvider đó
@@ -168,74 +176,35 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi, Fa
             cameraHandler?.startCameraPreview(surfaceProvider) {
                 if (activityBinding == null) {
                     callback(Result.failure(Exception("Plugin disposed during initialization.")))
+                    // Notify all pending switchCamera callbacks of failure
+                    if (pendingSwitchCameraCallbacks.isNotEmpty()) {
+                        pendingSwitchCameraCallbacks.forEach { it(Result.failure(Exception("Plugin disposed during initialization."))) }
+                        pendingSwitchCameraCallbacks.clear()
+                    }
                     return@startCameraPreview
                 }
                 Log.d(TAG, "Camera handler initialized for OpenGL mode.")
                 callback(Result.success(Unit))
 
-                // If there was a pending switchCamera, execute it now
-                pendingSwitchCameraCallback?.let {
-                    Log.d(TAG, "Executing cached switchCamera after initialization")
-                    switchCamera(it)
+                // Execute and clear all pending switchCamera requests
+                if (pendingSwitchCameraCallbacks.isNotEmpty()) {
+                    Log.d(TAG, "Executing queued switchCamera requests after initialization")
+                    val callbacks = pendingSwitchCameraCallbacks.toList()
+                    pendingSwitchCameraCallbacks.clear()
+                    callbacks.forEach { switchCamera(it) }
                 }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error initializing camera for OpenGL", e)
             callback(Result.failure(e))
+            // Notify all pending switchCamera callbacks of failure
+            if (pendingSwitchCameraCallbacks.isNotEmpty()) {
+                pendingSwitchCameraCallbacks.forEach { it(Result.failure(e)) }
+                pendingSwitchCameraCallbacks.clear()
+            }
         }
     }
 
-    private fun executeInitializeForTest(settings: AdvancedCameraSettings, callback: (Result<Unit>) -> Unit) {
-        val activity = activityBinding?.activity ?: run {
-            callback(Result.failure(Exception("Activity is null")))
-            return
-        }
-
-        try {
-            cameraHandler?.dispose()
-            previewSurfaceProducer?.release()
-
-            Log.d(TAG, "Executing initializeForTest")
-
-            val textureRegistry = flutterPluginBinding?.textureRegistry ?: run {
-                callback(Result.failure(Exception("TextureRegistry not available")))
-                return
-            }
-
-            // 1. Tạo producer, nhưng chưa set size
-            val producer = FlutterSurfaceProducer(textureRegistry)
-            this.previewSurfaceProducer = producer
-
-            // 2. Tạo một SurfaceProvider sẽ được CameraX gọi
-            val surfaceProvider = androidx.camera.core.Preview.SurfaceProvider { request ->
-                val resolution = request.resolution
-                Log.d(TAG, "CameraX selected resolution for test mode: ${resolution.width}x${resolution.height}")
-
-                // 3. Set buffer size DỰA TRÊN resolution thực tế từ CameraX
-                producer.setSize(resolution.width, resolution.height)
-
-                // 4. Cung cấp surface cho CameraX
-                request.provideSurface(producer.getSurface(), ContextCompat.getMainExecutor(activity)) {}
-            }
-
-            Log.d(TAG, "Camera cameraLensFacing setting: ${settings.cameraLensFacing}")
-
-            // 5. Khởi tạo CameraHandler với SurfaceProvider đó
-            val cameraSettings = com.beauty.camera_plugin.models.CameraSettings.fromAdvancedSettings(settings)
-            cameraHandler = CameraHandler(activity.applicationContext, activity as LifecycleOwner, cameraSettings, this)
-            cameraHandler?.startCameraPreview(surfaceProvider) {
-                if (activityBinding == null) {
-                    callback(Result.failure(Exception("Plugin disposed during initialization.")))
-                    return@startCameraPreview
-                }
-                Log.d(TAG, "Camera handler initialized for test mode.")
-                callback(Result.success(Unit))
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error initializing camera for test", e)
-            callback(Result.failure(e))
-        }
-    }
 
     override fun getPreviewTexture(callback: (Result<Long>) -> Unit) {
         // This function is called to get the texture ID for Flutter to display.
@@ -305,8 +274,8 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi, Fa
         mainHandler.post {
             val settings = currentSettings
             if (settings == null) {
-                Log.w(TAG, "Plugin not initialized - caching switchCamera request")
-                pendingSwitchCameraCallback = callback
+                Log.w(TAG, "Plugin not initialized - queuing switchCamera request")
+                pendingSwitchCameraCallbacks.add(callback)
                 return@post
             }
             // Đảo ngược camera lens facing
@@ -319,8 +288,6 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi, Fa
             // Khởi tạo lại với settings mới
             initialize(newSettings) { result ->
                 callback(result)
-                // If there was a pending switch, clear it
-                pendingSwitchCameraCallback = null
             }
         }
      }
@@ -427,12 +394,14 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi, Fa
      }
 
     override fun onResults(faces: List<FaceData>) {
-        if (flutterPluginBinding != null) { // Ensure plugin is still attached
+        if (flutterPluginBinding != null) {
             mainHandler.post {
                 flutterApi.onFaceDetected(faces) {
-                    // You can handle the result here if needed, e.g., log success or failure
                     Log.d(TAG, "onFaceDetected callback result: $it")
                 }
+                // Truyền landmark vào OpenGLRenderer để filter
+                val firstFaceLandmarks = faces.firstOrNull()?.landmarks
+                openGlRenderer?.setFaceLandmarks(firstFaceLandmarks)
             }
         }
     }

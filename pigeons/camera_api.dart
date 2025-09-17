@@ -6,7 +6,7 @@ import 'package:pigeon/pigeon.dart';
     swiftOut: 'ios/Classes/BeautyCameraPluginPigeon.swift',
     kotlinOptions: KotlinOptions(package: 'com.beauty.camera_plugin'),
     kotlinOut:
-        'android/src/main/kotlin/com/beauty/camera_plugin/BeautyCameraPluginPigeon.kt',
+        'android/src/main/kotlin/com/beauty/camera_plugin/BeautyCameraPluginPigeon.g.kt',
     copyrightHeader: 'pigeons/copyright.txt',
     dartPackageName: 'com.beauty.camera_plugin',
     dartOut: 'lib/src/camera_api.g.dart',
@@ -294,10 +294,6 @@ abstract class BeautyCameraHostApi {
   /// Khởi tạo camera với các cài đặt cụ thể
   @async
   void initialize(AdvancedCameraSettings settings);
-
-  /// Khởi tạo camera cho mục đích test (không có OpenGL)
-  @async
-  void initializeForTest(AdvancedCameraSettings settings);
 
   /// Giải phóng tài nguyên
   @async

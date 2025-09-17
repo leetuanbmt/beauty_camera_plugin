@@ -824,8 +824,6 @@ class BeautyCameraPluginPigeonPigeonCodec: FlutterStandardMessageCodec, @uncheck
 protocol BeautyCameraHostApi {
   /// Khởi tạo camera với các cài đặt cụ thể
   func initialize(settings: AdvancedCameraSettings, completion: @escaping (Result<Void, Error>) -> Void)
-  /// Khởi tạo camera cho mục đích test (không có OpenGL)
-  func initializeForTest(settings: AdvancedCameraSettings, completion: @escaping (Result<Void, Error>) -> Void)
   /// Giải phóng tài nguyên
   func dispose(completion: @escaping (Result<Void, Error>) -> Void)
   /// Chuyển đổi giữa camera trước và sau
@@ -885,24 +883,6 @@ class BeautyCameraHostApiSetup {
       }
     } else {
       initializeChannel.setMessageHandler(nil)
-    }
-    /// Khởi tạo camera cho mục đích test (không có OpenGL)
-    let initializeForTestChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.initializeForTest\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
-    if let api = api {
-      initializeForTestChannel.setMessageHandler { message, reply in
-        let args = message as! [Any?]
-        let settingsArg = args[0] as! AdvancedCameraSettings
-        api.initializeForTest(settings: settingsArg) { result in
-          switch result {
-          case .success:
-            reply(wrapResult(nil))
-          case .failure(let error):
-            reply(wrapError(error))
-          }
-        }
-      }
-    } else {
-      initializeForTestChannel.setMessageHandler(nil)
     }
     /// Giải phóng tài nguyên
     let disposeChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.com.beauty.camera_plugin.BeautyCameraHostApi.dispose\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)

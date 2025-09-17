@@ -54,3 +54,8 @@ go.work
 
 .cursor/
 .vscode/
+
+
+# File generator
+*.g.dart
+*.g.kt
