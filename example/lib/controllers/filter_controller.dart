@@ -359,8 +359,8 @@ class FilterController extends StateNotifier<FilterState> {
 }
 
 /// Provider cho FilterController
-final filterControllerProvider = StateNotifierProvider.family<FilterController,
-    FilterState, BeautyCameraController>(
+final filterControllerProvider = StateNotifierProvider.autoDispose
+    .family<FilterController, FilterState, BeautyCameraController>(
   (ref, cameraController) => FilterController(cameraController),
 );
 

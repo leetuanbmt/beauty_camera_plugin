@@ -273,40 +273,6 @@ class BeautyCameraController {
     }
   }
 
-  /// Convert FilterParameters sang BeautyFilterParameters (temporary)
-  BeautyFilterParameters _convertToBeautyParameters(
-      FilterCategory category, FilterType type, FilterParameters params) {
-    // Map filter type sang BeautyFilterType
-    BeautyFilterType beautyType;
-    switch (type) {
-      case FilterType.beautyNatural:
-        beautyType = BeautyFilterType.natural;
-        break;
-      case FilterType.beautyGlow:
-        beautyType = BeautyFilterType.glow;
-        break;
-      case FilterType.beautyDoll:
-        beautyType = BeautyFilterType.doll;
-        break;
-      case FilterType.beautyFresh:
-        beautyType = BeautyFilterType.fresh;
-        break;
-      case FilterType.beautySmooth:
-        beautyType = BeautyFilterType.smooth;
-        break;
-      default:
-        beautyType = BeautyFilterType.natural;
-    }
-
-    return BeautyFilterParameters(
-      type: beautyType,
-      smoothingStrength: params.skinSmoothing,
-      brighteningStrength: params.skinBrightening,
-      intensity: params.intensity,
-      faceOnly: category == FilterCategory.beauty,
-    );
-  }
-
   /// Focuses the camera on a specific point in the preview
   Future<void> focusOnPoint(int x, int y) async {
     try {

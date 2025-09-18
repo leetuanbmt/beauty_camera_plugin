@@ -202,8 +202,6 @@ class _FilterSelectorState extends State<FilterSelector> {
         return 'Watercolor';
       case FilterType.artSketch:
         return 'Sketch';
-      // default:
-      //   return type.toString().split('.').last;
     }
   }
 

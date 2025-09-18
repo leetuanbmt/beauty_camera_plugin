@@ -1,3 +1,5 @@
+// cSpell:disable
+
 package com.beauty.camera_plugin
 
 import android.content.Context
@@ -11,6 +13,7 @@ import com.google.mediapipe.tasks.core.Delegate
 import com.google.mediapipe.tasks.vision.core.RunningMode
 import com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarker
 import com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarkerResult
+
 
 class FaceDetectorAnalyzer(
     context: Context,
@@ -30,12 +33,11 @@ class FaceDetectorAnalyzer(
 
     init {
         try{
-            val baseOptions = BaseOptions.builder()
+            // Try GPU delegate first, fallback to CPU if not supported
+            var baseOptions: BaseOptions = BaseOptions.builder()
                 .setDelegate(Delegate.GPU)
-                .setModelAssetPath("face_landmarker.task") // Ensure this model is in your assets
+                .setModelAssetPath("face_landmarker.task")
                 .build()
-
-
             val faceLandmarkErrorListener: (RuntimeException) -> Unit = { error ->
                 Log.e(TAG, "MediaPipe Face Landmarker Error: ${error.message}")
             }
@@ -87,19 +89,20 @@ class FaceDetectorAnalyzer(
     }
 
     private fun onResults(result: FaceLandmarkerResult) {
-        val faceDataList = result.faceLandmarks().mapIndexed { index, landmarks ->
-            // Calculate bounding box from landmarks
-            var minX = Float.MAX_VALUE
-            var minY = Float.MAX_VALUE
-            var maxX = Float.MIN_VALUE
-            var maxY = Float.MIN_VALUE
+        try {
+            val faceDataList = result.faceLandmarks().mapIndexed { index, landmarks ->
+                // Calculate bounding box from landmarks
+                var minX = Float.MAX_VALUE
+                var minY = Float.MAX_VALUE
+                var maxX = Float.MIN_VALUE
+                var maxY = Float.MIN_VALUE
 
-            for (landmark in landmarks) { // 'landmarks' here is List<NormalizedLandmark> for a single face
-                minX = minOf(minX, landmark.x())
-                minY = minOf(minY, landmark.y())
-                maxX = maxOf(maxX, landmark.x())
-                maxY = maxOf(maxY, landmark.y())
-            }
+                for (landmark in landmarks) { // 'landmarks' here is List<NormalizedLandmark> for a single face
+                    minX = minOf(minX, landmark.x())
+                    minY = minOf(minY, landmark.y())
+                    maxX = maxOf(maxX, landmark.x())
+                    maxY = maxOf(maxY, landmark.y())
+                }
 
             // These min/max values are normalized (0.0 to 1.0)
             val boundingBoxWidth = maxX - minX
@@ -133,8 +136,11 @@ class FaceDetectorAnalyzer(
             )
         }
 
-        if (faceDataList.isNotEmpty()) {
-            listener.onResults(faceDataList)
+            if (faceDataList.isNotEmpty()) {
+                listener.onResults(faceDataList)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error processing face detection results", e)
         }
     }
     fun close() {

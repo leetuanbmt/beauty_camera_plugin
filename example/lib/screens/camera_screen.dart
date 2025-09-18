@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../controllers/camera_controller.dart';
 import '../widgets/camera_controls.dart';
 import '../widgets/image_preview.dart';
-// import '../widgets/beauty_filter_selector.dart'; // TODO: Fix when ready
 import '../widgets/main_filter_panel.dart';
 import 'dart:io';
 

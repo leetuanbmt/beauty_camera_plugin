@@ -30,7 +30,7 @@ interface SurfaceProducer {
  * A concrete implementation of SurfaceProducer that uses Flutter's
  * TextureRegistry.SurfaceTextureEntry.
  */
-class FlutterSurfaceProducer(private val textureRegistry: TextureRegistry) : SurfaceProducer {
+class FlutterSurfaceProducer(textureRegistry: TextureRegistry) : SurfaceProducer {
 
     private var surfaceTextureEntry: TextureRegistry.SurfaceTextureEntry? = null
     private var surface: Surface? = null

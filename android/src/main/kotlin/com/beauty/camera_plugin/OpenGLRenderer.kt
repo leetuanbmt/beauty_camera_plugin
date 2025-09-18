@@ -1,3 +1,4 @@
+// cSpell:disable
 package com.beauty.camera_plugin
 
 import android.content.Context
@@ -11,12 +12,13 @@ import android.view.Surface
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
-import kotlin.math.min
+
 
 class OpenGLRenderer(private val context: Context) : SurfaceTexture.OnFrameAvailableListener {
 
     companion object {
         private const val TAG = "OpenGLRenderer"
+
     }
 
     private lateinit var handler: Handler
@@ -37,36 +39,21 @@ class OpenGLRenderer(private val context: Context) : SurfaceTexture.OnFrameAvail
     // Buffer cho vertices và texture coordinates
     private val vertexBuffer: FloatBuffer
     private val texCoordBuffer: FloatBuffer
-    private val textureMatrix = FloatArray(16)
 
     // Handles cho shader program
     private var posAttribHandle: Int = 0
     private var texCoordAttribHandle: Int = 0
     private var textureMatrixHandle: Int = 0
     private var sTextureHandle: Int = 0 // Handle for the sampler
-    private var uLandmarksHandle: Int = -1
-    private var uLandmarkCountHandle: Int = -1
-    private var uSmoothingStrengthHandle: Int = -1
-    private var uBrighteningStrengthHandle: Int = -1
+
+    // Simplified - no complex filter handles for now
 
     // Đồng bộ hóa thread
     private val startLock = Object()
     private var isReady = false
 
-    // Biến lưu trữ dữ liệu landmark từ BeautyCameraPlugin
-    private var faceLandmarks: List<FaceLandmark>? = null
-    
-    // Biến kiểm soát việc hiển thị filter
-    private var isFilterEnabled: Boolean = false
-    
-    // Beauty filter parameters
-    private var smoothingStrength: Float = 0.3f // 0.0 = no smoothing, 1.0 = max smoothing
-    private var brighteningStrength: Float = 0.2f // 0.0 = no brightening, 1.0 = max brightening
-    
-    // Performance optimization
+    // Simplified - basic rendering only
     private var frameCount: Int = 0
-    private var lastLandmarkUpdate: Long = 0
-    private val landmarkUpdateInterval: Long = 100 // Update landmarks every 100ms for performance
 
     init {
         Log.d(TAG, "Initializing OpenGLRenderer")
@@ -140,9 +127,6 @@ class OpenGLRenderer(private val context: Context) : SurfaceTexture.OnFrameAvail
             textureId = textures[0]
             Log.d(TAG, "Generated texture ID: $textureId")
 
-            eglCore.releaseSurface(pbufferSurface)
-            eglCore.makeNothingCurrent()
-
             Log.d(TAG, "Setting up texture parameters...")
             GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, textureId)
             GLES20.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST)
@@ -151,6 +135,14 @@ class OpenGLRenderer(private val context: Context) : SurfaceTexture.OnFrameAvail
             GLES20.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE)
             GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, 0)
             Log.d(TAG, "Texture parameters set successfully")
+
+            // Initialize shader program while EGL context is still active
+            Log.d(TAG, "About to initialize shader program...")
+            initializeShaderProgram()
+            Log.d(TAG, "Shader program initialization completed")
+
+            eglCore.releaseSurface(pbufferSurface)
+            eglCore.makeNothingCurrent()
 
             cameraInputSurfaceTexture = SurfaceTexture(textureId)
             Log.d(TAG, "Created SurfaceTexture with textureId: $textureId")
@@ -198,212 +190,178 @@ class OpenGLRenderer(private val context: Context) : SurfaceTexture.OnFrameAvail
         }
     }
 
-    override fun onFrameAvailable(surfaceTexture: SurfaceTexture) {
-        Log.v(TAG, "New frame available") // Verbose log, can be spammy
-        handler.post {
-            drawFrame()
-        }
-    }
 
-    private fun checkGlError(msg: String) {
-        val error = GLES20.glGetError()
-        if (error != GLES20.GL_NO_ERROR) {
-            Log.e(TAG, "$msg: GL error = 0x${Integer.toHexString(error)}")
-        }
-    }
-
-    private fun drawFrame() {
-        val output = outputEglSurface
-        if (output == null) {
-            Log.w(TAG, "drawFrame called but outputEglSurface is null")
-            return
-        }
-        Log.d(TAG, "Drawing frame with output surface: $output")
-        eglCore.makeCurrent(output)
-        checkGlError("After makeCurrent")
+    private fun drawFrame(textureMatrix: FloatArray? = null) {
+        val output = outputEglSurface ?: return
+        
         try {
-            Log.d(TAG, "Updating texture image...")
-            cameraInputSurfaceTexture.updateTexImage()
-            checkGlError("After updateTexImage")
-            cameraInputSurfaceTexture.getTransformMatrix(textureMatrix)
-            checkGlError("After getTransformMatrix")
-            Log.d(TAG, "Texture image updated successfully")
+            // EGL context should already be current from renderFrame
+            
+            // Get surface dimensions
+            val widthArray = IntArray(1)
+            val heightArray = IntArray(1)
+            eglCore.querySurface(output, EGL14.EGL_WIDTH, widthArray, 0)
+            eglCore.querySurface(output, EGL14.EGL_HEIGHT, heightArray, 0)
+            val width = widthArray[0]
+            val height = heightArray[0]
+
+            // Skip if invalid dimensions
+            if (width <= 0 || height <= 0) return
+
+            // Use provided texture matrix (should be passed from onFrameAvailable)
+            val matrixToUse = textureMatrix ?: FloatArray(16).apply { 
+                // Identity matrix as fallback
+                this[0] = 1f; this[5] = 1f; this[10] = 1f; this[15] = 1f
+            }
+
+            // Setup OpenGL state
+            GLES20.glUseProgram(program)
+            GLES20.glViewport(0, 0, width, height)
+            GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT)
+
+            // Bind texture
+            GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
+            GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, textureId)
+            GLES20.glUniform1i(sTextureHandle, 0)
+
+            // Set texture matrix if available
+            if (textureMatrixHandle >= 0) {
+                GLES20.glUniformMatrix4fv(textureMatrixHandle, 1, false, matrixToUse, 0)
+            }
+
+            // Setup vertex attributes
+            GLES20.glEnableVertexAttribArray(posAttribHandle)
+            GLES20.glVertexAttribPointer(posAttribHandle, 2, GLES20.GL_FLOAT, false, 8, vertexBuffer)
+            GLES20.glEnableVertexAttribArray(texCoordAttribHandle)
+            GLES20.glVertexAttribPointer(texCoordAttribHandle, 2, GLES20.GL_FLOAT, false, 8, texCoordBuffer)
+
+            // Draw camera frame
+            GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
+
+            // Cleanup
+            GLES20.glDisableVertexAttribArray(posAttribHandle)
+            GLES20.glDisableVertexAttribArray(texCoordAttribHandle)
+            GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, 0)
+            GLES20.glUseProgram(0)
+            
         } catch (e: Exception) {
-            Log.e(TAG, "Error updating texture image", e)
-            return
+            Log.e(TAG, "Error in drawFrame", e)
         }
-        Log.d(TAG, "Drawing frame with textureId: $textureId, program: $program")
-        if (program == 0) {
-            Log.d(TAG, "Creating GL program")
-            try {
-                val vertexShader = context.assets.open("vertex_shader.glsl").bufferedReader().use { it.readText() }
-                val fragmentShader = context.assets.open("fragment_shader.glsl").bufferedReader().use { it.readText() }
-                Log.d(TAG, "Vertex shader: $vertexShader")
-                Log.d(TAG, "Fragment shader: $fragmentShader")
-                program = GlUtil.createProgram(vertexShader, fragmentShader)
-                Log.d(TAG, "GL program created, ID: $program")
-                
-                if (program == 0) {
-                    Log.e(TAG, "Failed to create GL program")
-                    return
-                }
-                
-                posAttribHandle = GLES20.glGetAttribLocation(program, "aPosition")
-                texCoordAttribHandle = GLES20.glGetAttribLocation(program, "aTextureCoord")
-                textureMatrixHandle = GLES20.glGetUniformLocation(program, "uTextureMatrix")
-                sTextureHandle = GLES20.glGetUniformLocation(program, "sTexture")
-                uLandmarksHandle = GLES20.glGetUniformLocation(program, "uLandmarks")
-                uLandmarkCountHandle = GLES20.glGetUniformLocation(program, "uLandmarkCount")
-                uSmoothingStrengthHandle = GLES20.glGetUniformLocation(program, "uSmoothingStrength")
-                uBrighteningStrengthHandle = GLES20.glGetUniformLocation(program, "uBrighteningStrength")
-                
-                Log.d(TAG, "Shader handles - pos: $posAttribHandle, texCoord: $texCoordAttribHandle, textureMatrix: $textureMatrixHandle, sTexture: $sTextureHandle")
-                Log.d(TAG, "Beauty filter handles - smoothing: $uSmoothingStrengthHandle, brightening: $uBrighteningStrengthHandle")
-                checkGlError("After shader program creation")
-            } catch (e: Exception) {
-                Log.e(TAG, "Error creating shader program", e)
-                return
-            }
-        } else {
-            Log.d(TAG, "Using existing GL program: $program")
-        }
-
-        // Lấy kích thước surface động để set viewport
-        val widthArray = IntArray(1)
-        val heightArray = IntArray(1)
-        eglCore.querySurface(output, EGL14.EGL_WIDTH, widthArray, 0)
-        eglCore.querySurface(output, EGL14.EGL_HEIGHT, heightArray, 0)
-        val width = widthArray[0]
-        val height = heightArray[0]
-
-        Log.d(TAG, "Surface dimensions: ${width}x${height}")
-
-        // Bỏ qua frame nếu surface chưa có kích thước hợp lệ
-        if (width <= 0 || height <= 0) {
-            Log.w(TAG, "Skipping drawFrame, invalid surface dimensions: ${width}x${height}")
-            return
-        }
-        
-        // Bỏ qua frame nếu surface quá nhỏ (có thể là 1x1)
-        if (width < 100 || height < 100) {
-            Log.w(TAG, "Skipping drawFrame, surface too small: ${width}x${height}")
-            return
-        }
-
-        GLES20.glUseProgram(program)
-        checkGlError("After glUseProgram")
-        GLES20.glViewport(0, 0, width, height)
-        checkGlError("After glViewport")
-        GLES20.glClearColor(0f, 0f, 0f, 1f)
-        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT)
-        checkGlError("After glClear")
-        Log.d(TAG, "Cleared color buffer with black")
-        GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
-        checkGlError("After glActiveTexture")
-        GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, textureId)
-        checkGlError("After glBindTexture")
-        Log.d(TAG, "Bound texture $textureId to GL_TEXTURE0")
-        GLES20.glUniform1i(sTextureHandle, 0)
-        checkGlError("After glUniform1i sTextureHandle")
-        GLES20.glUniformMatrix4fv(textureMatrixHandle, 1, false, textureMatrix, 0)
-        checkGlError("After glUniformMatrix4fv textureMatrixHandle")
-        Log.d(TAG, "Set texture matrix: ${textureMatrix.contentToString()}")
-        GLES20.glEnableVertexAttribArray(posAttribHandle)
-        checkGlError("After glEnableVertexAttribArray posAttribHandle")
-        GLES20.glVertexAttribPointer(posAttribHandle, 2, GLES20.GL_FLOAT, false, 8, vertexBuffer)
-        checkGlError("After glVertexAttribPointer posAttribHandle")
-        Log.d(TAG, "Set vertex attrib pointer for position")
-        GLES20.glEnableVertexAttribArray(texCoordAttribHandle)
-        checkGlError("After glEnableVertexAttribArray texCoordAttribHandle")
-        GLES20.glVertexAttribPointer(texCoordAttribHandle, 2, GLES20.GL_FLOAT, false, 8, texCoordBuffer)
-        checkGlError("After glVertexAttribPointer texCoordAttribHandle")
-        Log.d(TAG, "Set vertex attrib pointer for texture coordinates")
-
-        frameCount++
-        
-        // Truyền landmark vào shader chỉ khi filter được bật
-        if (isFilterEnabled && faceLandmarks != null) {
-            val landmarks = faceLandmarks!!
-            
-            // Performance optimization: chỉ update landmarks mỗi 100ms
-            val currentTime = System.currentTimeMillis()
-            val shouldUpdateLandmarks = (currentTime - lastLandmarkUpdate) > landmarkUpdateInterval
-            
-            if (shouldUpdateLandmarks) {
-                // Optimize: chỉ truyền key landmarks thay vì tất cả 468 points
-                val keyLandmarkIndices = intArrayOf(
-                    1, 9, 10, 151, 175, 200, 201, 202, 204, 205, // Face outline và key points
-                    // Thêm một số landmarks quan trọng khác cho beauty filter
-                    33, 7, 163, 144, 145, 153, 154, 155, 133, 173, 157, 158, 159, 160, 161, 246
-                )
-                
-                val optimizedLandmarks = mutableListOf<FaceLandmark>()
-                for (index in keyLandmarkIndices) {
-                    if (index < landmarks.size) {
-                        optimizedLandmarks.add(landmarks[index])
-                    }
-                }
-                
-                val count = optimizedLandmarks.size
-                val landmarkArray = FloatArray(count * 2)
-                for (i in 0 until count) {
-                    // Chuẩn hóa về hệ tọa độ texture (0..1)
-                    landmarkArray[i * 2] = optimizedLandmarks[i].x.toFloat()
-                    landmarkArray[i * 2 + 1] = optimizedLandmarks[i].y.toFloat()
-                }
-                
-                GLES20.glUniform2fv(uLandmarksHandle, count, landmarkArray, 0)
-                checkGlError("After glUniform2fv uLandmarksHandle")
-                GLES20.glUniform1i(uLandmarkCountHandle, count)
-                checkGlError("After glUniform1i uLandmarkCountHandle")
-                
-                lastLandmarkUpdate = currentTime
-                Log.d(TAG, "Filter enabled - passing $count optimized landmarks to shader (frame $frameCount)")
-            } else {
-                // Giữ nguyên landmark count từ lần trước
-                Log.v(TAG, "Skipping landmark update for performance (frame $frameCount)")
-            }
-            
-            // Pass beauty filter parameters to shader (always update for smooth transitions)
-            GLES20.glUniform1f(uSmoothingStrengthHandle, smoothingStrength)
-            checkGlError("After glUniform1f uSmoothingStrengthHandle")
-            GLES20.glUniform1f(uBrighteningStrengthHandle, brighteningStrength)
-            checkGlError("After glUniform1f uBrighteningStrengthHandle")
-            
-        } else {
-            GLES20.glUniform1i(uLandmarkCountHandle, 0)
-            checkGlError("After glUniform1i uLandmarkCountHandle (filter disabled or no landmarks)")
-            if (frameCount % 60 == 0) { // Log mỗi 60 frames để giảm spam
-                Log.d(TAG, "Filter disabled or no landmarks - showing raw camera feed (frame $frameCount)")
-            }
-        }
-        Log.d(TAG, "Drawing triangle strip...")
-        GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
-        checkGlError("After glDrawArrays")
-        Log.d(TAG, "Triangle strip drawn successfully")
-        GLES20.glDisableVertexAttribArray(posAttribHandle)
-        GLES20.glDisableVertexAttribArray(texCoordAttribHandle)
-        GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, 0)
-        GLES20.glUseProgram(0)
-        Log.d(TAG, "Viewport = ${width}x${height}, textureMatrix=${textureMatrix.contentToString()}")
-        eglCore.swapBuffers(output)
-        checkGlError("After swapBuffers")
-        Log.d(TAG, "Frame drawn and buffers swapped successfully")
     }
+
+    // Simplified methods - no filter logic for now
+    fun setFilterEnabled(enabled: Boolean) {
+        Log.d(TAG, "Filter functionality disabled - using simple camera rendering $enabled")
+    }
+
 
     fun setFaceLandmarks(landmarks: List<FaceLandmark>?) {
-        this.faceLandmarks = landmarks
+        // Face landmarks disabled for simple rendering
+        Log.d(TAG, "Face landmarks functionality disabled - using simple camera rendering")
     }
-    
-    fun setFilterEnabled(enabled: Boolean) {
-        Log.d(TAG, "Setting filter enabled: $enabled")
-        this.isFilterEnabled = enabled
+
+    private fun initializeShaderProgram() {
+        try {
+            Log.d(TAG, "=== INITIALIZING SHADER PROGRAM ===")
+            
+            // Try multiple fallback approaches
+            program = createShaderProgramWithFallbacks()
+            
+            if (program == 0) {
+                throw RuntimeException("Failed to create any shader program")
+            }
+            
+            Log.d(TAG, "Shader program created successfully (ID: $program)")
+            
+            // Get attribute handles
+            posAttribHandle = GLES20.glGetAttribLocation(program, "aPosition")
+            texCoordAttribHandle = GLES20.glGetAttribLocation(program, "aTextureCoord")
+            
+            // Get uniform handles (some may not exist in ultra basic shader)
+            textureMatrixHandle = GLES20.glGetUniformLocation(program, "uTextureMatrix")
+            sTextureHandle = GLES20.glGetUniformLocation(program, "sTexture")
+            
+            Log.d(TAG, "Shader program initialized successfully")
+            Log.d(TAG, "Program: $program, posAttrib: $posAttribHandle, texCoord: $texCoordAttribHandle")
+            Log.d(TAG, "Texture uniforms - matrix: $textureMatrixHandle, sampler: $sTextureHandle")
+            
+            // Validate critical handles (attributes must exist)
+            if (posAttribHandle < 0 || texCoordAttribHandle < 0) {
+                throw RuntimeException("Failed to get critical attribute handles")
+            }
+            
+            // Texture sampler must exist
+            if (sTextureHandle < 0) {
+                throw RuntimeException("Failed to get texture sampler handle")
+            }
+            
+            // Matrix handle is optional for ultra basic shader
+            if (textureMatrixHandle < 0) {
+                Log.w(TAG, "Texture matrix handle not found - using ultra basic shader mode")
+            }
+            
+            Log.d(TAG, "=== SIMPLE SHADER PROGRAM INITIALIZED SUCCESSFULLY ===")
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "Error initializing shader program", e)
+            throw e
+        }
     }
-    
-    fun setBeautyFilterParameters(smoothing: Float, brightening: Float) {
-        Log.d(TAG, "Setting beauty filter parameters - smoothing: $smoothing, brightening: $brightening")
-        this.smoothingStrength = smoothing.coerceIn(0f, 1f)
-        this.brighteningStrength = brightening.coerceIn(0f, 1f)
+
+    override fun onFrameAvailable(surfaceTexture: SurfaceTexture) {
+        // Trigger rendering when new camera frame is available
+        handler.post {
+            if (outputEglSurface != null && program != 0) {
+                try {
+                    Log.v(TAG, "New frame available, starting rendering...")
+                    Log.v(TAG, "Program ID: $program, Output surface: $outputEglSurface")
+                    
+                    // Make EGL context current before updating texture
+                    eglCore.makeCurrent(outputEglSurface!!)
+                    Log.v(TAG, "EGL context made current")
+                    
+                    // Update texture with latest camera frame
+                    cameraInputSurfaceTexture.updateTexImage()
+                    Log.v(TAG, "Texture updated successfully")
+                    
+                    // Get texture transformation matrix
+                    val textureMatrix = FloatArray(16)
+                    cameraInputSurfaceTexture.getTransformMatrix(textureMatrix)
+                    
+                    // Render frame
+                    renderFrame(textureMatrix)
+                    Log.v(TAG, "Frame rendered successfully")
+                    
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error in onFrameAvailable", e)
+                    Log.e(TAG, "Program: $program, OutputSurface: $outputEglSurface")
+                    Log.e(TAG, "TextureId: $textureId")
+                }
+            } else {
+                if (outputEglSurface == null) {
+                    Log.w(TAG, "Frame available but no output surface set")
+                }
+                if (program == 0) {
+                    Log.w(TAG, "Frame available but shader program not initialized")
+                }
+            }
+        }
+    }
+
+    private fun renderFrame(textureMatrix: FloatArray) {
+        val outputSurface = outputEglSurface ?: return
+        
+        try {
+            // EGL context should already be current from onFrameAvailable
+            // Call existing drawFrame method
+            drawFrame(textureMatrix)
+            
+            // Swap buffers to display
+            eglCore.swapBuffers(outputSurface)
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "Error rendering frame", e)
+        }
     }
 
     fun release() {
@@ -419,4 +377,28 @@ class OpenGLRenderer(private val context: Context) : SurfaceTexture.OnFrameAvail
             Log.d(TAG, "OpenGL thread quit")
         }
     }
+
+    private fun createShaderProgramWithFallbacks(): Int {
+        // Try 1: Load from assets
+        try {
+            Log.d(TAG, "Trying to create shaders from assets...")
+            val vertexSource = context.assets.open("vertex_shader.glsl").bufferedReader().use { it.readText() }
+            val fragmentSource = context.assets.open("fragment_shader.glsl").bufferedReader().use { it.readText() }
+            
+            Log.d(TAG, "Vertex shader source loaded:\n$vertexSource")
+            Log.d(TAG, "Fragment shader source loaded:\n$fragmentSource")
+            
+            val program = GlUtil.createProgram(vertexSource, fragmentSource)
+            if (program != 0) {
+                Log.d(TAG, "Shader program created successfully from assets")
+                return program
+            } else {
+                Log.e(TAG, "Failed to create shader program from assets")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Exception while creating shaders from assets", e)
+        }
+        return 0;
+    }
+
 }

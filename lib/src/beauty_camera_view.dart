@@ -40,7 +40,6 @@ class _BeautyCameraViewState extends State<BeautyCameraView>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _subscribeToEvents();
     _initializeCamera();
   }
 
@@ -76,9 +75,6 @@ class _BeautyCameraViewState extends State<BeautyCameraView>
   void didUpdateWidget(BeautyCameraView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.controller != widget.controller) {
-      _unsubscribeFromEvents();
-      _subscribeToEvents();
-      // Re-initialize if the controller changes
       _initializeCamera();
     }
   }
@@ -154,14 +150,7 @@ class _BeautyCameraViewState extends State<BeautyCameraView>
   Widget build(BuildContext context) {
     return GestureDetector(
       onTapDown: _handleTap,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          _buildCameraPreview(),
-          if (widget.showFaceDetection) _buildFaceDetectionOverlay(),
-          if (widget.showControls) _buildCameraControls(),
-        ],
-      ),
+      child: _buildCameraPreview(),
     );
   }
 
