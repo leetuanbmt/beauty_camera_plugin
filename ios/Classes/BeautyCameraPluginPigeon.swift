@@ -326,6 +326,8 @@ struct AdvancedCameraSettings: Hashable {
   var autoExposure: Bool? = nil
   /// Bật/tắt nhận diện khuôn mặt
   var enableFaceDetection: Bool? = nil
+  /// Bật/tắt xử lý OpenGL cho filter
+  var isFilterEnabled: Bool? = nil
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
@@ -336,6 +338,7 @@ struct AdvancedCameraSettings: Hashable {
     let videoStabilization: Bool? = nilOrValue(pigeonVar_list[3])
     let autoExposure: Bool? = nilOrValue(pigeonVar_list[4])
     let enableFaceDetection: Bool? = nilOrValue(pigeonVar_list[5])
+    let isFilterEnabled: Bool? = nilOrValue(pigeonVar_list[6])
 
     return AdvancedCameraSettings(
       cameraLensFacing: cameraLensFacing,
@@ -343,7 +346,8 @@ struct AdvancedCameraSettings: Hashable {
       maxFrameRate: maxFrameRate,
       videoStabilization: videoStabilization,
       autoExposure: autoExposure,
-      enableFaceDetection: enableFaceDetection
+      enableFaceDetection: enableFaceDetection,
+      isFilterEnabled: isFilterEnabled
     )
   }
   func toList() -> [Any?] {
@@ -354,6 +358,7 @@ struct AdvancedCameraSettings: Hashable {
       videoStabilization,
       autoExposure,
       enableFaceDetection,
+      isFilterEnabled,
     ]
   }
   static func == (lhs: AdvancedCameraSettings, rhs: AdvancedCameraSettings) -> Bool {

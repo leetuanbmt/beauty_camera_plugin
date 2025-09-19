@@ -245,6 +245,7 @@ class AdvancedCameraSettings {
     this.videoStabilization,
     this.autoExposure,
     this.enableFaceDetection,
+    this.isFilterEnabled,
   });
 
   /// Hướng camera (trước/sau)
@@ -265,6 +266,9 @@ class AdvancedCameraSettings {
   /// Bật/tắt nhận diện khuôn mặt
   bool? enableFaceDetection;
 
+  /// Bật/tắt xử lý OpenGL cho filter
+  bool? isFilterEnabled;
+
   List<Object?> _toList() {
     return <Object?>[
       cameraLensFacing,
@@ -273,6 +277,7 @@ class AdvancedCameraSettings {
       videoStabilization,
       autoExposure,
       enableFaceDetection,
+      isFilterEnabled,
     ];
   }
 
@@ -288,6 +293,7 @@ class AdvancedCameraSettings {
       videoStabilization: result[3] as bool?,
       autoExposure: result[4] as bool?,
       enableFaceDetection: result[5] as bool?,
+      isFilterEnabled: result[6] as bool?,
     );
   }
 

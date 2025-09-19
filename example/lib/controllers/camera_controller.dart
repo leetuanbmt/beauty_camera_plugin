@@ -49,7 +49,12 @@ class CameraControllerNotifier extends StateNotifier<CameraState> {
 
   CameraControllerNotifier()
       : _cameraController = BeautyCameraController(),
-        super(const CameraState(currentEffect: FilterCategory.none));
+        super(
+          const CameraState(
+            currentEffect: FilterCategory.beauty,
+            isFilterEnabled: false,
+          ),
+        );
 
   BeautyCameraController get cameraController => _cameraController;
 
@@ -78,6 +83,7 @@ class CameraControllerNotifier extends StateNotifier<CameraState> {
           autoExposure: true,
           enableFaceDetection: true,
           cameraLensFacing: CameraFacing.front,
+          isFilterEnabled: state.isFilterEnabled,
         ),
       );
 
@@ -139,6 +145,16 @@ class CameraControllerNotifier extends StateNotifier<CameraState> {
     }
   }
 
+  /// Toggle filter on/off - this will also enable/disable OpenGL
+  Future<void> toggleFilter() async {
+    try {
+      final newFilterEnabled = !state.isFilterEnabled;
+      await setFilterEnabled(newFilterEnabled);
+    } catch (e) {
+      debugPrint('Error toggling filter: $e');
+    }
+  }
+
   Future<void> setFlashMode(FlashMode mode) async {
     try {
       await _cameraController.setFlashMode(mode);
@@ -149,8 +165,10 @@ class CameraControllerNotifier extends StateNotifier<CameraState> {
 
   Future<void> setFilterEnabled(bool enabled) async {
     try {
-      await _cameraController.setFilterEnabled(enabled);
+      // Update state only - no need to reinitialize camera
+      debugPrint("Set filter enabled: $enabled");
       state = state.copyWith(isFilterEnabled: enabled);
+      await _cameraController.setFilterEnabled(enabled);
     } catch (e) {
       debugPrint('Error setting filter enabled: $e');
     }

@@ -36,8 +36,20 @@ class FlutterSurfaceProducer(textureRegistry: TextureRegistry) : SurfaceProducer
     private var surface: Surface? = null
 
     init {
-        surfaceTextureEntry = textureRegistry.createSurfaceTexture()
-        surface = Surface(surfaceTextureEntry!!.surfaceTexture())
+        try {
+            surfaceTextureEntry = textureRegistry.createSurfaceTexture()
+            surface = Surface(surfaceTextureEntry!!.surfaceTexture())
+            
+            // Debug: Log surface and texture information
+            val surfaceTexture = surfaceTextureEntry!!.surfaceTexture()
+
+            // Set default buffer size for better compatibility
+            surfaceTexture.setDefaultBufferSize(1920, 1080)
+            
+        } catch (e: Exception) {
+            android.util.Log.e("FlutterSurfaceProducer", "Failed to create SurfaceTextureEntry", e)
+            throw e
+        }
     }
 
     /**
@@ -45,11 +57,20 @@ class FlutterSurfaceProducer(textureRegistry: TextureRegistry) : SurfaceProducer
      * This is crucial for matching the consumer's size with the producer's size.
      */
     fun setSize(width: Int, height: Int) {
-        surfaceTextureEntry?.surfaceTexture()?.setDefaultBufferSize(width, height)
+        try {
+            surfaceTextureEntry?.surfaceTexture()?.setDefaultBufferSize(width, height)
+        } catch (e: Exception) {
+            android.util.Log.e("FlutterSurfaceProducer", "Failed to set buffer size: ${width}x${height}", e)
+            throw e
+        }
     }
 
     override fun getSurface(): Surface {
-        return surface ?: throw IllegalStateException("Surface not initialized")
+        if (surface == null) {
+            android.util.Log.e("FlutterSurfaceProducer", "Surface is null, surfaceTextureEntry: $surfaceTextureEntry")
+            throw IllegalStateException("Surface not initialized")
+        }
+        return surface!!
     }
 
     override fun getTextureId(): Long {

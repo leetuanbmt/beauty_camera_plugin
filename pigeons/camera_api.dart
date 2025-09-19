@@ -176,6 +176,9 @@ class AdvancedCameraSettings {
   /// Bật/tắt nhận diện khuôn mặt
   final bool? enableFaceDetection;
 
+  /// Bật/tắt xử lý OpenGL cho filter
+  final bool? isFilterEnabled;
+
   AdvancedCameraSettings({
     this.cameraLensFacing,
     this.videoQuality,
@@ -183,6 +186,7 @@ class AdvancedCameraSettings {
     this.videoStabilization,
     this.autoExposure,
     this.enableFaceDetection,
+    this.isFilterEnabled,
   });
 }
 
