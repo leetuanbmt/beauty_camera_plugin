@@ -74,6 +74,15 @@ public class BeautyCameraPlugin: NSObject, FlutterPlugin, BeautyCameraHostApi, F
         }
     }
     
+    public func didOutput(pixelBuffer: CVPixelBuffer) {
+        // Lưu lại frame mới nhất (có thể đã được xử lý bởi Metal)
+        latestPixelBuffer = pixelBuffer
+        // Báo cho Flutter biết rằng có frame mới
+        if textureId != -1 {
+            registry.textureFrameAvailable(textureId)
+        }
+    }
+    
     // MARK: - Unimplemented Methods
     public func switchCamera(completion: @escaping (Result<Void, Error>) -> Void) { completion(.failure(FlutterError(code: "UNIMPLEMENTED", message: nil, details: nil))) }
     public func setZoom(zoomLevel: Double, completion: @escaping (Result<Void, Error>) -> Void) { completion(.failure(FlutterError(code: "UNIMPLEMENTED", message: nil, details: nil))) }

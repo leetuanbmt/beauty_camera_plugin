@@ -52,7 +52,7 @@ class CameraControllerNotifier extends StateNotifier<CameraState> {
         super(
           const CameraState(
             currentEffect: FilterCategory.beauty,
-            isFilterEnabled: false,
+            isFilterEnabled: true,
           ),
         );
 
