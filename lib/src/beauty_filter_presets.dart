@@ -4,109 +4,140 @@ import 'camera_api.g.dart';
 class BeautyFilterPresets {
   BeautyFilterPresets._();
 
-  /// No beauty filter applied
-  static final BeautyFilterParameters none = BeautyFilterParameters(
-    type: BeautyFilterType.none,
-    smoothingStrength: 0.0,
-    brighteningStrength: 0.0,
-    intensity: 0.0,
-    faceOnly: true,
-  );
+  /// Helper function to create FilterParameters with default values
+  static FilterParameters _create({
+    double intensity = 0.0,
+    double skinSmoothing = 0.0,
+    double skinBrightening = 0.0,
+    double faceSlimming = 0.0,
+    double eyeEnlargement = 0.0,
+    double lipEnhancement = 0.0,
+    double brightness = 0.0,
+    double contrast = 0.0,
+    double saturation = 0.0,
+    double warmth = 0.0,
+    double tint = 0.0,
+    double vibrance = 0.0,
+    double blur = 0.0,
+    double sharpen = 0.0,
+    double vignette = 0.0,
+    double grain = 0.0,
+    double fade = 0.0,
+    double highlights = 0.0,
+    double shadows = 0.0,
+    double clarity = 0.0,
+    double structure = 0.0,
+  }) {
+    return FilterParameters(
+      intensity: intensity,
+      skinSmoothing: skinSmoothing,
+      skinBrightening: skinBrightening,
+      faceSlimming: faceSlimming,
+      eyeEnlargement: eyeEnlargement,
+      lipEnhancement: lipEnhancement,
+      brightness: brightness,
+      contrast: contrast,
+      saturation: saturation,
+      warmth: warmth,
+      tint: tint,
+      vibrance: vibrance,
+      blur: blur,
+      sharpen: sharpen,
+      vignette: vignette,
+      grain: grain,
+      fade: fade,
+      highlights: highlights,
+      shadows: shadows,
+      clarity: clarity,
+      structure: structure,
+    );
+  }
+
+  /// No filter applied
+  static final FilterParameters none = _create();
 
   /// Light skin smoothing only
-  static final BeautyFilterParameters lightSmoothing = BeautyFilterParameters(
-    type: BeautyFilterType.smooth,
-    smoothingStrength: 0.2,
-    brighteningStrength: 0.0,
-    intensity: 0.5,
-    faceOnly: true,
+  static final FilterParameters lightSmoothing = _create(
+    intensity: 0.3,
+    skinSmoothing: 0.2,
   );
 
   /// Medium skin smoothing
-  static final BeautyFilterParameters mediumSmoothing = BeautyFilterParameters(
-    type: BeautyFilterType.smooth,
-    smoothingStrength: 0.4,
-    brighteningStrength: 0.0,
-    intensity: 0.7,
-    faceOnly: true,
+  static final FilterParameters mediumSmoothing = _create(
+    intensity: 0.5,
+    skinSmoothing: 0.4,
   );
 
   /// Strong skin smoothing
-  static final BeautyFilterParameters strongSmoothing = BeautyFilterParameters(
-    type: BeautyFilterType.smooth,
-    smoothingStrength: 0.7,
-    brighteningStrength: 0.0,
-    intensity: 1.0,
-    faceOnly: true,
+  static final FilterParameters strongSmoothing = _create(
+    intensity: 0.7,
+    skinSmoothing: 0.6,
   );
 
-  /// Light skin brightening only
-  static final BeautyFilterParameters lightBrightening = BeautyFilterParameters(
-    type: BeautyFilterType.glow,
-    smoothingStrength: 0.0,
-    brighteningStrength: 0.2,
-    intensity: 0.5,
-    faceOnly: true,
+  /// Light skin brightening
+  static final FilterParameters lightBrightening = _create(
+    intensity: 0.3,
+    skinBrightening: 0.2,
+    brightness: 0.1,
   );
 
   /// Medium skin brightening
-  static final BeautyFilterParameters mediumBrightening =
-      BeautyFilterParameters(
-    type: BeautyFilterType.glow,
-    smoothingStrength: 0.0,
-    brighteningStrength: 0.4,
-    intensity: 0.7,
-    faceOnly: true,
+  static final FilterParameters mediumBrightening = _create(
+    intensity: 0.5,
+    skinBrightening: 0.4,
+    brightness: 0.2,
+    contrast: 0.1,
   );
 
   /// Strong skin brightening
-  static final BeautyFilterParameters strongBrightening =
-      BeautyFilterParameters(
-    type: BeautyFilterType.glow,
-    smoothingStrength: 0.0,
-    brighteningStrength: 0.6,
-    intensity: 1.0,
-    faceOnly: true,
+  static final FilterParameters strongBrightening = _create(
+    intensity: 0.7,
+    skinBrightening: 0.6,
+    brightness: 0.3,
+    contrast: 0.2,
+    saturation: 0.1,
   );
 
-  /// Natural beauty - light smoothing + light brightening
-  static final BeautyFilterParameters natural = BeautyFilterParameters(
-    type: BeautyFilterType.natural,
-    smoothingStrength: 0.2,
-    brighteningStrength: 0.15,
+  /// Natural beauty filter (balanced smoothing + brightening)
+  static final FilterParameters natural = _create(
+    intensity: 0.4,
+    skinSmoothing: 0.3,
+    skinBrightening: 0.2,
+    brightness: 0.1,
+    contrast: 0.1,
+  );
+
+  /// Balanced beauty filter
+  static final FilterParameters balanced = _create(
+    intensity: 0.5,
+    skinSmoothing: 0.4,
+    skinBrightening: 0.3,
+    brightness: 0.2,
+    contrast: 0.1,
+    saturation: 0.1,
+  );
+
+  /// Enhanced beauty filter (stronger effects)
+  static final FilterParameters enhanced = _create(
     intensity: 0.6,
-    faceOnly: true,
+    skinSmoothing: 0.5,
+    skinBrightening: 0.4,
+    brightness: 0.3,
+    contrast: 0.2,
+    saturation: 0.2,
   );
 
-  /// Balanced beauty - medium smoothing + medium brightening
-  static final BeautyFilterParameters balanced = BeautyFilterParameters(
-    type: BeautyFilterType.doll,
-    smoothingStrength: 0.35,
-    brighteningStrength: 0.25,
+  /// Advanced smooth filter (maximum smoothing)
+  static final FilterParameters advancedSmooth = _create(
     intensity: 0.8,
-    faceOnly: true,
-  );
-
-  /// Enhanced beauty - strong smoothing + strong brightening
-  static final BeautyFilterParameters enhanced = BeautyFilterParameters(
-    type: BeautyFilterType.fresh,
-    smoothingStrength: 0.5,
-    brighteningStrength: 0.35,
-    intensity: 1.0,
-    faceOnly: true,
-  );
-
-  /// Advanced smoothing with minimal brightening
-  static final BeautyFilterParameters advancedSmooth = BeautyFilterParameters(
-    type: BeautyFilterType.smooth,
-    smoothingStrength: 0.6,
-    brighteningStrength: 0.1,
-    intensity: 0.9,
-    faceOnly: true,
+    skinSmoothing: 0.7,
+    skinBrightening: 0.3,
+    brightness: 0.2,
+    contrast: 0.1,
   );
 
   /// Get all available presets
-  static List<BeautyFilterParameters> get allPresets => [
+  static List<FilterParameters> get allPresets => [
         none,
         lightSmoothing,
         mediumSmoothing,
@@ -120,7 +151,7 @@ class BeautyFilterPresets {
         advancedSmooth,
       ];
 
-  /// Get preset names for UI display
+  /// Get preset names
   static List<String> get presetNames => [
         'None',
         'Light Smoothing',
@@ -136,7 +167,7 @@ class BeautyFilterPresets {
       ];
 
   /// Get preset by name
-  static BeautyFilterParameters? getPresetByName(String name) {
+  static FilterParameters? getPresetByName(String name) {
     final index = presetNames.indexOf(name);
     if (index >= 0 && index < allPresets.length) {
       return allPresets[index];
@@ -145,19 +176,21 @@ class BeautyFilterPresets {
   }
 
   /// Create custom beauty filter parameters
-  static BeautyFilterParameters custom({
-    BeautyFilterType type = BeautyFilterType.natural,
-    double smoothingStrength = 0.3,
-    double brighteningStrength = 0.2,
-    double intensity = 1.0,
-    bool faceOnly = true,
+  static FilterParameters custom({
+    double intensity = 0.5,
+    double skinSmoothing = 0.3,
+    double skinBrightening = 0.2,
+    double brightness = 0.1,
+    double contrast = 0.1,
+    double saturation = 0.1,
   }) {
-    return BeautyFilterParameters(
-      type: type,
-      smoothingStrength: smoothingStrength.clamp(0.0, 1.0),
-      brighteningStrength: brighteningStrength.clamp(0.0, 1.0),
-      intensity: intensity.clamp(0.0, 1.0),
-      faceOnly: faceOnly,
+    return _create(
+      intensity: intensity,
+      skinSmoothing: skinSmoothing,
+      skinBrightening: skinBrightening,
+      brightness: brightness,
+      contrast: contrast,
+      saturation: saturation,
     );
   }
 }

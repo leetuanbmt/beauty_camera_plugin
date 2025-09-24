@@ -1,5 +1,4 @@
 import 'package:beauty_camera_plugin/beauty_camera_plugin.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
@@ -92,7 +91,7 @@ class CameraControllerNotifier extends StateNotifier<CameraState> {
         isInitializing: false,
       );
     } catch (e) {
-      debugPrint('Error initializing camera: $e');
+      Logger.log('Error initializing camera: $e');
       state = state.copyWith(
         isInitializing: false,
         isInitialized: false,
@@ -108,17 +107,17 @@ class CameraControllerNotifier extends StateNotifier<CameraState> {
       final file = File(imagePath);
       final exists = await file.exists();
       final size = exists ? await file.length() : 0;
-      debugPrint('takePhoto: File path = $imagePath');
-      debugPrint('takePhoto: File exists = $exists, size = $size bytes');
+      Logger.log('takePhoto: File path = $imagePath');
+      Logger.log('takePhoto: File exists = $exists, size = $size bytes');
 
       if (!exists || size == 0) {
-        debugPrint('takePhoto: File is invalid or empty');
+        Logger.log('takePhoto: File is invalid or empty');
         return;
       }
 
       state = state.copyWith(lastImagePath: imagePath);
     } catch (e) {
-      debugPrint('Error taking photo: $e');
+      Logger.log('Error taking photo: $e');
       // Handle error - could use a separate error state property
     }
   }
@@ -131,7 +130,7 @@ class CameraControllerNotifier extends StateNotifier<CameraState> {
     try {
       await _cameraController.switchCamera();
     } catch (e) {
-      debugPrint('Error switching camera: $e');
+      Logger.log('Error switching camera: $e');
     }
   }
 
@@ -141,7 +140,7 @@ class CameraControllerNotifier extends StateNotifier<CameraState> {
       // await _cameraController.applyFilter(effect, FilterType.none, FilterParameters());
       state = state.copyWith(currentEffect: effect);
     } catch (e) {
-      debugPrint('Error changing effect: $e');
+      Logger.log('Error changing effect: $e');
     }
   }
 
@@ -151,7 +150,7 @@ class CameraControllerNotifier extends StateNotifier<CameraState> {
       final newFilterEnabled = !state.isFilterEnabled;
       await setFilterEnabled(newFilterEnabled);
     } catch (e) {
-      debugPrint('Error toggling filter: $e');
+      Logger.log('Error toggling filter: $e');
     }
   }
 
@@ -159,29 +158,29 @@ class CameraControllerNotifier extends StateNotifier<CameraState> {
     try {
       await _cameraController.setFlashMode(mode);
     } catch (e) {
-      debugPrint('Error setting flash mode: $e');
+      Logger.log('Error setting flash mode: $e');
     }
   }
 
   Future<void> setFilterEnabled(bool enabled) async {
     try {
       // Update state only - no need to reinitialize camera
-      debugPrint("Set filter enabled: $enabled");
+      Logger.log("Set filter enabled: $enabled");
       state = state.copyWith(isFilterEnabled: enabled);
       await _cameraController.setFilterEnabled(enabled);
     } catch (e) {
-      debugPrint('Error setting filter enabled: $e');
+      Logger.log('Error setting filter enabled: $e');
     }
   }
 
-  Future<void> setBeautyFilter(BeautyFilterParameters parameters) async {
+  Future<void> setBeautyFilter(FilterParameters parameters) async {
     try {
       await _cameraController.setBeautyFilter(parameters);
-      state = state.copyWith(
-          isFilterEnabled: parameters.type != BeautyFilterType.none);
-      debugPrint('Beauty filter applied: ${parameters.type}');
+      state = state.copyWith(isFilterEnabled: parameters.intensity > 0.0);
+      Logger.log(
+          'Beauty filter applied with intensity: ${parameters.intensity}');
     } catch (e) {
-      debugPrint('Error setting beauty filter: $e');
+      Logger.log('Error setting beauty filter: $e');
     }
   }
 

@@ -8,6 +8,7 @@ import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
 import com.beauty.camera_plugin.camera.CameraController
 import com.beauty.camera_plugin.camera.ICameraManager
 import com.beauty.camera_plugin.renderer.RenderPipelineManager
+import com.beauty.camera_plugin.renderer.FilterSurfaceManager
 import com.beauty.camera_plugin.renderer.filters.*
 import com.beauty.camera_plugin.flutter_bridge.FlutterTextureBridge
 
@@ -34,6 +35,7 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
     private var cameraManager: ICameraManager? = null
     private var renderPipeline: RenderPipelineManager? = null
     private var textureBridge: FlutterTextureBridge? = null
+    private var filterSurfaceManager: FilterSurfaceManager? = null
     
     // --- Flutter Plugin Lifecycle ---
 
@@ -110,6 +112,9 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
             // Initialize texture bridge
             textureBridge = FlutterTextureBridge(textureRegistry)
             
+            // Initialize filter surface manager
+            filterSurfaceManager = FilterSurfaceManager()
+            
             // Initialize default filters
             initializeDefaultFilters()
             
@@ -142,6 +147,9 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
             textureBridge?.release()
             textureBridge = null
             
+            filterSurfaceManager?.dispose()
+            filterSurfaceManager = null
+            
             Log.d(TAG, "All components disposed")
         } catch (e: Exception) {
             Log.e(TAG, "Error disposing components", e)
@@ -171,16 +179,29 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
                 callback(Result.failure(Exception("Failed to create Flutter texture")))
                 return
             }
-            // Initialize camera with surface from texture bridge
-            val surface = textureBridge!!.getSurface()
-            if (surface == null) {
-                callback(Result.failure(Exception("Failed to get surface from texture bridge")))
+            // Initialize filter surface manager with default size first
+            // We'll update the size later when we get actual camera resolution
+            Log.d(TAG, "Initializing filter surface manager with default size: 1920x1080")
+            val surfaceInitialized = filterSurfaceManager?.initialize(
+                1920, 1080, renderPipeline!!
+            ) ?: false
+            
+            if (!surfaceInitialized) {
+                Log.e(TAG, "Failed to initialize filter surface manager with default size")
+                callback(Result.failure(Exception("Failed to initialize filter surface manager")))
+                return
+            }
+            
+            // Use Flutter texture surface directly instead of FilterSurfaceManager surface
+            val filterSurface = textureBridge?.getSurface()
+            if (filterSurface == null) {
+                callback(Result.failure(Exception("Failed to get Flutter texture surface")))
                 return
             }
             
             cameraManager?.initializeCamera(
                 settings = settings,
-                surface = surface,
+                surface = filterSurface,
                 onSuccess = {
                     Log.d(TAG, "Camera initialized successfully")
                     
@@ -194,11 +215,17 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
                             renderPipeline?.updateViewport(previewSize.width.toInt(), previewSize.height.toInt())
                             Log.d(TAG, "Updated render pipeline viewport to: ${previewSize.width}x${previewSize.height}")
                             
+                            // Update filter surface manager with actual camera resolution
+                            Log.d(TAG, "Updating filter surface manager with actual camera size: ${previewSize.width}x${previewSize.height}")
+                            // Note: FilterSurfaceManager is already initialized with default size
+                            // We can update the surface texture size if needed
+                            filterSurfaceManager?.updateCameraTexture()
+                            
                             // Set callback to trigger filter render when camera frame is available
                             (cameraManager as? CameraController)?.setOnFrameAvailableCallback {
-                                // Trigger filter pipeline render when camera frame is available
-                                // Create default filter parameters
-                                val defaultParams = FilterParameters(
+                                // Update camera texture and render filtered frame
+                                filterSurfaceManager?.updateCameraTexture()
+                                filterSurfaceManager?.renderFilteredFrame(FilterParameters(
                                     intensity = 0.0,
                                     skinSmoothing = 0.0,
                                     skinBrightening = 0.0,
@@ -220,8 +247,7 @@ class BeautyCameraPlugin : FlutterPlugin, ActivityAware, BeautyCameraHostApi {
                                     shadows = 0.0,
                                     clarity = 0.0,
                                     structure = 0.0
-                                )
-                                renderPipeline?.renderFrame(defaultParams)
+                                ))
                                 Log.d(TAG, "Triggered filter render on camera frame")
                             }
                         }

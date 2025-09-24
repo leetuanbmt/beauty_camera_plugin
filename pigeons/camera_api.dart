@@ -108,53 +108,6 @@ enum FilterType {
   artSketch, // Phác họa
 }
 
-/// Định nghĩa các loại beauty filter cụ thể (TikTok/CapCut style)
-enum BeautyFilterType {
-  /// Không áp dụng beauty filter
-  none,
-
-  /// Natural - làm đẹp tự nhiên
-  natural,
-
-  /// Glow - hiệu ứng rạng rỡ
-  glow,
-
-  /// Doll - hiệu ứng búp bê
-  doll,
-
-  /// Fresh - tươi tắn
-  fresh,
-
-  /// Smooth - làm mịn
-  smooth,
-}
-
-/// Parameters cho beauty filter
-class BeautyFilterParameters {
-  /// Loại beauty filter
-  final BeautyFilterType type;
-
-  /// Độ mạnh làm mịn da (0.0 - 1.0)
-  final double smoothingStrength;
-
-  /// Độ mạnh làm sáng da (0.0 - 1.0)
-  final double brighteningStrength;
-
-  /// Độ mạnh tổng thể của filter (0.0 - 1.0)
-  final double intensity;
-
-  /// Có áp dụng filter lên toàn bộ frame hay chỉ vùng face
-  final bool faceOnly;
-
-  const BeautyFilterParameters({
-    this.type = BeautyFilterType.none,
-    this.smoothingStrength = 0.3,
-    this.brighteningStrength = 0.2,
-    this.intensity = 1.0,
-    this.faceOnly = true,
-  });
-}
-
 /// Cài đặt nâng cao cho camera.
 /// Sử dụng để cấu hình chi tiết cho CameraX.
 class AdvancedCameraSettings {
@@ -587,7 +540,10 @@ abstract class BeautyCameraFlutterApi {
   /// Thông báo khi filter thay đổi
   @async
   void onFilterChanged(
-      FilterCategory category, FilterType type, FilterParameters parameters);
+    FilterCategory category,
+    FilterType type,
+    FilterParameters parameters,
+  );
 
   /// Thông báo khi xảy ra lỗi camera
   @async

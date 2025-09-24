@@ -202,22 +202,6 @@ enum FilterType: Int {
   case artSketch = 38
 }
 
-/// Định nghĩa các loại beauty filter cụ thể (TikTok/CapCut style)
-enum BeautyFilterType: Int {
-  /// Không áp dụng beauty filter
-  case none = 0
-  /// Natural - làm đẹp tự nhiên
-  case natural = 1
-  /// Glow - hiệu ứng rạng rỡ
-  case glow = 2
-  /// Doll - hiệu ứng búp bê
-  case doll = 3
-  /// Fresh - tươi tắn
-  case fresh = 4
-  /// Smooth - làm mịn
-  case smooth = 5
-}
-
 /// Chất lượng video khi quay.
 /// Định nghĩa theo mức độ tăng dần.
 enum VideoQuality: Int {
@@ -259,54 +243,6 @@ enum ScaleType: Int {
   case centerCrop = 0
   /// Thu nhỏ để vừa khung, có thể có đường viền đen
   case centerInside = 1
-}
-
-/// Parameters cho beauty filter
-///
-/// Generated class from Pigeon that represents data sent in messages.
-struct BeautyFilterParameters: Hashable {
-  /// Loại beauty filter
-  var type: BeautyFilterType
-  /// Độ mạnh làm mịn da (0.0 - 1.0)
-  var smoothingStrength: Double
-  /// Độ mạnh làm sáng da (0.0 - 1.0)
-  var brighteningStrength: Double
-  /// Độ mạnh tổng thể của filter (0.0 - 1.0)
-  var intensity: Double
-  /// Có áp dụng filter lên toàn bộ frame hay chỉ vùng face
-  var faceOnly: Bool
-
-
-  // swift-format-ignore: AlwaysUseLowerCamelCase
-  static func fromList(_ pigeonVar_list: [Any?]) -> BeautyFilterParameters? {
-    let type = pigeonVar_list[0] as! BeautyFilterType
-    let smoothingStrength = pigeonVar_list[1] as! Double
-    let brighteningStrength = pigeonVar_list[2] as! Double
-    let intensity = pigeonVar_list[3] as! Double
-    let faceOnly = pigeonVar_list[4] as! Bool
-
-    return BeautyFilterParameters(
-      type: type,
-      smoothingStrength: smoothingStrength,
-      brighteningStrength: brighteningStrength,
-      intensity: intensity,
-      faceOnly: faceOnly
-    )
-  }
-  func toList() -> [Any?] {
-    return [
-      type,
-      smoothingStrength,
-      brighteningStrength,
-      intensity,
-      faceOnly,
-    ]
-  }
-  static func == (lhs: BeautyFilterParameters, rhs: BeautyFilterParameters) -> Bool {
-    return deepEqualsBeautyCameraPluginPigeon(lhs.toList(), rhs.toList())  }
-  func hash(into hasher: inout Hasher) {
-    deepHashBeautyCameraPluginPigeon(value: toList(), hasher: &hasher)
-  }
 }
 
 /// Cài đặt nâng cao cho camera.
@@ -766,50 +702,42 @@ private class BeautyCameraPluginPigeonPigeonCodecReader: FlutterStandardReader {
     case 131:
       let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
       if let enumResultAsInt = enumResultAsInt {
-        return BeautyFilterType(rawValue: enumResultAsInt)
+        return VideoQuality(rawValue: enumResultAsInt)
       }
       return nil
     case 132:
       let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
       if let enumResultAsInt = enumResultAsInt {
-        return VideoQuality(rawValue: enumResultAsInt)
+        return FlashMode(rawValue: enumResultAsInt)
       }
       return nil
     case 133:
       let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
       if let enumResultAsInt = enumResultAsInt {
-        return FlashMode(rawValue: enumResultAsInt)
+        return CameraFacing(rawValue: enumResultAsInt)
       }
       return nil
     case 134:
       let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
       if let enumResultAsInt = enumResultAsInt {
-        return CameraFacing(rawValue: enumResultAsInt)
-      }
-      return nil
-    case 135:
-      let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
-      if let enumResultAsInt = enumResultAsInt {
         return ScaleType(rawValue: enumResultAsInt)
       }
       return nil
-    case 136:
-      return BeautyFilterParameters.fromList(self.readValue() as! [Any?])
-    case 137:
+    case 135:
       return AdvancedCameraSettings.fromList(self.readValue() as! [Any?])
-    case 138:
+    case 136:
       return FilterParameters.fromList(self.readValue() as! [Any?])
-    case 139:
+    case 137:
       return FaceData.fromList(self.readValue() as! [Any?])
-    case 140:
+    case 138:
       return FaceLandmark.fromList(self.readValue() as! [Any?])
-    case 141:
+    case 139:
       return CameraInfo.fromList(self.readValue() as! [Any?])
-    case 142:
+    case 140:
       return ResolutionInfo.fromList(self.readValue() as! [Any?])
-    case 143:
+    case 141:
       return CameraSettings.fromList(self.readValue() as! [Any?])
-    case 144:
+    case 142:
       return PreviewSize.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
@@ -825,47 +753,41 @@ private class BeautyCameraPluginPigeonPigeonCodecWriter: FlutterStandardWriter {
     } else if let value = value as? FilterType {
       super.writeByte(130)
       super.writeValue(value.rawValue)
-    } else if let value = value as? BeautyFilterType {
+    } else if let value = value as? VideoQuality {
       super.writeByte(131)
       super.writeValue(value.rawValue)
-    } else if let value = value as? VideoQuality {
+    } else if let value = value as? FlashMode {
       super.writeByte(132)
       super.writeValue(value.rawValue)
-    } else if let value = value as? FlashMode {
+    } else if let value = value as? CameraFacing {
       super.writeByte(133)
       super.writeValue(value.rawValue)
-    } else if let value = value as? CameraFacing {
+    } else if let value = value as? ScaleType {
       super.writeByte(134)
       super.writeValue(value.rawValue)
-    } else if let value = value as? ScaleType {
-      super.writeByte(135)
-      super.writeValue(value.rawValue)
-    } else if let value = value as? BeautyFilterParameters {
-      super.writeByte(136)
-      super.writeValue(value.toList())
     } else if let value = value as? AdvancedCameraSettings {
-      super.writeByte(137)
+      super.writeByte(135)
       super.writeValue(value.toList())
     } else if let value = value as? FilterParameters {
-      super.writeByte(138)
+      super.writeByte(136)
       super.writeValue(value.toList())
     } else if let value = value as? FaceData {
-      super.writeByte(139)
+      super.writeByte(137)
       super.writeValue(value.toList())
     } else if let value = value as? FaceLandmark {
-      super.writeByte(140)
+      super.writeByte(138)
       super.writeValue(value.toList())
     } else if let value = value as? CameraInfo {
-      super.writeByte(141)
+      super.writeByte(139)
       super.writeValue(value.toList())
     } else if let value = value as? ResolutionInfo {
-      super.writeByte(142)
+      super.writeByte(140)
       super.writeValue(value.toList())
     } else if let value = value as? CameraSettings {
-      super.writeByte(143)
+      super.writeByte(141)
       super.writeValue(value.toList())
     } else if let value = value as? PreviewSize {
-      super.writeByte(144)
+      super.writeByte(142)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)

@@ -1,14 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'dart:developer' as developer;
 import 'screens/home_screen.dart';
 import 'widgets/camera_controls.dart';
-
-class Logger {
-  static void log(String message) {
-    developer.log(message);
-  }
-}
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();

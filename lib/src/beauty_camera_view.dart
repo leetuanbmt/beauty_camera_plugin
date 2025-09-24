@@ -41,6 +41,7 @@ class _BeautyCameraViewState extends State<BeautyCameraView>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _initializeCamera();
+    _subscribeToEvents();
   }
 
   Future<void> _initializeCamera() async {
@@ -123,7 +124,6 @@ class _BeautyCameraViewState extends State<BeautyCameraView>
           }
           break;
         default:
-          setState(() {}); // Rebuild for other events like flash, zoom etc.
           break;
       }
     });

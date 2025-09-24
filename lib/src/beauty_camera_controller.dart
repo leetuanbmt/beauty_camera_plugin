@@ -226,11 +226,15 @@ class BeautyCameraController {
     }
   }
 
-  /// Sets beauty filter parameters (TODO: Update to new API)
-  Future<void> setBeautyFilter(BeautyFilterParameters parameters) async {
+  /// Sets beauty filter parameters using unified FilterParameters
+  Future<void> setBeautyFilter(FilterParameters parameters) async {
     try {
-      // TODO: Replace with new API when ready
-      // await _api.setBeautyFilter(parameters);
+      // Apply beauty filter using unified API
+      await applyFilter(
+        FilterCategory.beauty,
+        FilterType.beautyNatural,
+        parameters,
+      );
       _eventStreamController.add(CameraEvent(
         type: CameraEventType.effectChanged,
         data: parameters,
@@ -487,14 +491,14 @@ class BeautyCameraPlugin implements BeautyCameraFlutterApi {
     _onEvent(event);
   }
 
-  @override
-  Future<void> onFilterParametersChanged(FilterParameters parameters) async {
-    final event = CameraEvent(
-      type: CameraEventType.filterParametersChanged,
-      data: parameters,
-    );
-    _onEvent(event);
-  }
+  // @override
+  // Future<void> onFilterParametersChanged(FilterParameters parameters) async {
+  //   final event = CameraEvent(
+  //     type: CameraEventType.filterParametersChanged,
+  //     data: parameters,
+  //   );
+  //   _onEvent(event);
+  // }
 
   @override
   Future<void> onCameraError(String errorCode, String errorMessage) async {
