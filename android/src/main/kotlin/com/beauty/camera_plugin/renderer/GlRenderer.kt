@@ -474,11 +474,18 @@ class ShaderProgram {
         val positionHandle = GLES20.glGetAttribLocation(program, "vPosition")
         val textureHandle = GLES20.glGetAttribLocation(program, "vTexCoord")
         
+        // Create native order direct buffers
+        val vertexBuffer = java.nio.ByteBuffer.allocateDirect(vertices.size * 4).order(java.nio.ByteOrder.nativeOrder()).asFloatBuffer()
+        vertexBuffer.put(vertices).position(0)
+        
+        val texCoordBuffer = java.nio.ByteBuffer.allocateDirect(texCoords.size * 4).order(java.nio.ByteOrder.nativeOrder()).asFloatBuffer()
+        texCoordBuffer.put(texCoords).position(0)
+        
         GLES20.glEnableVertexAttribArray(positionHandle)
-        GLES20.glVertexAttribPointer(positionHandle, 3, GLES20.GL_FLOAT, false, 0, java.nio.FloatBuffer.wrap(vertices))
+        GLES20.glVertexAttribPointer(positionHandle, 3, GLES20.GL_FLOAT, false, 0, vertexBuffer)
         
         GLES20.glEnableVertexAttribArray(textureHandle)
-        GLES20.glVertexAttribPointer(textureHandle, 2, GLES20.GL_FLOAT, false, 0, java.nio.FloatBuffer.wrap(texCoords))
+        GLES20.glVertexAttribPointer(textureHandle, 2, GLES20.GL_FLOAT, false, 0, texCoordBuffer)
         
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
         
